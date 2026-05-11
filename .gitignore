@@ -10,3 +10,6 @@ dist/
 # Local notes (not for public repo)
 details.md
 chat-with-gemini.md
+
+# Original large image files kept locally as backup; the optimized JPGs in public/process/ are what we ship
+_raw-images/
