@@ -38,12 +38,14 @@
     </div>
 
     <div class="relative">
-      <div class="aspect-square rounded-3xl bg-gradient-to-br from-mango-300 to-spice-500 shadow-2xl shadow-spice-700/30 flex items-center justify-center">
-        <div class="text-center text-white/90 p-12">
-          <div class="text-7xl mb-4">🥭</div>
-          <p class="font-serif text-2xl italic">Add a photo of the jar here</p>
-          <p class="text-sm mt-2 opacity-80">(replace this placeholder in src/components/Hero.astro)</p>
-        </div>
+      <div class="aspect-[3/4] rounded-3xl overflow-hidden bg-gradient-to-br from-mango-300 to-spice-500 shadow-2xl shadow-spice-700/30">
+        <img
+          src="/jar.jpg"
+          alt="A jar of Mother's Gold Spice mango pickle"
+          fetchpriority="high"
+          decoding="async"
+          class="w-full h-full object-cover"
+        />
       </div>
       <div class="absolute -bottom-6 -left-6 bg-cream rounded-2xl px-5 py-3 shadow-xl border border-mango-100">
         <p class="text-xs uppercase tracking-wider text-ink/60">Made in</p>
