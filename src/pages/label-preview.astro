@@ -534,48 +534,55 @@ const nutrition = [
         clearcoat: 0.4,
         clearcoatRoughness: 0.1,
       });
-      const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(1, 1, 2.6, 96, 1, true),
-        glassMat
-      );
+
+      // Body profile (lathed around Y axis): rounded base, straight panel, shoulder taper to neck.
+      // Profile starts at the axis at the bottom and ends near the axis at the top (covered by cap).
+      const bodyProfile = [
+        new THREE.Vector2(0, -1.30),     // bottom centre (closed)
+        new THREE.Vector2(0.80, -1.30),  // flat base
+        new THREE.Vector2(0.90, -1.28),  // base bevel ↗
+        new THREE.Vector2(0.96, -1.25),
+        new THREE.Vector2(1.00, -1.20),  // body widest
+        new THREE.Vector2(1.00, 1.05),   // straight body
+        new THREE.Vector2(0.97, 1.13),   // shoulder bevel ↗
+        new THREE.Vector2(0.92, 1.20),
+        new THREE.Vector2(0.86, 1.25),   // neck taper
+        new THREE.Vector2(0.85, 1.28),   // neck (hidden by cap)
+      ];
+      const body = new THREE.Mesh(new THREE.LatheGeometry(bodyProfile, 96), glassMat);
       jar.add(body);
 
-      // Bottom disc (closes the body)
-      const bottom = new THREE.Mesh(new THREE.CircleGeometry(1, 96), glassMat);
-      bottom.rotation.x = Math.PI / 2;
-      bottom.position.y = -1.3;
-      jar.add(bottom);
-
-      // Label wrap — thin cylinder at slightly larger radius than glass
-      const labelGeom = new THREE.CylinderGeometry(1.018, 1.018, 1.55, 128, 1, true);
-      const labelMat = new THREE.MeshStandardMaterial({
-        map: labelTexture,
-        side: THREE.DoubleSide,
-        roughness: 0.7,
-        metalness: 0,
-      });
-      const labelMesh = new THREE.Mesh(labelGeom, labelMat);
-      labelMesh.position.y = -0.1;
+      // Label wrap — thin cylinder on the straight body panel
+      const labelMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.018, 1.018, 1.55, 128, 1, true),
+        new THREE.MeshStandardMaterial({
+          map: labelTexture,
+          side: THREE.DoubleSide,
+          roughness: 0.7,
+          metalness: 0,
+        })
+      );
+      labelMesh.position.y = -0.05;
       jar.add(labelMesh);
 
-      // Wood-finish metal cap
+      // Wood-finish metal cap — lathed with a softly rounded top edge
       const capMat = new THREE.MeshStandardMaterial({
         color: 0x6d5436,
         roughness: 0.7,
         metalness: 0.15,
       });
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.97, 0.97, 0.55, 64), capMat);
-      cap.position.y = 1.6;
+      const capProfile = [
+        new THREE.Vector2(0, 1.85),
+        new THREE.Vector2(0.85, 1.85),    // top flat
+        new THREE.Vector2(0.91, 1.83),    // top bevel ↘
+        new THREE.Vector2(0.95, 1.79),
+        new THREE.Vector2(0.96, 1.74),
+        new THREE.Vector2(0.96, 1.32),    // cap straight side
+        new THREE.Vector2(0.93, 1.30),    // tiny bottom bevel
+        new THREE.Vector2(0.86, 1.30),    // close to neck radius
+      ];
+      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 64), capMat);
       jar.add(cap);
-
-      // Cap top (slightly lighter for the highlight)
-      const capTop = new THREE.Mesh(
-        new THREE.CircleGeometry(0.97, 64),
-        new THREE.MeshStandardMaterial({ color: 0x8b6f47, roughness: 0.55, metalness: 0.15 })
-      );
-      capTop.rotation.x = -Math.PI / 2;
-      capTop.position.y = 1.875;
-      jar.add(capTop);
 
       jar.position.y = -0.25;
       scene.add(jar);
