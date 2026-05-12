@@ -322,6 +322,37 @@ const nutrition = [
             <input type="range" id="ctrl-label" min="0" max="1.5" step="0.05" value="0.25" class="mgs-slider" />
           </label>
         </div>
+
+        <div class="mt-6 pt-5 border-t border-ink/8">
+          <p class="text-xs uppercase tracking-widest text-ink/40 font-medium mb-3">Light sources</p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <label class="flex items-center gap-2 text-xs text-ink/80 cursor-pointer select-none">
+              <input type="checkbox" data-light="key" checked class="mgs-checkbox" />
+              <span>Key (right)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-ink/80 cursor-pointer select-none">
+              <input type="checkbox" data-light="fill" checked class="mgs-checkbox" />
+              <span>Fill (left)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-ink/80 cursor-pointer select-none">
+              <input type="checkbox" data-light="rim" checked class="mgs-checkbox" />
+              <span>Rim (back)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-ink/80 cursor-pointer select-none">
+              <input type="checkbox" data-light="ambient" checked class="mgs-checkbox" />
+              <span>Ambient</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-ink/80 cursor-pointer select-none">
+              <input type="checkbox" data-light="hemi" checked class="mgs-checkbox" />
+              <span>Hemisphere</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-ink/80 cursor-pointer select-none">
+              <input type="checkbox" data-light="envmap" checked class="mgs-checkbox" />
+              <span>Reflections</span>
+            </label>
+          </div>
+          <p class="text-xs text-ink/40 italic mt-3">Toggle each on/off to isolate what it contributes to the final look.</p>
+        </div>
       </div>
     </section>
 
@@ -362,6 +393,33 @@ const nutrition = [
       .lighting-preset:not(.active):hover {
         background: rgba(42, 26, 16, 0.04);
       }
+      .mgs-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid rgba(122, 31, 16, 0.4);
+        border-radius: 4px;
+        cursor: pointer;
+        background: #fff;
+        position: relative;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .mgs-checkbox:checked {
+        background: #7a1f10;
+        border-color: #7a1f10;
+      }
+      .mgs-checkbox:checked::after {
+        content: '';
+        position: absolute;
+        top: 1px;
+        left: 4px;
+        width: 5px;
+        height: 9px;
+        border: solid #fbf6ec;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
     </style>
 
     <script is:inline>
@@ -387,12 +445,30 @@ const nutrition = [
           label: $("val-label"),
         };
 
+        const LIGHT_KEYS = ["key", "fill", "rim", "ambient", "hemi", "envmap"];
+        function getToggles() {
+          const out = {};
+          LIGHT_KEYS.forEach((k) => {
+            const cb = document.querySelector('[data-light="' + k + '"]');
+            out[k] = cb ? cb.checked : true;
+          });
+          return out;
+        }
+
+        function setToggles(t) {
+          LIGHT_KEYS.forEach((k) => {
+            const cb = document.querySelector('[data-light="' + k + '"]');
+            if (cb && typeof t[k] === "boolean") cb.checked = t[k];
+          });
+        }
+
         function getSettings() {
           return {
             brightness: +sliders.brightness.value,
             warmth: +sliders.warmth.value,
             env: +sliders.env.value,
             label: +sliders.label.value,
+            lights: getToggles(),
           };
         }
 
@@ -431,6 +507,7 @@ const nutrition = [
           const saved = JSON.parse(localStorage.getItem("mgs-lighting") || "null");
           if (saved && typeof saved === "object") {
             applyPresetValues(saved);
+            if (saved.lights) setToggles(saved.lights);
             // Match preset if saved values exactly equal any preset
             activePreset = Object.keys(PRESETS).find((k) => {
               const p = PRESETS[k];
@@ -465,6 +542,11 @@ const nutrition = [
             highlightPreset(match || null);
             emit();
           });
+        });
+
+        // Wire up light-source toggle checkboxes
+        document.querySelectorAll("[data-light]").forEach((cb) => {
+          cb.addEventListener("change", () => emit());
         });
 
         highlightPreset(activePreset);
@@ -679,11 +761,10 @@ const nutrition = [
 
     // Environment map for realistic metal/glass reflections
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTexture;
 
-    // Lighting — key from viewer's right, deliberately strong and lateral so the
-    // right-vs-left brightness contrast is obvious on the matte label.
-    // Ambient + hemisphere are kept low so the directional key isn't drowned out.
+    // Lighting — refs so the control panel can toggle/intensify each
     const ambient = new THREE.AmbientLight(0xffffff, 0.18);
     scene.add(ambient);
     const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.28);
@@ -709,17 +790,20 @@ const nutrition = [
 
     function applyLighting(s: any) {
       if (!s) return;
+      const L = s.lights || {};
+      const on = (key: string) => L[key] !== false;
       const tint = COOL.clone().lerp(WARM, s.warmth);
       const fillTint = FILL_COOL.clone().lerp(FILL_WARM, s.warmth);
-      ambient.intensity = BASE.ambient * s.brightness;
+      ambient.intensity = (on("ambient") ? BASE.ambient : 0) * s.brightness;
       ambient.color.copy(tint);
-      hemi.intensity = BASE.hemi * s.brightness;
-      key.intensity = BASE.key * s.brightness;
+      hemi.intensity = (on("hemi") ? BASE.hemi : 0) * s.brightness;
+      key.intensity = (on("key") ? BASE.key : 0) * s.brightness;
       key.color.copy(tint);
-      fill.intensity = BASE.fill * s.brightness;
+      fill.intensity = (on("fill") ? BASE.fill : 0) * s.brightness;
       fill.color.copy(fillTint);
-      rim.intensity = BASE.rim * s.brightness;
+      rim.intensity = (on("rim") ? BASE.rim : 0) * s.brightness;
       rim.color.copy(tint);
+      scene.environment = on("envmap") ? envTexture : null;
       if (glassMat) glassMat.envMapIntensity = s.env;
       if (goldMat) goldMat.envMapIntensity = s.env;
       if (labelMat) labelMat.envMapIntensity = s.label;
@@ -973,9 +1057,9 @@ const nutrition = [
 
     // Environment map gives the gold metal proper reflections from every angle
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTexture;
 
-    // Lighting — strong lateral key from viewer's right, minimal ambient/hemi
     const ambient = new THREE.AmbientLight(0xffffff, 0.18);
     scene.add(ambient);
     const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.28);
@@ -997,17 +1081,20 @@ const nutrition = [
 
     function applyLighting(s: any) {
       if (!s) return;
+      const L = s.lights || {};
+      const on = (key: string) => L[key] !== false;
       const tint = COOL.clone().lerp(WARM, s.warmth);
       const fillTint = FILL_COOL.clone().lerp(FILL_WARM, s.warmth);
-      ambient.intensity = BASE.ambient * s.brightness;
+      ambient.intensity = (on("ambient") ? BASE.ambient : 0) * s.brightness;
       ambient.color.copy(tint);
-      hemi.intensity = BASE.hemi * s.brightness;
-      key.intensity = BASE.key * s.brightness;
+      hemi.intensity = (on("hemi") ? BASE.hemi : 0) * s.brightness;
+      key.intensity = (on("key") ? BASE.key : 0) * s.brightness;
       key.color.copy(tint);
-      fill.intensity = BASE.fill * s.brightness;
+      fill.intensity = (on("fill") ? BASE.fill : 0) * s.brightness;
       fill.color.copy(fillTint);
-      rim.intensity = BASE.rim * s.brightness;
+      rim.intensity = (on("rim") ? BASE.rim : 0) * s.brightness;
       rim.color.copy(tint);
+      scene.environment = on("envmap") ? envTexture : null;
       if (goldMat) goldMat.envMapIntensity = s.env;
     }
 
