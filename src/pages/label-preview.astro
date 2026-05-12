@@ -681,23 +681,29 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — fixed in world space (product-on-turntable look).
-    // As the jar rotates, highlights move across it = dimensional feel.
-    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+    // Lighting — single strong key from the RIGHT side of the world, plus soft fill.
+    // Lights are static so the jar spins under them like a real product on a turntable.
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambient);
 
     // Hemisphere fills the shadow side so it never goes pitch black
-    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x7a5530, 0.45);
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x8a6440, 0.55);
     scene.add(hemi);
 
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(4, 5, 3);
+    // Key light strongly from the right (+X), slightly raised. Direction is from this
+    // position toward the origin, so right side of the jar always gets the brightest hit.
+    const key = new THREE.DirectionalLight(0xffffff, 1.3);
+    key.position.set(9, 3, 2);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.35);
-    fill.position.set(-4, 2, 2);
+
+    // Gentle fill on the opposite (left) side so the shadow side has soft definition.
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
+    fill.position.set(-6, 1, 1);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.4);
-    rim.position.set(0, 3, -5);
+
+    // Faint rim from behind for silhouette separation
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
+    rim.position.set(-1, 2, -5);
     scene.add(rim);
 
     // Materials we'll mutate from the control panel
@@ -706,7 +712,7 @@ const nutrition = [
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
     // Base values — what gets multiplied by the "brightness" slider
-    const BASE = { ambient: 0.3, hemi: 0.45, key: 1.0, fill: 0.35, rim: 0.4 };
+    const BASE = { ambient: 0.35, hemi: 0.55, key: 1.3, fill: 0.25, rim: 0.2 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
@@ -957,26 +963,28 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — fixed in world space, so the gold cap glints as it rotates
-    const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+    // Lighting — same static key-from-right setup as the main jar
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambient);
 
-    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x7a5530, 0.4);
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x8a6440, 0.55);
     scene.add(hemi);
 
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(4, 5, 3);
+    const key = new THREE.DirectionalLight(0xffffff, 1.3);
+    key.position.set(9, 3, 2);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.35);
-    fill.position.set(-4, 2, 2);
+
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
+    fill.position.set(-6, 1, 1);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.4);
-    rim.position.set(0, 1, -4);
+
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
+    rim.position.set(-1, 2, -5);
     scene.add(rim);
 
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
-    const BASE = { ambient: 0.25, hemi: 0.4, key: 1.0, fill: 0.35, rim: 0.4 };
+    const BASE = { ambient: 0.35, hemi: 0.55, key: 1.3, fill: 0.25, rim: 0.2 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
