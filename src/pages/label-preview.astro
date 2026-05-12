@@ -502,8 +502,9 @@ const nutrition = [
       labelTexture.colorSpace = THREE.SRGBColorSpace;
       labelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
       labelTexture.wrapS = THREE.RepeatWrapping;
-      // Put the front panel center (texture u=0.75) facing the camera (cylinder u=0.25)
-      labelTexture.offset.set(0.5, 0);
+      // Front-panel center sits at texture u = 0.75. Cylinder u = 0 is the +Z (camera-
+      // facing) side. offset.x = 0.75 lands the front centre directly facing the camera.
+      labelTexture.offset.set(0.75, 0);
 
       buildJar(labelTexture);
     };
