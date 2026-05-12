@@ -146,80 +146,145 @@ const nutrition = [
     <!-- 3D-ish jar mockup -->
     <section class="max-w-6xl mx-auto px-6 py-16 bg-gradient-to-b from-cream to-mango-50">
       <div class="mb-8 flex items-baseline gap-4">
-        <h2 class="font-serif text-2xl text-ink">2. On the jar (visualization)</h2>
+        <h2 class="font-serif text-2xl text-ink">2. On the jar (front & back)</h2>
         <p class="text-sm text-ink/50">Approximate look once wrapped on the 250g round jar</p>
       </div>
 
-      <div class="flex justify-center py-8">
-        <div class="relative" style="width: 280px;">
-          <!-- Cap -->
-          <div style="height: 56px; width: 200px; margin: 0 auto; background: linear-gradient(180deg, #8b6f47 0%, #6d5436 40%, #4a3823 100%); border-radius: 18px 18px 6px 6px; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.15); margin-bottom: -8px; z-index: 2;">
-            <!-- Wood grain hint -->
-            <div style="position: absolute; inset: 6px 14px; background: repeating-linear-gradient(90deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px); border-radius: 12px 12px 4px 4px; opacity: 0.6;"></div>
-            <!-- Top highlight -->
-            <div style="position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 120px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 50%;"></div>
-          </div>
+      <div class="flex flex-wrap justify-center gap-16 py-8">
 
-          <!-- Neck shadow -->
-          <div style="height: 10px; width: 210px; margin: 0 auto; background: linear-gradient(180deg, rgba(0,0,0,0.15), transparent); border-radius: 0 0 50% 50% / 0 0 100% 100%; z-index: 1; position: relative;"></div>
-
-          <!-- Jar body -->
-          <div style="background: linear-gradient(90deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 45%, rgba(255,255,255,0.45) 55%, rgba(255,255,255,0.85) 100%), linear-gradient(180deg, #c8a877 0%, #a37d4d 45%, #7a5530 100%); height: 360px; width: 240px; margin: 0 auto; border-radius: 12px 12px 28px 28px; box-shadow: 0 8px 24px rgba(122, 31, 16, 0.18), inset 0 0 0 2px rgba(255,255,255,0.25); position: relative; overflow: hidden;">
-
-            <!-- Label on jar (front panel only visible) -->
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 200px; background: #fbf6ec; border-left: 1px solid rgba(0,0,0,0.06); border-right: 1px solid rgba(0,0,0,0.06); padding: 16px 18px; color: #2a1a10; font-family: 'Inter', sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <!-- Curvature highlight overlay -->
-              <div style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.06) 100%); pointer-events: none;"></div>
-
-              <!-- Eyebrow -->
-              <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 6px; letter-spacing: 0.16em; color: #7a1f10; margin-bottom: 6px;">
-                <span style="display: inline-block; width: 10px; height: 1px; background: #7a1f10;"></span>
-                <span>HAND-MADE IN BANGALORE</span>
-                <span style="display: inline-block; width: 10px; height: 1px; background: #7a1f10;"></span>
-              </div>
-
-              <h3 style="font-family: 'Fraunces', serif; font-size: 14px; font-style: italic; font-weight: 600; text-align: center; line-height: 1;">Mother's Gold Spice</h3>
-              <div style="display: flex; align-items: center; gap: 4px; margin: 4px auto 8px; justify-content: center;">
-                <span style="width: 18px; height: 1px; background: #e08712;"></span>
-                <svg viewBox="0 0 24 24" width="9" height="9" fill="#e08712"><path d="M12 2c2 3 4 5 4 9 0 4-2 7-4 11-2-4-4-7-4-11 0-4 2-6 4-9z" /></svg>
-                <span style="width: 18px; height: 1px; background: #e08712;"></span>
-              </div>
-
-              <h2 style="font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; text-align: center; line-height: 1; color: #7a1f10; margin-bottom: 2px;">Mango Pickle</h2>
-              <p style="font-family: 'Fraunces', serif; font-size: 9px; font-style: italic; text-align: center; opacity: 0.7; margin-bottom: 10px;">in Mustard Oil</p>
-
-              <div style="display: flex; justify-content: center; gap: 6px; font-size: 6px; letter-spacing: 0.12em; color: #7a1f10; font-weight: 600; padding: 3px 0; border-top: 1px solid rgba(122, 31, 16, 0.2); border-bottom: 1px solid rgba(122, 31, 16, 0.2); margin-bottom: 10px;">
-                <span>NO PRESERVATIVES</span>
-                <span style="opacity: 0.4;">·</span>
-                <span>NO ADDITIVES</span>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                <div>
-                  <p style="font-size: 5px; letter-spacing: 0.1em; color: #7a1f10; font-weight: 600; margin-bottom: 0;">NET WT.</p>
-                  <p style="font-family: 'Fraunces', serif; font-size: 11px; font-weight: 600;">{netWt}</p>
-                </div>
-                <div style="width: 12px; height: 12px; border: 1px solid #1e7a1e; display: flex; align-items: center; justify-content: center;">
-                  <div style="width: 7px; height: 7px; border-radius: 50%; background: #1e7a1e;"></div>
-                </div>
-                <div style="text-align: right;">
-                  <p style="font-size: 5px; letter-spacing: 0.1em; color: #7a1f10; font-weight: 600; margin-bottom: 0;">MRP</p>
-                  <p style="font-family: 'Fraunces', serif; font-size: 11px; font-weight: 600;">₹{mrp}</p>
-                </div>
-              </div>
+        <!-- FRONT JAR -->
+        <div class="flex flex-col items-center">
+          <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-6">Front</p>
+          <div class="relative" style="width: 280px;">
+            <!-- Cap -->
+            <div style="height: 56px; width: 200px; margin: 0 auto; background: linear-gradient(180deg, #8b6f47 0%, #6d5436 40%, #4a3823 100%); border-radius: 18px 18px 6px 6px; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.15); margin-bottom: -8px; z-index: 2;">
+              <div style="position: absolute; inset: 6px 14px; background: repeating-linear-gradient(90deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px); border-radius: 12px 12px 4px 4px; opacity: 0.6;"></div>
+              <div style="position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 120px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 50%;"></div>
             </div>
 
-            <!-- Glass highlights (overlay) -->
-            <div style="position: absolute; top: 20px; left: 16px; width: 3px; height: 280px; background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0)); border-radius: 50%;"></div>
-            <div style="position: absolute; top: 30px; right: 18px; width: 2px; height: 200px; background: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0)); border-radius: 50%;"></div>
-          </div>
+            <div style="height: 10px; width: 210px; margin: 0 auto; background: linear-gradient(180deg, rgba(0,0,0,0.15), transparent); border-radius: 0 0 50% 50% / 0 0 100% 100%; z-index: 1; position: relative;"></div>
 
-          <!-- Ground shadow -->
-          <div style="height: 16px; width: 220px; margin: 4px auto 0; background: radial-gradient(ellipse, rgba(122, 31, 16, 0.25), transparent 70%); border-radius: 50%;"></div>
+            <div style="background: linear-gradient(90deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 45%, rgba(255,255,255,0.45) 55%, rgba(255,255,255,0.85) 100%), linear-gradient(180deg, #c8a877 0%, #a37d4d 45%, #7a5530 100%); height: 360px; width: 240px; margin: 0 auto; border-radius: 12px 12px 28px 28px; box-shadow: 0 8px 24px rgba(122, 31, 16, 0.18), inset 0 0 0 2px rgba(255,255,255,0.25); position: relative; overflow: hidden;">
+
+              <!-- Label: front panel -->
+              <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 200px; background: #fbf6ec; border-left: 1px solid rgba(0,0,0,0.06); border-right: 1px solid rgba(0,0,0,0.06); padding: 16px 18px; color: #2a1a10; font-family: 'Inter', sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.06) 100%); pointer-events: none;"></div>
+
+                <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 6px; letter-spacing: 0.16em; color: #7a1f10; margin-bottom: 6px;">
+                  <span style="display: inline-block; width: 10px; height: 1px; background: #7a1f10;"></span>
+                  <span>HAND-MADE IN BANGALORE</span>
+                  <span style="display: inline-block; width: 10px; height: 1px; background: #7a1f10;"></span>
+                </div>
+
+                <h3 style="font-family: 'Fraunces', serif; font-size: 14px; font-style: italic; font-weight: 600; text-align: center; line-height: 1;">Mother's Gold Spice</h3>
+                <div style="display: flex; align-items: center; gap: 4px; margin: 4px auto 8px; justify-content: center;">
+                  <span style="width: 18px; height: 1px; background: #e08712;"></span>
+                  <svg viewBox="0 0 24 24" width="9" height="9" fill="#e08712"><path d="M12 2c2 3 4 5 4 9 0 4-2 7-4 11-2-4-4-7-4-11 0-4 2-6 4-9z" /></svg>
+                  <span style="width: 18px; height: 1px; background: #e08712;"></span>
+                </div>
+
+                <h2 style="font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; text-align: center; line-height: 1; color: #7a1f10; margin-bottom: 2px;">Mango Pickle</h2>
+                <p style="font-family: 'Fraunces', serif; font-size: 9px; font-style: italic; text-align: center; opacity: 0.7; margin-bottom: 10px;">in Mustard Oil</p>
+
+                <div style="display: flex; justify-content: center; gap: 6px; font-size: 6px; letter-spacing: 0.12em; color: #7a1f10; font-weight: 600; padding: 3px 0; border-top: 1px solid rgba(122, 31, 16, 0.2); border-bottom: 1px solid rgba(122, 31, 16, 0.2); margin-bottom: 10px;">
+                  <span>NO PRESERVATIVES</span>
+                  <span style="opacity: 0.4;">·</span>
+                  <span>NO ADDITIVES</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                  <div>
+                    <p style="font-size: 5px; letter-spacing: 0.1em; color: #7a1f10; font-weight: 600; margin-bottom: 0;">NET WT.</p>
+                    <p style="font-family: 'Fraunces', serif; font-size: 11px; font-weight: 600;">{netWt}</p>
+                  </div>
+                  <div style="width: 12px; height: 12px; border: 1px solid #1e7a1e; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 7px; height: 7px; border-radius: 50%; background: #1e7a1e;"></div>
+                  </div>
+                  <div style="text-align: right;">
+                    <p style="font-size: 5px; letter-spacing: 0.1em; color: #7a1f10; font-weight: 600; margin-bottom: 0;">MRP</p>
+                    <p style="font-family: 'Fraunces', serif; font-size: 11px; font-weight: 600;">₹{mrp}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style="position: absolute; top: 20px; left: 16px; width: 3px; height: 280px; background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0)); border-radius: 50%;"></div>
+              <div style="position: absolute; top: 30px; right: 18px; width: 2px; height: 200px; background: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0)); border-radius: 50%;"></div>
+            </div>
+
+            <div style="height: 16px; width: 220px; margin: 4px auto 0; background: radial-gradient(ellipse, rgba(122, 31, 16, 0.25), transparent 70%); border-radius: 50%;"></div>
+          </div>
+        </div>
+
+        <!-- BACK JAR -->
+        <div class="flex flex-col items-center">
+          <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-6">Back</p>
+          <div class="relative" style="width: 280px;">
+            <!-- Cap -->
+            <div style="height: 56px; width: 200px; margin: 0 auto; background: linear-gradient(180deg, #8b6f47 0%, #6d5436 40%, #4a3823 100%); border-radius: 18px 18px 6px 6px; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.15); margin-bottom: -8px; z-index: 2;">
+              <div style="position: absolute; inset: 6px 14px; background: repeating-linear-gradient(90deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 6px); border-radius: 12px 12px 4px 4px; opacity: 0.6;"></div>
+              <div style="position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 120px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 50%;"></div>
+            </div>
+
+            <div style="height: 10px; width: 210px; margin: 0 auto; background: linear-gradient(180deg, rgba(0,0,0,0.15), transparent); border-radius: 0 0 50% 50% / 0 0 100% 100%; z-index: 1; position: relative;"></div>
+
+            <div style="background: linear-gradient(90deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 45%, rgba(255,255,255,0.45) 55%, rgba(255,255,255,0.85) 100%), linear-gradient(180deg, #c8a877 0%, #a37d4d 45%, #7a5530 100%); height: 360px; width: 240px; margin: 0 auto; border-radius: 12px 12px 28px 28px; box-shadow: 0 8px 24px rgba(122, 31, 16, 0.18), inset 0 0 0 2px rgba(255,255,255,0.25); position: relative; overflow: hidden;">
+
+              <!-- Label: back panel -->
+              <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 220px; height: 240px; background: #fbf6ec; border-left: 1px solid rgba(0,0,0,0.06); border-right: 1px solid rgba(0,0,0,0.06); padding: 11px 13px; color: #2a1a10; font-family: 'Inter', sans-serif; font-size: 6px; line-height: 1.32; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.06) 100%); pointer-events: none;"></div>
+
+                <p style="font-family: 'Fraunces', serif; font-size: 7px; font-weight: 700; letter-spacing: 0.1em; color: #7a1f10; margin-bottom: 2px;">INGREDIENTS</p>
+                <p style="margin-bottom: 6px;">Raw Mango (60%), Mustard Oil (25%), Salt, Spices (Mustard, Fenugreek, Red Chilli, Turmeric, Asafoetida).</p>
+
+                <p style="font-family: 'Fraunces', serif; font-size: 7px; font-weight: 700; letter-spacing: 0.1em; color: #7a1f10; margin-bottom: 2px;">ALLERGEN INFO</p>
+                <p style="margin-bottom: 6px;">Contains Mustard.</p>
+
+                <p style="font-family: 'Fraunces', serif; font-size: 7px; font-weight: 700; letter-spacing: 0.1em; color: #7a1f10; margin-bottom: 2px;">NUTRITION <span style="font-weight: 400; opacity: 0.6;">(per 100g)</span></p>
+                <table style="width: 100%; margin-bottom: 6px; border-collapse: collapse; font-size: 5.5px;">
+                  <tr><td>Energy</td><td style="text-align:right;font-variant-numeric:tabular-nums;">168 kcal</td></tr>
+                  <tr><td>Protein</td><td style="text-align:right;font-variant-numeric:tabular-nums;">1.2 g</td></tr>
+                  <tr><td>Carbohydrates</td><td style="text-align:right;font-variant-numeric:tabular-nums;">8.4 g</td></tr>
+                  <tr><td style="padding-left:6px;">of which sugars</td><td style="text-align:right;font-variant-numeric:tabular-nums;">5.1 g</td></tr>
+                  <tr><td>Total Fat</td><td style="text-align:right;font-variant-numeric:tabular-nums;">14.8 g</td></tr>
+                  <tr><td style="padding-left:6px;">saturated</td><td style="text-align:right;font-variant-numeric:tabular-nums;">1.6 g</td></tr>
+                  <tr><td>Sodium</td><td style="text-align:right;font-variant-numeric:tabular-nums;">2,840 mg</td></tr>
+                </table>
+
+                <p style="font-family: 'Fraunces', serif; font-size: 7px; font-weight: 700; letter-spacing: 0.1em; color: #7a1f10; margin-bottom: 2px;">STORAGE</p>
+                <p style="margin-bottom: 6px;">Cool, dry place. Refrigerate after opening. Clean dry spoon. Oil separation is natural.</p>
+
+                <div style="display: flex; gap: 6px; padding-top: 4px; border-top: 1px solid rgba(42,26,16,0.15); font-size: 5px;">
+                  <div>
+                    <p style="font-size: 4.5px; letter-spacing: 0.05em; color: #7a1f10; font-weight: 700;">FSSAI</p>
+                    <p style="font-variant-numeric: tabular-nums;">{fssaiNumber}</p>
+                  </div>
+                  <div>
+                    <p style="font-size: 4.5px; letter-spacing: 0.05em; color: #7a1f10; font-weight: 700;">BATCH</p>
+                    <p style="font-variant-numeric: tabular-nums;">{batchNumber}</p>
+                  </div>
+                  <div>
+                    <p style="font-size: 4.5px; letter-spacing: 0.05em; color: #7a1f10; font-weight: 700;">MFG / BB</p>
+                    <p style="font-variant-numeric: tabular-nums;">{mfgDate}/{bestBefore}</p>
+                  </div>
+                </div>
+
+                <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid rgba(42,26,16,0.1); font-size: 5px; line-height: 1.4;">
+                  <p style="font-weight: 600;">Manufactured & Marketed by</p>
+                  <p>Mother's Gold Spice, Bangalore, Karnataka — India.</p>
+                  <p style="margin-top: 2px;">Care: mothersgoldspice@gmail.com</p>
+                </div>
+              </div>
+
+              <div style="position: absolute; top: 20px; left: 16px; width: 3px; height: 280px; background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0)); border-radius: 50%;"></div>
+              <div style="position: absolute; top: 30px; right: 18px; width: 2px; height: 200px; background: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0)); border-radius: 50%;"></div>
+            </div>
+
+            <div style="height: 16px; width: 220px; margin: 4px auto 0; background: radial-gradient(ellipse, rgba(122, 31, 16, 0.25), transparent 70%); border-radius: 50%;"></div>
+          </div>
         </div>
       </div>
 
-      <p class="text-center text-xs text-ink/50 italic max-w-md mx-auto">Stylized rendering — the real product photo will look richer. Pickle color in the body is approximated.</p>
+      <p class="text-center text-xs text-ink/50 italic max-w-md mx-auto">Stylized rendering — the real product photo will look richer. Pickle color is approximated.</p>
     </section>
 
     <!-- Element notes -->
