@@ -860,9 +860,18 @@ const nutrition = [
       controls.addEventListener("start", resetIdle);
     }
 
+    function updateLightPositions() {
+      // Lights follow the camera so the side you're looking at is always lit
+      const cp = camera.position;
+      key.position.set(cp.x + 1, cp.y + 2.5, cp.z + 1);
+      fill.position.set(cp.x * 0.8 - 2, cp.y * 0.7, cp.z * 0.8);
+      rim.position.set(-cp.x * 0.6, cp.y * 0.4 + 1, -cp.z * 0.6);
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       if (controls) controls.update();
+      updateLightPositions();
       renderer.render(scene, camera);
     }
     animate();
@@ -1080,9 +1089,18 @@ const nutrition = [
       controls.addEventListener("start", resetIdle);
     }
 
+    function updateLightPositions() {
+      // Lights follow the camera so the visible side of the cap is always lit
+      const cp = camera.position;
+      key.position.set(cp.x + 1, cp.y + 2, cp.z + 1);
+      fill.position.set(cp.x * 0.8 - 2, cp.y * 0.7 + 1, cp.z * 0.8);
+      rim.position.set(-cp.x * 0.5, cp.y * 0.3, -cp.z * 0.5);
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       if (controls) controls.update();
+      updateLightPositions();
       renderer.render(scene, camera);
     }
     animate();
