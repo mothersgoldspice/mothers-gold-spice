@@ -514,20 +514,6 @@ const nutrition = [
     function buildJar(labelTexture: THREE.CanvasTexture) {
       const jar = new THREE.Group();
 
-      // Pickle fill inside the jar — amber, opaque, slightly rough.
-      // Visible through the clear glass above and below the label band.
-      const pickleMat = new THREE.MeshStandardMaterial({
-        color: 0xc88420,
-        roughness: 0.85,
-        metalness: 0,
-      });
-      const pickle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.94, 0.94, 2.35, 64),
-        pickleMat
-      );
-      pickle.position.y = -0.05;
-      jar.add(pickle);
-
       // Clear glass body — high transmission, low roughness, slight warm tint
       const glassMat = new THREE.MeshPhysicalMaterial({
         color: 0xfffaf0,
