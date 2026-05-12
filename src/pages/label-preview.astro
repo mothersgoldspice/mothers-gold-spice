@@ -681,19 +681,18 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — key light always comes from the viewer's right.
-    // The light position is recomputed each frame using the camera's actual right vector,
-    // so as the camera orbits, the bright zone stays in the same on-screen location and
-    // the label rolls THROUGH it instead of away from it.
-    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    // Lighting — key from viewer's right, deliberately strong and lateral so the
+    // right-vs-left brightness contrast is obvious on the matte label.
+    // Ambient + hemisphere are kept low so the directional key isn't drowned out.
+    const ambient = new THREE.AmbientLight(0xffffff, 0.18);
     scene.add(ambient);
-    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x8a6440, 0.55);
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.28);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.3);
+    const key = new THREE.DirectionalLight(0xffffff, 1.8);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.12);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.18);
     scene.add(rim);
 
     // Materials we'll mutate from the control panel
@@ -702,7 +701,7 @@ const nutrition = [
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
     // Base values — what gets multiplied by the "brightness" slider
-    const BASE = { ambient: 0.35, hemi: 0.55, key: 1.3, fill: 0.25, rim: 0.2 };
+    const BASE = { ambient: 0.18, hemi: 0.28, key: 1.8, fill: 0.12, rim: 0.18 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
@@ -869,20 +868,20 @@ const nutrition = [
     const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
     function positionLightsRelativeToCamera() {
-      // Forward = direction camera is looking (from camera toward target)
       _forward.subVectors((controls && controls.target) || new THREE.Vector3(), camera.position).normalize();
-      // Right = forward × world-up, normalised
       _right.crossVectors(_forward, WORLD_UP).normalize();
-
-      // Key: viewer's right, raised. Directional lights only use direction-from-position-to-target;
-      // the scale below is large enough to give a clean direction.
-      key.position.copy(_right).multiplyScalar(8).addScaledVector(WORLD_UP, 4);
-
-      // Fill: viewer's left (subtle, softens shadow side)
-      fill.position.copy(_right).multiplyScalar(-6).addScaledVector(WORLD_UP, 2);
-
-      // Rim: behind the jar (away from camera) for silhouette separation
+      // Key partway between camera and jar, offset to viewer's right + up — so the light
+      // direction has both a "side" and a "forward toward jar" component. The camera-facing
+      // surface then receives a real right→left brightness gradient.
+      key.position.copy(camera.position).multiplyScalar(0.4)
+        .addScaledVector(_right, 10).addScaledVector(WORLD_UP, 3);
+      fill.position.copy(camera.position).multiplyScalar(0.4)
+        .addScaledVector(_right, -7).addScaledVector(WORLD_UP, 2);
       rim.position.copy(camera.position).multiplyScalar(-0.6).addScaledVector(WORLD_UP, 3);
+      // Rotate the environment map to follow the camera. Without this, the metal cap's
+      // reflections come from a world-fixed virtual room, so the highlight appears stuck
+      // to the jar surface and "rotates with it" from the viewer's perspective.
+      scene.environmentRotation.y = Math.atan2(camera.position.x, camera.position.z);
     }
 
     function animate() {
@@ -976,21 +975,21 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — key from the viewer's right, recomputed each frame
-    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    // Lighting — strong lateral key from viewer's right, minimal ambient/hemi
+    const ambient = new THREE.AmbientLight(0xffffff, 0.18);
     scene.add(ambient);
-    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x8a6440, 0.55);
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.28);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.3);
+    const key = new THREE.DirectionalLight(0xffffff, 1.8);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.12);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.18);
     scene.add(rim);
 
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
-    const BASE = { ambient: 0.35, hemi: 0.55, key: 1.3, fill: 0.25, rim: 0.2 };
+    const BASE = { ambient: 0.18, hemi: 0.28, key: 1.8, fill: 0.12, rim: 0.18 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
@@ -1113,9 +1112,13 @@ const nutrition = [
     function positionLightsRelativeToCamera() {
       _forward.subVectors((controls && controls.target) || new THREE.Vector3(), camera.position).normalize();
       _right.crossVectors(_forward, WORLD_UP).normalize();
-      key.position.copy(_right).multiplyScalar(8).addScaledVector(WORLD_UP, 4);
-      fill.position.copy(_right).multiplyScalar(-6).addScaledVector(WORLD_UP, 2);
+      // Place key partway between camera and jar, offset to viewer's right + up.
+      key.position.copy(camera.position).multiplyScalar(0.4)
+        .addScaledVector(_right, 10).addScaledVector(WORLD_UP, 3);
+      fill.position.copy(camera.position).multiplyScalar(0.4)
+        .addScaledVector(_right, -7).addScaledVector(WORLD_UP, 2);
       rim.position.copy(camera.position).multiplyScalar(-0.6).addScaledVector(WORLD_UP, 3);
+      scene.environmentRotation.y = Math.atan2(camera.position.x, camera.position.z);
     }
 
     function animate() {
