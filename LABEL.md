@@ -142,25 +142,59 @@ Standardizing the right-hand-side info block across all pickle SKUs lets the pri
 
 We will commission a wraparound label sized to the 250g round jar (63mm body diameter).
 
+### Geometry
+
 | Attribute | Spec |
 |-----------|------|
 | **Label width** | ~190mm (= π × 63mm body, with 5mm overlap glue strip) |
 | **Label height** | 70mm (final — confirm against jar body height between shoulder and base) |
-| **Material** | Pressure-sensitive **paper label** with **matte laminate finish** OR **uncoated textured paper** (textured uncoated reads more "artisan", but bleeds in humidity — laminate is safer) |
-| **Print** | 4-color CMYK + spot varnish on logo (optional, premium touch) |
-| **Adhesive** | Permanent, food-grade, oil-resistant (mustard oil seeps — confirm with print shop) |
 | **Cut** | Die-cut rectangle, rounded corners (r ≈ 3mm) |
 | **Bleed** | 3mm on all sides |
 | **Safe area** | Keep type 5mm from edges |
 | **Resolution** | 300 DPI |
 | **Color profile** | CMYK, ICC profile from print shop (usually Coated FOGRA39) |
 
-**Get quotes for:**
-- 500 labels per SKU
-- 1,000 labels per SKU
-- 5,000 labels per SKU
+### Material choice — sugarcane bagasse paper
 
-Local Bangalore options to compare: **Vijay Printers (Wilson Garden), JK Printers (Lalbagh), Pioneer Printers (Indiranagar)**, plus online (PrintLand, Bizay) for baseline pricing.
+| Layer | Spec | Why |
+|-------|------|-----|
+| **Base paper** | **Sugarcane bagasse paper**, ~80–90 gsm, FSC or equivalent certified | Tree-free (made from sugarcane crop waste). Textured cream finish reads premium-artisan. Compostable. Increasingly available in India (Bhumi, Sahyadri, eco-paper suppliers via IndiaMART). |
+| **Topcoat / laminate** | **Water-based food-safe matte laminate** (NOT solvent-based, NOT plastic BOPP overlam) | Protects against mustard oil seepage and fridge condensation while keeping the eco claim honest. |
+| **Print** | 4-color CMYK + optional spot matte varnish on the wordmark | Water-based or vegetable-based inks. No solvent inks. |
+| **Adhesive** | **Wash-off / water-soluble adhesive**, food-grade, certified for oily-acidic substrates | Lets the customer reuse the jar after the pickle is finished — a quiet but powerful brand signal. Adds ~₹0.50–1 per label. |
+
+### Materials we explicitly rejected (and why)
+
+| Option | Why we said no |
+|--------|----------------|
+| Synthetic BOPP / PP film | Industry default but pure plastic. Contradicts "no preservatives, no shortcuts" brand voice. |
+| Uncoated paper without laminate | Mustard oil destroys it in 3–7 days. Looks great in the photoshoot, fails in the customer's pantry. |
+| Stone paper | Functional and eco, but the synthetic-feeling surface clashes with the warm artisan brand. |
+| Recycled kraft | Reads "weekend farmers market" rather than "premium gift jar". Use it later for a budget/secondary line if we ever launch one. |
+
+### Eco claims permitted on the label (only if all three layers above are met)
+
+- *"Tree-free paper"* ✓
+- *"Compostable laminate"* ✓ (verify the laminate carries IS/ISO 17088 or equivalent industrial-compost certification)
+- *"Plant-based adhesive"* ✓
+- *"Reusable jar"* ✓ (because the adhesive washes off)
+
+**Avoid** the unqualified claim "100% biodegradable" unless every single component is certified — the legal bar in India is rising on this. Specific is safer than vague.
+
+### Get quotes for
+
+- 500 labels per SKU (pilot)
+- 1,000 labels per SKU (launch)
+- 5,000 labels per SKU (scale)
+
+**Important:** bagasse paper has a higher MOQ floor than standard paper at most print shops (~500 minimum vs. ~100 for stock paper). Ask each shop:
+- "Do you stock **sugarcane bagasse paper** for food labels? If not, can you source it?"
+- "Can you laminate with a **water-based, food-safe matte topcoat**?"
+- "Do you offer **wash-off / water-soluble adhesive**?"
+- "Are your inks **water-based or vegetable-based**?"
+- "Can you provide a **wet proof** (a single physical print) before the bulk run?"
+
+Local Bangalore options to compare: **Vijay Printers (Wilson Garden), JK Printers (Lalbagh), Pioneer Printers (Indiranagar)**. For specifically eco-paper print runs, also try **Custom Paper Solutions (Peenya)** and online specialists like **Bhumi Originals** (custom prints on bagasse paper, ship pan-India).
 
 ---
 
