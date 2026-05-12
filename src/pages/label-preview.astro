@@ -287,6 +287,24 @@ const nutrition = [
       <p class="text-center text-xs text-ink/50 italic max-w-md mx-auto">Stylized rendering — the real product photo will look richer. Pickle color is approximated.</p>
     </section>
 
+    <!-- 3D interactive jar -->
+    <section class="max-w-6xl mx-auto px-6 py-16 bg-gradient-to-b from-mango-50 to-cream">
+      <div class="mb-8 flex items-baseline gap-4 flex-wrap">
+        <h2 class="font-serif text-2xl text-ink">3. Interactive 3D jar</h2>
+        <p class="text-sm text-ink/50">Drag to rotate · the label is one continuous strip, not two separate stickers</p>
+      </div>
+
+      <div
+        id="jar3d-container"
+        class="mx-auto rounded-3xl"
+        style="width: 100%; max-width: 560px; aspect-ratio: 1 / 1.15; background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%); cursor: grab; touch-action: none;"
+      ></div>
+
+      <p class="text-center text-xs text-ink/50 italic mt-4 max-w-md mx-auto">
+        Auto-rotates when idle. Spin it to see the back panel come around — same physical label, no seam between "front" and "back" stickers.
+      </p>
+    </section>
+
     <!-- Element notes -->
     <section class="max-w-4xl mx-auto px-6 py-16">
       <h2 class="font-serif text-2xl text-ink mb-6">Element notes</h2>
@@ -337,3 +355,266 @@ const nutrition = [
     </section>
   </main>
 </Layout>
+
+<script>
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+  // --- Build label SVG (one continuous strip: back | seam | front) ---
+  // Texture aspect 4:1 maps cleanly onto a cylinder.
+  const labelSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 360" width="1440" height="360">
+    <rect width="1440" height="360" fill="#fbf6ec"/>
+
+    <!-- BACK PANEL: x = 0 to 716 -->
+    <g transform="translate(40, 30)" font-family="'Inter', 'Helvetica Neue', sans-serif" fill="#2a1a10">
+      <text x="0" y="14" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">INGREDIENTS</text>
+      <text x="0" y="36" font-size="12.5">Raw Mango (60%), Mustard Oil (25%), Salt,</text>
+      <text x="0" y="52" font-size="12.5">Spices (Mustard, Fenugreek, Red Chilli,</text>
+      <text x="0" y="68" font-size="12.5">Turmeric, Asafoetida).</text>
+
+      <text x="0" y="94" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">ALLERGEN</text>
+      <text x="0" y="114" font-size="12.5">Contains Mustard.</text>
+
+      <text x="0" y="140" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">NUTRITION (per 100g)</text>
+      <g font-size="11">
+        <text x="0" y="158">Energy</text><text x="320" y="158" text-anchor="end" font-variant-numeric="tabular-nums">168 kcal</text>
+        <text x="0" y="174">Protein</text><text x="320" y="174" text-anchor="end" font-variant-numeric="tabular-nums">1.2 g</text>
+        <text x="0" y="190">Carbohydrates</text><text x="320" y="190" text-anchor="end" font-variant-numeric="tabular-nums">8.4 g</text>
+        <text x="0" y="206">Total Fat</text><text x="320" y="206" text-anchor="end" font-variant-numeric="tabular-nums">14.8 g</text>
+        <text x="0" y="222">Sodium</text><text x="320" y="222" text-anchor="end" font-variant-numeric="tabular-nums">2,840 mg</text>
+      </g>
+
+      <text x="0" y="248" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">STORAGE</text>
+      <text x="0" y="266" font-size="12.5">Cool, dry place. Refrigerate after opening.</text>
+      <text x="0" y="282" font-size="12.5">Use a clean, dry spoon.</text>
+
+      <line x1="0" y1="298" x2="640" y2="298" stroke="#2a1a10" stroke-opacity="0.15" stroke-width="0.6"/>
+
+      <g transform="translate(0, 312)">
+        <text x="0" y="0" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="9" letter-spacing="0.6" fill="#7a1f10">FSSAI</text>
+        <text x="0" y="13" font-size="10" font-variant-numeric="tabular-nums">10012345000123</text>
+
+        <text x="190" y="0" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="9" letter-spacing="0.6" fill="#7a1f10">BATCH</text>
+        <text x="190" y="13" font-size="10" font-variant-numeric="tabular-nums">MGS-2026-04-001</text>
+
+        <text x="410" y="0" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="9" letter-spacing="0.6" fill="#7a1f10">MFG / BB</text>
+        <text x="410" y="13" font-size="10" font-variant-numeric="tabular-nums">04/2026 — 04/2027</text>
+      </g>
+    </g>
+
+    <!-- SEAM at x = 716 to 720 (the glue overlap on the physical jar) -->
+    <rect x="716" y="0" width="4" height="360" fill="#7a1f10" fill-opacity="0.05"/>
+
+    <!-- FRONT PANEL: x = 720 to 1440 (center at x = 1080) -->
+    <g transform="translate(720, 0)" font-family="'Inter', 'Helvetica Neue', sans-serif" fill="#2a1a10">
+      <g transform="translate(360, 52)">
+        <line x1="-105" y1="0" x2="-90" y2="0" stroke="#7a1f10" stroke-width="1"/>
+        <text x="0" y="3" text-anchor="middle" font-size="11" letter-spacing="2.6" fill="#7a1f10" font-weight="600">HAND-MADE IN BANGALORE</text>
+        <line x1="105" y1="0" x2="90" y2="0" stroke="#7a1f10" stroke-width="1"/>
+      </g>
+
+      <text x="360" y="104" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600" font-size="30" fill="#2a1a10">Mother's Gold Spice</text>
+
+      <g transform="translate(360, 124)">
+        <line x1="-52" y1="0" x2="-14" y2="0" stroke="#e08712" stroke-width="1.5"/>
+        <path d="M 0 -7 C 5 -3 5 4 0 7 C -5 4 -5 -3 0 -7 Z" fill="#e08712"/>
+        <line x1="14" y1="0" x2="52" y2="0" stroke="#e08712" stroke-width="1.5"/>
+      </g>
+
+      <text x="360" y="186" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="56" fill="#7a1f10">Mango Pickle</text>
+
+      <text x="360" y="214" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="20" fill="#2a1a10" fill-opacity="0.7">in Mustard Oil</text>
+
+      <g transform="translate(360, 250)">
+        <line x1="-220" y1="-13" x2="220" y2="-13" stroke="#7a1f10" stroke-opacity="0.3" stroke-width="1"/>
+        <line x1="-220" y1="13" x2="220" y2="13" stroke="#7a1f10" stroke-opacity="0.3" stroke-width="1"/>
+        <text x="-105" y="5" text-anchor="middle" font-weight="600" font-size="12" letter-spacing="2.3" fill="#7a1f10">NO PRESERVATIVES</text>
+        <text x="0" y="5" text-anchor="middle" font-size="14" fill="#7a1f10" fill-opacity="0.4">·</text>
+        <text x="105" y="5" text-anchor="middle" font-weight="600" font-size="12" letter-spacing="2.3" fill="#7a1f10">NO ADDITIVES</text>
+      </g>
+
+      <g transform="translate(0, 318)">
+        <text x="50" y="0" font-size="10" letter-spacing="1.2" fill="#7a1f10" font-weight="600">NET WT.</text>
+        <text x="50" y="22" font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="22" fill="#2a1a10">250g</text>
+
+        <rect x="343" y="-10" width="34" height="34" fill="none" stroke="#1e7a1e" stroke-width="2.2"/>
+        <circle cx="360" cy="7" r="10" fill="#1e7a1e"/>
+
+        <text x="670" y="0" text-anchor="end" font-size="10" letter-spacing="1.2" fill="#7a1f10" font-weight="600">MRP (incl. taxes)</text>
+        <text x="670" y="22" text-anchor="end" font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="22" fill="#2a1a10">₹449</text>
+      </g>
+    </g>
+  </svg>`;
+
+  async function init() {
+    await document.fonts.ready;
+
+    const container = document.getElementById("jar3d-container");
+    if (!container) return;
+
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = null;
+
+    const camera = new THREE.PerspectiveCamera(28, w / h, 0.1, 100);
+    camera.position.set(0, 0.4, 7);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const key = new THREE.DirectionalLight(0xffffff, 1.1);
+    key.position.set(3, 4, 5);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.45);
+    fill.position.set(-3, 1, -3);
+    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.35);
+    rim.position.set(0, 2, -4);
+    scene.add(rim);
+
+    // Generate label texture from SVG
+    const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(labelSvg);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 2880; // 2x upscale of viewBox for sharpness
+      canvas.height = 720;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.fillStyle = "#fbf6ec";
+      ctx.fillRect(0, 0, 2880, 720);
+      ctx.drawImage(img, 0, 0, 2880, 720);
+
+      const labelTexture = new THREE.CanvasTexture(canvas);
+      labelTexture.colorSpace = THREE.SRGBColorSpace;
+      labelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      labelTexture.wrapS = THREE.RepeatWrapping;
+      // Put the front panel center (texture u=0.75) facing the camera (cylinder u=0.25)
+      labelTexture.offset.set(0.5, 0);
+
+      buildJar(labelTexture);
+    };
+
+    img.onerror = (err) => {
+      console.error("Label texture load failed", err);
+    };
+
+    img.src = dataUrl;
+
+    let controls: any = null;
+
+    function buildJar(labelTexture: THREE.CanvasTexture) {
+      const jar = new THREE.Group();
+
+      // Glass body — amber, semi-translucent
+      const bodyGeom = new THREE.CylinderGeometry(1, 1, 2.6, 96, 1, true);
+      const bodyMat = new THREE.MeshPhysicalMaterial({
+        color: 0xb88547,
+        roughness: 0.25,
+        metalness: 0,
+        transmission: 0.25,
+        thickness: 0.6,
+        ior: 1.45,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+      });
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      jar.add(body);
+
+      // Bottom disc
+      const bottom = new THREE.Mesh(new THREE.CircleGeometry(1, 96), bodyMat);
+      bottom.rotation.x = Math.PI / 2;
+      bottom.position.y = -1.3;
+      jar.add(bottom);
+
+      // Label wrap — thin cylinder at slightly larger radius
+      const labelGeom = new THREE.CylinderGeometry(1.018, 1.018, 1.65, 128, 1, true);
+      const labelMat = new THREE.MeshStandardMaterial({
+        map: labelTexture,
+        side: THREE.DoubleSide,
+        roughness: 0.75,
+        metalness: 0,
+      });
+      const labelMesh = new THREE.Mesh(labelGeom, labelMat);
+      jar.add(labelMesh);
+
+      // Wood-finish metal cap
+      const capMat = new THREE.MeshStandardMaterial({
+        color: 0x6d5436,
+        roughness: 0.7,
+        metalness: 0.1,
+      });
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.86, 0.6, 64), capMat);
+      cap.position.y = 1.6;
+      jar.add(cap);
+
+      // Cap top (slightly lighter for highlight)
+      const capTop = new THREE.Mesh(
+        new THREE.CircleGeometry(0.86, 64),
+        new THREE.MeshStandardMaterial({ color: 0x8b6f47, roughness: 0.55, metalness: 0.1 })
+      );
+      capTop.rotation.x = -Math.PI / 2;
+      capTop.position.y = 1.9;
+      jar.add(capTop);
+
+      // Slight neck shadow ring
+      const neck = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.98, 1, 0.06, 96, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
+      );
+      neck.position.y = 1.27;
+      jar.add(neck);
+
+      jar.position.y = -0.25;
+      scene.add(jar);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enablePan = false;
+      controls.enableZoom = false;
+      controls.minPolarAngle = Math.PI / 2.4;
+      controls.maxPolarAngle = Math.PI / 1.7;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 1.2;
+      controls.rotateSpeed = 0.7;
+      controls.target.set(0, 0, 0);
+      controls.update();
+
+      // Stop auto-rotate on user interaction; resume after idle
+      let idleTimer: ReturnType<typeof setTimeout>;
+      const resetIdle = () => {
+        if (controls) controls.autoRotate = false;
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          if (controls) controls.autoRotate = true;
+        }, 2500);
+      };
+      controls.addEventListener("start", resetIdle);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (controls) controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  }
+
+  init();
+</script>
