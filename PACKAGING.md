@@ -24,9 +24,11 @@ Spec sheet to send to the Jabalpur, MP factory for a quote. One jar SKU across a
 
 ## 2. Cap specification
 
+### Base spec (v1 launch)
+
 | Attribute | Spec |
 |-----------|------|
-| **Material** | Tinplate or aluminum (food-grade) |
+| **Material** | **Tinplate** (food-grade) — preferred over aluminum for cost and print compatibility |
 | **Finish (outer)** | **Wood-look heat-transfer print** (matte oak or walnut tone preferred) |
 | **Inner coating** | **Food-grade lacquer rated for ACIDIC + OILY contents** (this is critical — uncoated metal will corrode and contaminate pickle) |
 | **Closure type** | Twist-on (continuous thread) preferred over press-on lug cap |
@@ -35,6 +37,28 @@ Spec sheet to send to the Jabalpur, MP factory for a quote. One jar SKU across a
 | **Diameter** | Matches 63mm jar mouth — confirm thread spec (likely 63/2030 or 63/400) |
 
 **Critical confirmation for the factory:** the wood-finish print must be food-safe and survive normal handling (no flaking after rubbing, no bleeding when wiped with damp cloth). Ask for a sample before placing bulk order.
+
+### Future-proofing for v2 branding (lock these in NOW, no extra cost)
+
+We will keep the v1 cap plain (no logo), but in v2 we plan to add a small brand mark (likely **hot foil stamping** of an "MGS" monogram on the top centre). To make v2 a simple add-on rather than a full cap redesign:
+
+| Constraint to enforce on v1 cap | Why |
+|----------------------------------|-----|
+| **Cap top surface must be flat or near-flat** (no heavy decorative embossing in the centre) | Hot foil stamping needs a clean flat surface |
+| **Reserve a ~20mm circular "logo zone" at the top centre** | This area should remain unprinted (or only lightly printed with wood texture). Either show plain metal or a subtle wood pattern — but no busy print here. |
+| **Confirm cap supplier offers hot foil stamping in-house** OR is willing to ship caps to a finishing vendor and re-certify the batch | Avoids a v2 supplier scramble. If they can't do foil in-house, get the name of a finishing vendor they trust. |
+| **Avoid debossed company markings on cap top** (manufacturer's mould marks should be on the inside rim or skirt, not the top) | Ditto — keeps the top centre clean |
+
+### Cap branding methods (reference table for v2/v3 decisions)
+
+| Method | Look | Added cost/cap | MOQ | When to use |
+|--------|------|---------------|-----|-------------|
+| Hot foil stamping (recommended for v2) | Gold/copper/silver metallic monogram | ₹1–3 | 500–1,000 | Add a small "MGS" or mango-leaf motif on top centre for premium feel |
+| Pad printing | Flat single-colour logo | ₹0.50–2 | 500 | Cheaper v2 alternative if budget is tight |
+| Offset / lithographic | Full multi-colour design across the cap | ₹2–5 | 10,000+ | v3+: full brand wrap once we're at scale |
+| Embossing + foil combo | Raised logo + gilded finish | ₹3–6 | 2,000+ | v3+: top-tier "gift jar" line |
+
+Tooling cost for hot foil die: ~₹2,000–5,000 one-time per design (paid once, reused for every batch).
 
 ---
 
