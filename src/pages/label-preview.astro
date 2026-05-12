@@ -377,6 +377,7 @@ const nutrition = [
 <script>
   import * as THREE from "three";
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
   // --- Build label SVG (one continuous strip: back | seam | front) ---
   // Texture aspect 4:1 maps cleanly onto a cylinder.
@@ -489,15 +490,19 @@ const nutrition = [
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
+    // Environment map for realistic metal/glass reflections
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
     // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const key = new THREE.DirectionalLight(0xffffff, 1.1);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const key = new THREE.DirectionalLight(0xffffff, 0.9);
     key.position.set(3, 4, 5);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.45);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.35);
     fill.position.set(-3, 1, -3);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.35);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.3);
     rim.position.set(0, 2, -4);
     scene.add(rim);
 
@@ -653,6 +658,7 @@ const nutrition = [
   // ============================================================
   import * as THREE from "three";
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
   // Brand-mark SVG that would be foil-stamped on the cap top.
   // Spice-red foil on gold tinplate.
@@ -713,15 +719,19 @@ const nutrition = [
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Lighting tuned to make the gold sing
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const key = new THREE.DirectionalLight(0xffffff, 1.15);
+    // Environment map gives the gold metal proper reflections from every angle
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    // Direct lights add highlights and shaping
+    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    const key = new THREE.DirectionalLight(0xffffff, 0.9);
     key.position.set(3, 5, 4);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.45);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.35);
     fill.position.set(-3, 2, -2);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.4);
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.3);
     rim.position.set(0, -1, -3);
     scene.add(rim);
 
