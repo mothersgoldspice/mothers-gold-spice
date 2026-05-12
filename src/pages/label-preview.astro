@@ -681,17 +681,23 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — kept as references so the lighting control panel can update them live
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    // Lighting — fixed in world space (product-on-turntable look).
+    // As the jar rotates, highlights move across it = dimensional feel.
+    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
     scene.add(ambient);
-    const key = new THREE.DirectionalLight(0xffffff, 0.9);
-    key.position.set(3, 4, 5);
+
+    // Hemisphere fills the shadow side so it never goes pitch black
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x7a5530, 0.45);
+    scene.add(hemi);
+
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(4, 5, 3);
     scene.add(key);
     const fill = new THREE.DirectionalLight(0xfff4d6, 0.35);
-    fill.position.set(-3, 1, -3);
+    fill.position.set(-4, 2, 2);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.3);
-    rim.position.set(0, 2, -4);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.4);
+    rim.position.set(0, 3, -5);
     scene.add(rim);
 
     // Materials we'll mutate from the control panel
@@ -700,7 +706,7 @@ const nutrition = [
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
     // Base values — what gets multiplied by the "brightness" slider
-    const BASE = { ambient: 0.4, key: 0.9, fill: 0.35, rim: 0.3 };
+    const BASE = { ambient: 0.3, hemi: 0.45, key: 1.0, fill: 0.35, rim: 0.4 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
@@ -712,6 +718,7 @@ const nutrition = [
       const fillTint = FILL_COOL.clone().lerp(FILL_WARM, s.warmth);
       ambient.intensity = BASE.ambient * s.brightness;
       ambient.color.copy(tint);
+      hemi.intensity = BASE.hemi * s.brightness;
       key.intensity = BASE.key * s.brightness;
       key.color.copy(tint);
       fill.intensity = BASE.fill * s.brightness;
@@ -860,18 +867,9 @@ const nutrition = [
       controls.addEventListener("start", resetIdle);
     }
 
-    function updateLightPositions() {
-      // Lights follow the camera so the side you're looking at is always lit
-      const cp = camera.position;
-      key.position.set(cp.x + 1, cp.y + 2.5, cp.z + 1);
-      fill.position.set(cp.x * 0.8 - 2, cp.y * 0.7, cp.z * 0.8);
-      rim.position.set(-cp.x * 0.6, cp.y * 0.4 + 1, -cp.z * 0.6);
-    }
-
     function animate() {
       requestAnimationFrame(animate);
       if (controls) controls.update();
-      updateLightPositions();
       renderer.render(scene, camera);
     }
     animate();
@@ -959,22 +957,26 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — kept as references so the control panel can update them live
-    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+    // Lighting — fixed in world space, so the gold cap glints as it rotates
+    const ambient = new THREE.AmbientLight(0xffffff, 0.25);
     scene.add(ambient);
-    const key = new THREE.DirectionalLight(0xffffff, 0.9);
-    key.position.set(3, 5, 4);
+
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x7a5530, 0.4);
+    scene.add(hemi);
+
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(4, 5, 3);
     scene.add(key);
     const fill = new THREE.DirectionalLight(0xfff4d6, 0.35);
-    fill.position.set(-3, 2, -2);
+    fill.position.set(-4, 2, 2);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.3);
-    rim.position.set(0, -1, -3);
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.4);
+    rim.position.set(0, 1, -4);
     scene.add(rim);
 
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
-    const BASE = { ambient: 0.3, key: 0.9, fill: 0.35, rim: 0.3 };
+    const BASE = { ambient: 0.25, hemi: 0.4, key: 1.0, fill: 0.35, rim: 0.4 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
@@ -986,6 +988,7 @@ const nutrition = [
       const fillTint = FILL_COOL.clone().lerp(FILL_WARM, s.warmth);
       ambient.intensity = BASE.ambient * s.brightness;
       ambient.color.copy(tint);
+      hemi.intensity = BASE.hemi * s.brightness;
       key.intensity = BASE.key * s.brightness;
       key.color.copy(tint);
       fill.intensity = BASE.fill * s.brightness;
@@ -1089,18 +1092,9 @@ const nutrition = [
       controls.addEventListener("start", resetIdle);
     }
 
-    function updateLightPositions() {
-      // Lights follow the camera so the visible side of the cap is always lit
-      const cp = camera.position;
-      key.position.set(cp.x + 1, cp.y + 2, cp.z + 1);
-      fill.position.set(cp.x * 0.8 - 2, cp.y * 0.7 + 1, cp.z * 0.8);
-      rim.position.set(-cp.x * 0.5, cp.y * 0.3, -cp.z * 0.5);
-    }
-
     function animate() {
       requestAnimationFrame(animate);
       if (controls) controls.update();
-      updateLightPositions();
       renderer.render(scene, camera);
     }
     animate();
