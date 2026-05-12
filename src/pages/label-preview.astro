@@ -681,29 +681,19 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — single strong key from the RIGHT side of the world, plus soft fill.
-    // Lights are static so the jar spins under them like a real product on a turntable.
+    // Lighting — key light always comes from the viewer's right.
+    // The light position is recomputed each frame using the camera's actual right vector,
+    // so as the camera orbits, the bright zone stays in the same on-screen location and
+    // the label rolls THROUGH it instead of away from it.
     const ambient = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambient);
-
-    // Hemisphere fills the shadow side so it never goes pitch black
     const hemi = new THREE.HemisphereLight(0xfff5e0, 0x8a6440, 0.55);
     scene.add(hemi);
-
-    // Key light strongly from the right (+X), slightly raised. Direction is from this
-    // position toward the origin, so right side of the jar always gets the brightest hit.
     const key = new THREE.DirectionalLight(0xffffff, 1.3);
-    key.position.set(9, 3, 2);
     scene.add(key);
-
-    // Gentle fill on the opposite (left) side so the shadow side has soft definition.
     const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
-    fill.position.set(-6, 1, 1);
     scene.add(fill);
-
-    // Faint rim from behind for silhouette separation
     const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
-    rim.position.set(-1, 2, -5);
     scene.add(rim);
 
     // Materials we'll mutate from the control panel
@@ -873,9 +863,32 @@ const nutrition = [
       controls.addEventListener("start", resetIdle);
     }
 
+    // Reusable vectors so the per-frame light positioning doesn't allocate
+    const _forward = new THREE.Vector3();
+    const _right = new THREE.Vector3();
+    const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+    function positionLightsRelativeToCamera() {
+      // Forward = direction camera is looking (from camera toward target)
+      _forward.subVectors((controls && controls.target) || new THREE.Vector3(), camera.position).normalize();
+      // Right = forward × world-up, normalised
+      _right.crossVectors(_forward, WORLD_UP).normalize();
+
+      // Key: viewer's right, raised. Directional lights only use direction-from-position-to-target;
+      // the scale below is large enough to give a clean direction.
+      key.position.copy(_right).multiplyScalar(8).addScaledVector(WORLD_UP, 4);
+
+      // Fill: viewer's left (subtle, softens shadow side)
+      fill.position.copy(_right).multiplyScalar(-6).addScaledVector(WORLD_UP, 2);
+
+      // Rim: behind the jar (away from camera) for silhouette separation
+      rim.position.copy(camera.position).multiplyScalar(-0.6).addScaledVector(WORLD_UP, 3);
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       if (controls) controls.update();
+      positionLightsRelativeToCamera();
       renderer.render(scene, camera);
     }
     animate();
@@ -963,23 +976,16 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting — same static key-from-right setup as the main jar
+    // Lighting — key from the viewer's right, recomputed each frame
     const ambient = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambient);
-
     const hemi = new THREE.HemisphereLight(0xfff5e0, 0x8a6440, 0.55);
     scene.add(hemi);
-
     const key = new THREE.DirectionalLight(0xffffff, 1.3);
-    key.position.set(9, 3, 2);
     scene.add(key);
-
     const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
-    fill.position.set(-6, 1, 1);
     scene.add(fill);
-
     const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
-    rim.position.set(-1, 2, -5);
     scene.add(rim);
 
     let goldMat: THREE.MeshStandardMaterial | null = null;
@@ -1100,9 +1106,22 @@ const nutrition = [
       controls.addEventListener("start", resetIdle);
     }
 
+    const _forward = new THREE.Vector3();
+    const _right = new THREE.Vector3();
+    const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+    function positionLightsRelativeToCamera() {
+      _forward.subVectors((controls && controls.target) || new THREE.Vector3(), camera.position).normalize();
+      _right.crossVectors(_forward, WORLD_UP).normalize();
+      key.position.copy(_right).multiplyScalar(8).addScaledVector(WORLD_UP, 4);
+      fill.position.copy(_right).multiplyScalar(-6).addScaledVector(WORLD_UP, 2);
+      rim.position.copy(camera.position).multiplyScalar(-0.6).addScaledVector(WORLD_UP, 3);
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       if (controls) controls.update();
+      positionLightsRelativeToCamera();
       renderer.render(scene, camera);
     }
     animate();
