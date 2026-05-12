@@ -287,6 +287,193 @@ const nutrition = [
       <p class="text-center text-xs text-ink/50 italic max-w-md mx-auto">Stylized rendering — the real product photo will look richer. Pickle color is approximated.</p>
     </section>
 
+    <!-- Lighting controls (drives both 3D previews below) -->
+    <section class="max-w-6xl mx-auto px-6 pt-12">
+      <div class="bg-white rounded-2xl border border-ink/8 p-6 shadow-sm">
+        <div class="flex items-baseline justify-between flex-wrap gap-3 mb-5">
+          <div>
+            <h3 class="font-serif text-lg text-ink">Lighting</h3>
+            <p class="text-xs text-ink/50 mt-0.5">Affects both the jar and the cap previews. Settings are saved in your browser.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mb-6 flex-wrap">
+          <button data-preset="honest" class="lighting-preset px-3 py-1.5 text-xs rounded-full border border-spice-700/30 text-spice-700 font-medium transition">Honest cream</button>
+          <button data-preset="daylight" class="lighting-preset px-3 py-1.5 text-xs rounded-full border border-ink/20 text-ink font-medium transition">Daylight</button>
+          <button data-preset="warm" class="lighting-preset px-3 py-1.5 text-xs rounded-full border border-ink/20 text-ink font-medium transition">Indoor warm</button>
+          <button data-preset="studio" class="lighting-preset px-3 py-1.5 text-xs rounded-full border border-ink/20 text-ink font-medium transition">Studio bright</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <label class="flex flex-col gap-1.5 text-xs text-ink/60">
+            <span class="flex justify-between"><span>Brightness</span><span id="val-brightness" class="text-ink font-medium tabular-nums">1.00</span></span>
+            <input type="range" id="ctrl-brightness" min="0.4" max="1.6" step="0.05" value="1.0" class="mgs-slider" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs text-ink/60">
+            <span class="flex justify-between"><span>Warmth <span class="opacity-50">(cool → warm)</span></span><span id="val-warmth" class="text-ink font-medium tabular-nums">0.50</span></span>
+            <input type="range" id="ctrl-warmth" min="0" max="1" step="0.02" value="0.5" class="mgs-slider" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs text-ink/60">
+            <span class="flex justify-between"><span>Glass / metal reflections</span><span id="val-env" class="text-ink font-medium tabular-nums">0.70</span></span>
+            <input type="range" id="ctrl-env" min="0" max="1.5" step="0.05" value="0.7" class="mgs-slider" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs text-ink/60">
+            <span class="flex justify-between"><span>Label sheen</span><span id="val-label" class="text-ink font-medium tabular-nums">0.25</span></span>
+            <input type="range" id="ctrl-label" min="0" max="1.5" step="0.05" value="0.25" class="mgs-slider" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <style>
+      .mgs-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(122, 31, 16, 0.18);
+        outline: none;
+      }
+      .mgs-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #7a1f10;
+        cursor: pointer;
+        border: 2px solid #fbf6ec;
+        box-shadow: 0 1px 4px rgba(122, 31, 16, 0.3);
+      }
+      .mgs-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #7a1f10;
+        cursor: pointer;
+        border: 2px solid #fbf6ec;
+      }
+      .lighting-preset.active {
+        background: #7a1f10 !important;
+        color: #fbf6ec !important;
+        border-color: #7a1f10 !important;
+      }
+      .lighting-preset:not(.active):hover {
+        background: rgba(42, 26, 16, 0.04);
+      }
+    </style>
+
+    <script is:inline>
+      (function () {
+        const PRESETS = {
+          honest:   { brightness: 1.00, warmth: 0.50, env: 0.70, label: 0.25 },
+          daylight: { brightness: 1.15, warmth: 0.15, env: 0.85, label: 0.45 },
+          warm:     { brightness: 0.85, warmth: 0.90, env: 0.55, label: 0.30 },
+          studio:   { brightness: 1.30, warmth: 0.40, env: 1.05, label: 0.70 },
+        };
+
+        const $ = (id) => document.getElementById(id);
+        const sliders = {
+          brightness: $("ctrl-brightness"),
+          warmth: $("ctrl-warmth"),
+          env: $("ctrl-env"),
+          label: $("ctrl-label"),
+        };
+        const labels = {
+          brightness: $("val-brightness"),
+          warmth: $("val-warmth"),
+          env: $("val-env"),
+          label: $("val-label"),
+        };
+
+        function getSettings() {
+          return {
+            brightness: +sliders.brightness.value,
+            warmth: +sliders.warmth.value,
+            env: +sliders.env.value,
+            label: +sliders.label.value,
+          };
+        }
+
+        function updateValueLabels() {
+          for (const k in labels) {
+            labels[k].textContent = (+sliders[k].value).toFixed(2);
+          }
+        }
+
+        function applyPresetValues(p) {
+          sliders.brightness.value = p.brightness;
+          sliders.warmth.value = p.warmth;
+          sliders.env.value = p.env;
+          sliders.label.value = p.label;
+          updateValueLabels();
+        }
+
+        function highlightPreset(name) {
+          document.querySelectorAll(".lighting-preset").forEach((b) => b.classList.remove("active"));
+          if (name) {
+            const btn = document.querySelector('[data-preset="' + name + '"]');
+            if (btn) btn.classList.add("active");
+          }
+        }
+
+        function emit() {
+          const settings = getSettings();
+          window.mgsLighting = settings;
+          window.dispatchEvent(new CustomEvent("mgs-lighting-change", { detail: settings }));
+          try { localStorage.setItem("mgs-lighting", JSON.stringify(settings)); } catch (e) {}
+        }
+
+        // Restore saved settings (or default to "honest")
+        let activePreset = "honest";
+        try {
+          const saved = JSON.parse(localStorage.getItem("mgs-lighting") || "null");
+          if (saved && typeof saved === "object") {
+            applyPresetValues(saved);
+            // Match preset if saved values exactly equal any preset
+            activePreset = Object.keys(PRESETS).find((k) => {
+              const p = PRESETS[k];
+              return ["brightness", "warmth", "env", "label"].every((f) => Math.abs(p[f] - saved[f]) < 0.01);
+            }) || null;
+          } else {
+            applyPresetValues(PRESETS.honest);
+          }
+        } catch (e) {
+          applyPresetValues(PRESETS.honest);
+        }
+
+        // Wire up presets
+        document.querySelectorAll(".lighting-preset").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const preset = btn.dataset.preset;
+            applyPresetValues(PRESETS[preset]);
+            highlightPreset(preset);
+            emit();
+          });
+        });
+
+        // Wire up sliders — fine-tuning clears the active preset highlight
+        Object.values(sliders).forEach((s) => {
+          s.addEventListener("input", () => {
+            updateValueLabels();
+            const cur = getSettings();
+            const match = Object.keys(PRESETS).find((k) => {
+              const p = PRESETS[k];
+              return ["brightness", "warmth", "env", "label"].every((f) => Math.abs(p[f] - cur[f]) < 0.01);
+            });
+            highlightPreset(match || null);
+            emit();
+          });
+        });
+
+        highlightPreset(activePreset);
+        // Publish initial state for any 3D scene that's already initialised
+        window.mgsLighting = getSettings();
+        window.dispatchEvent(new CustomEvent("mgs-lighting-change", { detail: window.mgsLighting }));
+      })();
+    </script>
+
     <!-- 3D interactive jar -->
     <section class="max-w-6xl mx-auto px-6 py-16 bg-gradient-to-b from-mango-50 to-cream">
       <div class="mb-8 flex items-baseline gap-4 flex-wrap">
@@ -494,8 +681,9 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    // Lighting — kept as references so the lighting control panel can update them live
+    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambient);
     const key = new THREE.DirectionalLight(0xffffff, 0.9);
     key.position.set(3, 4, 5);
     scene.add(key);
@@ -505,6 +693,37 @@ const nutrition = [
     const rim = new THREE.DirectionalLight(0xffffff, 0.3);
     rim.position.set(0, 2, -4);
     scene.add(rim);
+
+    // Materials we'll mutate from the control panel
+    let glassMat: THREE.MeshPhysicalMaterial | null = null;
+    let labelMat: THREE.MeshStandardMaterial | null = null;
+    let goldMat: THREE.MeshStandardMaterial | null = null;
+
+    // Base values — what gets multiplied by the "brightness" slider
+    const BASE = { ambient: 0.4, key: 0.9, fill: 0.35, rim: 0.3 };
+    const COOL = new THREE.Color(0xffffff);
+    const WARM = new THREE.Color(0xffd5a0);
+    const FILL_COOL = new THREE.Color(0xfff4d6);
+    const FILL_WARM = new THREE.Color(0xffc78a);
+
+    function applyLighting(s: any) {
+      if (!s) return;
+      const tint = COOL.clone().lerp(WARM, s.warmth);
+      const fillTint = FILL_COOL.clone().lerp(FILL_WARM, s.warmth);
+      ambient.intensity = BASE.ambient * s.brightness;
+      ambient.color.copy(tint);
+      key.intensity = BASE.key * s.brightness;
+      key.color.copy(tint);
+      fill.intensity = BASE.fill * s.brightness;
+      fill.color.copy(fillTint);
+      rim.intensity = BASE.rim * s.brightness;
+      rim.color.copy(tint);
+      if (glassMat) glassMat.envMapIntensity = s.env;
+      if (goldMat) goldMat.envMapIntensity = s.env;
+      if (labelMat) labelMat.envMapIntensity = s.label;
+    }
+
+    window.addEventListener("mgs-lighting-change", (e: any) => applyLighting(e.detail));
 
     // Generate label texture from SVG
     const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(labelSvg);
@@ -544,7 +763,7 @@ const nutrition = [
       const jar = new THREE.Group();
 
       // Clear glass body — high transmission, low roughness, slight warm tint
-      const glassMat = new THREE.MeshPhysicalMaterial({
+      glassMat = new THREE.MeshPhysicalMaterial({
         color: 0xfffaf0,
         roughness: 0.05,
         metalness: 0,
@@ -577,22 +796,23 @@ const nutrition = [
 
       // Label wrap — thin cylinder on the straight body panel.
       // envMapIntensity is dialled down so the paper doesn't pick up metal-like reflections.
+      labelMat = new THREE.MeshStandardMaterial({
+        map: labelTexture,
+        side: THREE.DoubleSide,
+        roughness: 0.85,
+        metalness: 0,
+        envMapIntensity: 0.25,
+      });
       const labelMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(1.018, 1.018, 1.55, 128, 1, true),
-        new THREE.MeshStandardMaterial({
-          map: labelTexture,
-          side: THREE.DoubleSide,
-          roughness: 0.85,
-          metalness: 0,
-          envMapIntensity: 0.25,
-        })
+        labelMat
       );
       labelMesh.position.y = -0.05;
       jar.add(labelMesh);
 
       // Warm champagne-gold tinplate cap (matte/satin finish — not mirror chrome).
       // DoubleSide makes the top disc render no matter which way LatheGeometry winds it.
-      const capMat = new THREE.MeshStandardMaterial({
+      goldMat = new THREE.MeshStandardMaterial({
         color: 0xc9a96e,
         roughness: 0.42,
         metalness: 0.85,
@@ -608,11 +828,14 @@ const nutrition = [
         new THREE.Vector2(0.93, 1.30),    // tiny bottom bevel
         new THREE.Vector2(0.86, 1.30),    // close to neck radius
       ];
-      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 64), capMat);
+      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 64), goldMat);
       jar.add(cap);
 
       jar.position.y = -0.25;
       scene.add(jar);
+
+      // Apply current lighting now that the materials exist
+      if ((window as any).mgsLighting) applyLighting((window as any).mgsLighting);
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enablePan = false;
@@ -727,8 +950,9 @@ const nutrition = [
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Direct lights add highlights and shaping
-    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    // Lighting — kept as references so the control panel can update them live
+    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambient);
     const key = new THREE.DirectionalLight(0xffffff, 0.9);
     key.position.set(3, 5, 4);
     scene.add(key);
@@ -738,6 +962,31 @@ const nutrition = [
     const rim = new THREE.DirectionalLight(0xffe5b8, 0.3);
     rim.position.set(0, -1, -3);
     scene.add(rim);
+
+    let goldMat: THREE.MeshStandardMaterial | null = null;
+
+    const BASE = { ambient: 0.3, key: 0.9, fill: 0.35, rim: 0.3 };
+    const COOL = new THREE.Color(0xffffff);
+    const WARM = new THREE.Color(0xffd5a0);
+    const FILL_COOL = new THREE.Color(0xfff4d6);
+    const FILL_WARM = new THREE.Color(0xffc78a);
+
+    function applyLighting(s: any) {
+      if (!s) return;
+      const tint = COOL.clone().lerp(WARM, s.warmth);
+      const fillTint = FILL_COOL.clone().lerp(FILL_WARM, s.warmth);
+      ambient.intensity = BASE.ambient * s.brightness;
+      ambient.color.copy(tint);
+      key.intensity = BASE.key * s.brightness;
+      key.color.copy(tint);
+      fill.intensity = BASE.fill * s.brightness;
+      fill.color.copy(fillTint);
+      rim.intensity = BASE.rim * s.brightness;
+      rim.color.copy(tint);
+      if (goldMat) goldMat.envMapIntensity = s.env;
+    }
+
+    window.addEventListener("mgs-lighting-change", (e: any) => applyLighting(e.detail));
 
     const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(capDecalSvg);
     const img = new Image();
@@ -767,7 +1016,7 @@ const nutrition = [
       const group = new THREE.Group();
 
       // Same gold material as the jar's cap. DoubleSide so the top disc renders properly.
-      const goldMat = new THREE.MeshStandardMaterial({
+      goldMat = new THREE.MeshStandardMaterial({
         color: 0xc9a96e,
         roughness: 0.42,
         metalness: 0.85,
@@ -805,6 +1054,9 @@ const nutrition = [
       // Centre the group near the camera's target
       group.position.y = -1.55;
       scene.add(group);
+
+      // Apply current lighting now that the material exists
+      if ((window as any).mgsLighting) applyLighting((window as any).mgsLighting);
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enablePan = false;
