@@ -28,15 +28,27 @@ Spec sheet to send to the Jabalpur, MP factory for a quote. One jar SKU across a
 
 | Attribute | Spec |
 |-----------|------|
-| **Material** | **Tinplate** (food-grade) — preferred over aluminum for cost and print compatibility |
-| **Finish (outer)** | **Wood-look heat-transfer print** (matte oak or walnut tone preferred) |
-| **Inner coating** | **Food-grade lacquer rated for ACIDIC + OILY contents** (this is critical — uncoated metal will corrode and contaminate pickle) |
+| **Material** | **Tinplate** (food-grade) — preferred over aluminum for cost and finish compatibility |
+| **Outer finish** | **Matte / satin warm champagne gold lacquer** (Pantone 872C or 874C reference — warm side of metallic gold). Stock finish, no printing needed. |
+| **Inner coating** | **Food-grade lacquer rated for ACIDIC + OILY contents** (critical — uncoated metal will corrode and contaminate pickle) |
 | **Closure type** | Twist-on (continuous thread) preferred over press-on lug cap |
 | **Liner / gasket** | PVC-free, food-grade liner that holds an airtight seal |
 | **Tamper evidence** | Either built-in tamper band on cap, OR confirm we'll add a separate PVC/PET shrink seal over the cap (we'll buy these separately if not part of cap) |
 | **Diameter** | Matches 63mm jar mouth — confirm thread spec (likely 63/2030 or 63/400) |
+| **Edge profile** | **Soft rounded top edge** (no sharp 90° corners) |
 
-**Critical confirmation for the factory:** the wood-finish print must be food-safe and survive normal handling (no flaking after rubbing, no bleeding when wiped with damp cloth). Ask for a sample before placing bulk order.
+**Why gold over wood-look print:**
+- Reinforces the brand name "Mother's **Gold** Spice" on every jar
+- Cheaper (~₹2–4 vs ~₹4–8 per cap for printed wood) and more durable (no print to flake)
+- Better surface for v2 foil-stamp logo (red, copper, or black foil on gold reads premium)
+- Stock finish at every Indian cap manufacturer — easier to source, lower MOQ
+
+**Specifically AVOID:**
+- Mirror-chrome / shiny gold (looks cheap, holds fingerprints)
+- Bright yellow gold (reads plastic / costume jewellery)
+- Green-tinted gold (cool tone clashes with cream paper + spice-red label palette)
+
+**Critical confirmation for the factory:** ask for **3–5 sample caps** in different gold finishes (between Pantone 871–876C range) so we can pick the one that pairs best with the cream bagasse paper label in person. The same gold can look different under daylight, supermarket fluorescents, and Instagram photography.
 
 ### Future-proofing for v2 branding (lock these in NOW, no extra cost)
 
