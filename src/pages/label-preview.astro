@@ -575,24 +575,28 @@ const nutrition = [
       const body = new THREE.Mesh(new THREE.LatheGeometry(bodyProfile, 96), glassMat);
       jar.add(body);
 
-      // Label wrap — thin cylinder on the straight body panel
+      // Label wrap — thin cylinder on the straight body panel.
+      // envMapIntensity is dialled down so the paper doesn't pick up metal-like reflections.
       const labelMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(1.018, 1.018, 1.55, 128, 1, true),
         new THREE.MeshStandardMaterial({
           map: labelTexture,
           side: THREE.DoubleSide,
-          roughness: 0.7,
+          roughness: 0.85,
           metalness: 0,
+          envMapIntensity: 0.25,
         })
       );
       labelMesh.position.y = -0.05;
       jar.add(labelMesh);
 
-      // Warm champagne-gold tinplate cap (matte/satin finish — not mirror chrome)
+      // Warm champagne-gold tinplate cap (matte/satin finish — not mirror chrome).
+      // DoubleSide makes the top disc render no matter which way LatheGeometry winds it.
       const capMat = new THREE.MeshStandardMaterial({
         color: 0xc9a96e,
         roughness: 0.42,
         metalness: 0.85,
+        side: THREE.DoubleSide,
       });
       const capProfile = [
         new THREE.Vector2(0, 1.85),
@@ -762,11 +766,12 @@ const nutrition = [
     function buildCap(decalTex: THREE.CanvasTexture) {
       const group = new THREE.Group();
 
-      // Same gold material as the jar's cap
+      // Same gold material as the jar's cap. DoubleSide so the top disc renders properly.
       const goldMat = new THREE.MeshStandardMaterial({
         color: 0xc9a96e,
         roughness: 0.42,
         metalness: 0.85,
+        side: THREE.DoubleSide,
       });
 
       // Same lathed cap profile as the main jar (softly rounded top edge)
