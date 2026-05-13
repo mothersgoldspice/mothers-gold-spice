@@ -648,6 +648,30 @@ const nutrition = [
   import { OrbitControls } from "three/addons/controls/OrbitControls.js";
   import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
+  // --- v2 cap-top decal (matches section 4 design exactly) ---
+  const jarCapDecalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+    <defs>
+      <path id="jarCapTopArc" d="M 90,265 A 160,160 0 0 1 410,265" fill="none"/>
+    </defs>
+    <circle cx="250" cy="250" r="225" fill="none" stroke="#7a1f10" stroke-width="1" stroke-opacity="0.5"/>
+    <circle cx="250" cy="250" r="218" fill="none" stroke="#7a1f10" stroke-width="0.6" stroke-opacity="0.35"/>
+    <text font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="34" font-weight="600" fill="#7a1f10">
+      <textPath href="#jarCapTopArc" startOffset="50%" text-anchor="middle">Mother's Gold Spice</textPath>
+    </text>
+    <g transform="translate(250, 240)">
+      <line x1="-46" y1="0" x2="-14" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
+      <path d="M 0,-7 C 5,-3 5,4 0,7 C -5,4 -5,-3 0,-7 Z" fill="#7a1f10"/>
+      <line x1="14" y1="0" x2="46" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
+    </g>
+    <g transform="translate(250, 300)">
+      <path d="M 0,-46 C 9,-38 17,-22 18,-2 C 17,18 9,34 0,46 C -9,34 -17,18 -18,-2 C -17,-22 -9,-38 0,-46 Z" fill="#7a1f10"/>
+    </g>
+    <text x="250" y="412" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="600" letter-spacing="3.0" fill="#7a1f10">A FAMILY RECIPE</text>
+    <circle cx="250" cy="92" r="2.5" fill="#7a1f10"/>
+    <circle cx="80" cy="250" r="1.8" fill="#7a1f10"/>
+    <circle cx="420" cy="250" r="1.8" fill="#7a1f10"/>
+  </svg>`;
+
   // --- Build label SVG (one continuous strip: back | seam | front) ---
   // Texture aspect 4:1 maps cleanly onto a cylinder.
   const labelSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 360" width="1440" height="360">
@@ -811,41 +835,48 @@ const nutrition = [
 
     window.addEventListener("mgs-lighting-change", (e: any) => applyLighting(e.detail));
 
-    // Generate label texture from SVG
-    const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(labelSvg);
-    const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Helper: SVG string → CanvasTexture
+    function svgToCanvasTexture(svg: string, w: number, h: number, fillBg: string | null): Promise<THREE.CanvasTexture> {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("no ctx"));
+          if (fillBg) {
+            ctx.fillStyle = fillBg;
+            ctx.fillRect(0, 0, w, h);
+          } else {
+            ctx.clearRect(0, 0, w, h);
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          resolve(tex);
+        };
+        img.onerror = reject;
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+      });
+    }
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 2880; // 2x upscale of viewBox for sharpness
-      canvas.height = 720;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.fillStyle = "#fbf6ec";
-      ctx.fillRect(0, 0, 2880, 720);
-      ctx.drawImage(img, 0, 0, 2880, 720);
-
-      const labelTexture = new THREE.CanvasTexture(canvas);
-      labelTexture.colorSpace = THREE.SRGBColorSpace;
-      labelTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    Promise.all([
+      svgToCanvasTexture(labelSvg, 2880, 720, "#fbf6ec"),
+      svgToCanvasTexture(jarCapDecalSvg, 1024, 1024, null),
+    ]).then(([labelTexture, capDecalTexture]) => {
       labelTexture.wrapS = THREE.RepeatWrapping;
       // Front-panel center sits at texture u = 0.75. Cylinder u = 0 is the +Z (camera-
       // facing) side. offset.x = 0.75 lands the front centre directly facing the camera.
       labelTexture.offset.set(0.75, 0);
-
-      buildJar(labelTexture);
-    };
-
-    img.onerror = (err) => {
-      console.error("Label texture load failed", err);
-    };
-
-    img.src = dataUrl;
+      buildJar(labelTexture, capDecalTexture);
+    }).catch((err) => console.error("Jar textures failed", err));
 
     let controls: any = null;
 
-    function buildJar(labelTexture: THREE.CanvasTexture) {
+    function buildJar(labelTexture: THREE.CanvasTexture, capDecalTexture: THREE.CanvasTexture) {
       const jar = new THREE.Group();
 
       // Clear glass body — high transmission, low roughness, slight warm tint
@@ -916,6 +947,20 @@ const nutrition = [
       ];
       const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 64), goldMat);
       jar.add(cap);
+
+      // v2 cap-top decal (foil-stamped brand mark sitting just above the cap surface)
+      const capDecalMat = new THREE.MeshStandardMaterial({
+        map: capDecalTexture,
+        transparent: true,
+        alphaTest: 0.02,
+        roughness: 0.4,
+        metalness: 0.6,
+        side: THREE.DoubleSide,
+      });
+      const capDecal = new THREE.Mesh(new THREE.CircleGeometry(0.74, 96), capDecalMat);
+      capDecal.rotation.x = -Math.PI / 2;
+      capDecal.position.y = 1.851; // just above the cap top to avoid z-fighting
+      jar.add(capDecal);
 
       jar.position.y = -0.25;
       scene.add(jar);
