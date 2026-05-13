@@ -936,11 +936,14 @@ const nutrition = [
         metalness: 0,
         envMapIntensity: 0.25,
       });
+      // Label cylinder height extended (was 1.55 → now 2.05) so it covers most of the
+      // straight body section. This eliminates the visible glass below the label that
+      // was acting as a concave mirror and reflecting the front-panel bottom row.
       const labelMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.018, 1.018, 1.55, 128, 1, true),
+        new THREE.CylinderGeometry(1.018, 1.018, 2.05, 128, 1, true),
         labelMat
       );
-      labelMesh.position.y = -0.05;
+      labelMesh.position.y = -0.20;
       jar.add(labelMesh);
 
       // Warm champagne-gold tinplate cap (matte/satin finish — not mirror chrome).
