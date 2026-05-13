@@ -424,6 +424,48 @@ const nutrition = [
         border-width: 0 2px 2px 0;
         transform: rotate(45deg);
       }
+
+      /* Immersive (full-screen) mode for the 3D viewers */
+      .mgs-immersive {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 9999 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        aspect-ratio: auto !important;
+        border-radius: 0 !important;
+        background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 70%, #f7dfa6 100%) !important;
+        margin: 0 !important;
+      }
+      .mgs-immersive-wrap {
+        position: static !important;
+        max-width: none !important;
+      }
+      .mgs-immersive-exit {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 10000;
+        padding: 8px 14px;
+        font-size: 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(42, 26, 16, 0.15);
+        color: #2a1a10;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'Inter', sans-serif;
+      }
+      .mgs-immersive-exit:hover {
+        background: rgba(255, 255, 255, 1);
+      }
+      body.mgs-immersive-active {
+        overflow: hidden;
+      }
     </style>
 
     <script is:inline>
@@ -562,6 +604,55 @@ const nutrition = [
         window.mgsLighting = getSettings();
         window.dispatchEvent(new CustomEvent("mgs-lighting-change", { detail: window.mgsLighting }));
       })();
+
+      // ---------- Immersive (full-screen) mode for 3D viewers ----------
+      (function () {
+        let activeContainer = null;
+        let exitBtn = null;
+
+        function exitImmersive() {
+          if (!activeContainer) return;
+          activeContainer.classList.remove("mgs-immersive");
+          var wrap = activeContainer.parentElement;
+          if (wrap) wrap.classList.remove("mgs-immersive-wrap");
+          document.body.classList.remove("mgs-immersive-active");
+          if (exitBtn && exitBtn.parentNode) exitBtn.parentNode.removeChild(exitBtn);
+          exitBtn = null;
+          activeContainer = null;
+          window.dispatchEvent(new Event("resize"));
+        }
+
+        function enterImmersive(targetId) {
+          var el = document.getElementById(targetId);
+          if (!el) return;
+          activeContainer = el;
+          el.classList.add("mgs-immersive");
+          var wrap = el.parentElement;
+          if (wrap) wrap.classList.add("mgs-immersive-wrap");
+          document.body.classList.add("mgs-immersive-active");
+
+          exitBtn = document.createElement("button");
+          exitBtn.type = "button";
+          exitBtn.className = "mgs-immersive-exit";
+          exitBtn.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4 L12 12 M12 4 L4 12"/></svg> Exit (ESC)';
+          exitBtn.addEventListener("click", exitImmersive);
+          document.body.appendChild(exitBtn);
+
+          window.dispatchEvent(new Event("resize"));
+        }
+
+        // Bind via event delegation so it works whenever DOM is ready
+        document.addEventListener("click", function (e) {
+          var btn = e.target && e.target.closest && e.target.closest("[data-immersive-target]");
+          if (!btn) return;
+          e.stopPropagation();
+          enterImmersive(btn.getAttribute("data-immersive-target"));
+        });
+
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && activeContainer) exitImmersive();
+        });
+      })();
     </script>
 
     <!-- 3D interactive jar -->
@@ -571,11 +662,24 @@ const nutrition = [
         <p class="text-sm text-ink/50">Drag to rotate · the label is one continuous strip, not two separate stickers</p>
       </div>
 
-      <div
-        id="jar3d-container"
-        class="mx-auto rounded-3xl"
-        style="width: 100%; max-width: 560px; aspect-ratio: 1 / 1.15; background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%); cursor: grab; touch-action: none;"
-      ></div>
+      <div class="relative mx-auto" style="max-width: 560px;">
+        <div
+          id="jar3d-container"
+          class="mx-auto rounded-3xl"
+          style="width: 100%; aspect-ratio: 1 / 1.15; background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%); cursor: grab; touch-action: none;"
+        ></div>
+        <button
+          type="button"
+          data-immersive-target="jar3d-container"
+          class="immersive-btn absolute top-4 right-4 px-3 py-1.5 text-xs rounded-full bg-white/80 border border-ink/15 text-ink hover:bg-white transition flex items-center gap-1.5 backdrop-blur-sm"
+          aria-label="Open jar in immersive full-screen view"
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M2 6 V2 H6 M14 6 V2 H10 M2 10 V14 H6 M14 10 V14 H10"/>
+          </svg>
+          Immersive
+        </button>
+      </div>
 
       <p class="text-center text-xs text-ink/50 italic mt-4 max-w-md mx-auto">
         Drag in any direction to rotate (incl. top + bottom views) · scroll to zoom · auto-rotates when idle.
@@ -589,11 +693,24 @@ const nutrition = [
         <p class="text-sm text-ink/50">How the top of the cap will look once we add the foil-stamped brand mark in version 2</p>
       </div>
 
-      <div
-        id="cap3d-container"
-        class="mx-auto rounded-3xl"
-        style="width: 100%; max-width: 460px; aspect-ratio: 1 / 1; background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%); cursor: grab; touch-action: none;"
-      ></div>
+      <div class="relative mx-auto" style="max-width: 460px;">
+        <div
+          id="cap3d-container"
+          class="mx-auto rounded-3xl"
+          style="width: 100%; aspect-ratio: 1 / 1; background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%); cursor: grab; touch-action: none;"
+        ></div>
+        <button
+          type="button"
+          data-immersive-target="cap3d-container"
+          class="immersive-btn absolute top-4 right-4 px-3 py-1.5 text-xs rounded-full bg-white/80 border border-ink/15 text-ink hover:bg-white transition flex items-center gap-1.5 backdrop-blur-sm"
+          aria-label="Open cap in immersive full-screen view"
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M2 6 V2 H6 M14 6 V2 H10 M2 10 V14 H6 M14 10 V14 H10"/>
+          </svg>
+          Immersive
+        </button>
+      </div>
 
       <p class="text-center text-xs text-ink/50 italic mt-4 max-w-md mx-auto">
         v1 launches plain gold · v2 adds the brand mark in red foil on the top centre. Drag any direction to inspect · scroll to zoom.
