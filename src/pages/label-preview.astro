@@ -912,10 +912,12 @@ const nutrition = [
       jar.add(body);
 
       // Label wrap — thin cylinder on the straight body panel.
-      // envMapIntensity is dialled down so the paper doesn't pick up metal-like reflections.
+      // FrontSide-only: a real paper label only renders on its outer face. Using DoubleSide
+      // made the inner face of the cylinder visible through the transparent glass,
+      // producing a ghosted mirror copy of the front-panel content on the body.
       labelMat = new THREE.MeshStandardMaterial({
         map: labelTexture,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         roughness: 0.85,
         metalness: 0,
         envMapIntensity: 0.25,
