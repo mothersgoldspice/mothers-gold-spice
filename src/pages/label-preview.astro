@@ -314,8 +314,12 @@ const nutrition = [
             <input type="range" id="ctrl-warmth" min="0" max="1" step="0.02" value="0.5" class="mgs-slider" />
           </label>
           <label class="flex flex-col gap-1.5 text-xs text-ink/60">
-            <span class="flex justify-between"><span>Glass / metal reflections</span><span id="val-env" class="text-ink font-medium tabular-nums">0.70</span></span>
+            <span class="flex justify-between"><span>Cap sheen <span class="opacity-50">(centre highlight)</span></span><span id="val-env" class="text-ink font-medium tabular-nums">0.70</span></span>
             <input type="range" id="ctrl-env" min="0" max="1.5" step="0.05" value="0.7" class="mgs-slider" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-xs text-ink/60">
+            <span class="flex justify-between"><span>Scene exposure <span class="opacity-50">(low-light test)</span></span><span id="val-exposure" class="text-ink font-medium tabular-nums">1.00</span></span>
+            <input type="range" id="ctrl-exposure" min="0" max="1.5" step="0.02" value="1.0" class="mgs-slider" />
           </label>
           <label class="flex flex-col gap-1.5 text-xs text-ink/60">
             <span class="flex justify-between"><span>Label sheen</span><span id="val-label" class="text-ink font-medium tabular-nums">0.25</span></span>
@@ -425,10 +429,10 @@ const nutrition = [
     <script is:inline>
       (function () {
         const PRESETS = {
-          honest:   { brightness: 1.00, warmth: 0.50, env: 0.70, label: 0.25 },
-          daylight: { brightness: 1.15, warmth: 0.15, env: 0.85, label: 0.45 },
-          warm:     { brightness: 0.85, warmth: 0.90, env: 0.55, label: 0.30 },
-          studio:   { brightness: 1.30, warmth: 0.40, env: 1.05, label: 0.70 },
+          honest:   { brightness: 1.00, warmth: 0.50, env: 0.70, label: 0.25, exposure: 1.00 },
+          daylight: { brightness: 1.15, warmth: 0.15, env: 0.85, label: 0.45, exposure: 1.05 },
+          warm:     { brightness: 0.85, warmth: 0.90, env: 0.55, label: 0.30, exposure: 0.95 },
+          studio:   { brightness: 1.30, warmth: 0.40, env: 1.05, label: 0.70, exposure: 1.15 },
         };
 
         const $ = (id) => document.getElementById(id);
@@ -437,12 +441,14 @@ const nutrition = [
           warmth: $("ctrl-warmth"),
           env: $("ctrl-env"),
           label: $("ctrl-label"),
+          exposure: $("ctrl-exposure"),
         };
         const labels = {
           brightness: $("val-brightness"),
           warmth: $("val-warmth"),
           env: $("val-env"),
           label: $("val-label"),
+          exposure: $("val-exposure"),
         };
 
         const LIGHT_KEYS = ["key", "fill", "rim", "ambient", "hemi", "envmap"];
@@ -468,6 +474,7 @@ const nutrition = [
             warmth: +sliders.warmth.value,
             env: +sliders.env.value,
             label: +sliders.label.value,
+            exposure: +sliders.exposure.value,
             lights: getToggles(),
           };
         }
@@ -483,6 +490,7 @@ const nutrition = [
           sliders.warmth.value = p.warmth;
           sliders.env.value = p.env;
           sliders.label.value = p.label;
+          if (typeof p.exposure === "number") sliders.exposure.value = p.exposure;
           updateValueLabels();
         }
 
@@ -511,7 +519,7 @@ const nutrition = [
             // Match preset if saved values exactly equal any preset
             activePreset = Object.keys(PRESETS).find((k) => {
               const p = PRESETS[k];
-              return ["brightness", "warmth", "env", "label"].every((f) => Math.abs(p[f] - saved[f]) < 0.01);
+              return ["brightness", "warmth", "env", "label", "exposure"].every((f) => Math.abs(p[f] - (saved[f] ?? p[f])) < 0.01);
             }) || null;
           } else {
             applyPresetValues(PRESETS.honest);
@@ -537,7 +545,7 @@ const nutrition = [
             const cur = getSettings();
             const match = Object.keys(PRESETS).find((k) => {
               const p = PRESETS[k];
-              return ["brightness", "warmth", "env", "label"].every((f) => Math.abs(p[f] - cur[f]) < 0.01);
+              return ["brightness", "warmth", "env", "label", "exposure"].every((f) => Math.abs(p[f] - cur[f]) < 0.01);
             });
             highlightPreset(match || null);
             emit();
@@ -781,6 +789,8 @@ const nutrition = [
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
 
     // Environment map for realistic metal/glass reflections
@@ -831,6 +841,8 @@ const nutrition = [
       if (glassMat) glassMat.envMapIntensity = s.env;
       if (goldMat) goldMat.envMapIntensity = s.env;
       if (labelMat) labelMat.envMapIntensity = s.label;
+      // Scene exposure — master dim/bright for the whole render. Drag to 0 for total darkness.
+      renderer.toneMappingExposure = typeof s.exposure === "number" ? s.exposure : 1.0;
     }
 
     window.addEventListener("mgs-lighting-change", (e: any) => applyLighting(e.detail));
@@ -1106,6 +1118,8 @@ const nutrition = [
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
 
     // Environment map gives the gold metal proper reflections from every angle
@@ -1149,6 +1163,7 @@ const nutrition = [
       rim.color.copy(tint);
       scene.environment = on("envmap") ? envTexture : null;
       if (goldMat) goldMat.envMapIntensity = s.env;
+      renderer.toneMappingExposure = typeof s.exposure === "number" ? s.exposure : 1.0;
     }
 
     window.addEventListener("mgs-lighting-change", (e: any) => applyLighting(e.detail));
