@@ -1,0 +1,969 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Interactive Assembly — Mother's Gold Spice" description="Step through how a Mother's Gold Spice jar is assembled, one part at a time.">
+  <main class="bg-cream min-h-screen pb-16">
+    <header class="max-w-6xl mx-auto px-6 pt-12 pb-8 border-b border-ink/10">
+      <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-3">Internal preview · assembly simulator</p>
+      <h1 class="font-serif text-3xl md:text-4xl text-ink mb-3">How a jar is built — step by step</h1>
+      <p class="text-ink/60 max-w-2xl text-sm">Click each step on the right in order. Watch the part fly in and snap into place. End-to-end this is the same sequence the production line follows for every 250 g jar.</p>
+      <a href="/label-preview" class="inline-block mt-4 text-xs text-spice-500 hover:text-spice-700 underline">← Back to Label Preview</a>
+    </header>
+
+    <section id="assembly-shell" class="max-w-6xl mx-auto px-6 mt-8">
+      <!-- 3D Viewer — parts live INSIDE the scene as miniature components -->
+      <div id="assembly-stage" class="relative rounded-3xl overflow-hidden" style="background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%);">
+        <div
+          id="assembly3d-container"
+          class="w-full relative"
+          style="aspect-ratio: 16 / 10; cursor: grab; touch-action: none;"
+        ></div>
+
+        <button
+          type="button"
+          id="assembly-immersive"
+          class="absolute top-4 right-4 px-3 py-1.5 text-xs rounded-full bg-white/85 border border-ink/15 text-ink hover:bg-white transition flex items-center gap-1.5 backdrop-blur-sm z-10"
+          aria-label="Toggle full-screen demo mode"
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M2 6 V2 H6 M14 6 V2 H10 M2 10 V14 H6 M14 10 V14 H10"/>
+          </svg>
+          <span data-immersive-label>Immersive</span>
+        </button>
+
+        <div id="assembly-status" class="absolute top-4 left-4 max-w-[60%] px-3 py-2 rounded-full bg-white/85 backdrop-blur-sm border border-ink/10 text-[12px] text-ink/80 italic z-10">
+          Click any floating part to snap it onto the jar.
+        </div>
+      </div>
+
+      <!-- Bottom controls -->
+      <div class="flex flex-wrap items-center justify-center gap-3 mt-5">
+        <button id="assembly-play" class="px-5 py-2.5 bg-spice text-white text-sm rounded-full hover:bg-spice-700 transition">▶ Play full assembly</button>
+        <button id="assembly-reset" class="px-5 py-2.5 bg-white border border-ink/10 text-ink text-sm rounded-full hover:bg-mango-50 transition">↻ Reset</button>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style is:global>
+  /* Parts tray cards */
+  .assembly-part-card {
+    background: #fff;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    border-radius: 16px;
+    padding: 12px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 5px rgba(42, 26, 16, 0.04);
+    transition: transform 0.25s, box-shadow 0.25s, border-color 0.2s, opacity 0.25s;
+    position: relative;
+  }
+  .assembly-part-card:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(42, 26, 16, 0.08); }
+  .part-icon-wrap {
+    width: 70px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #fffaf0 0%, #fff3dc 100%);
+    border-radius: 10px;
+    padding: 4px;
+    transition: transform 0.5s cubic-bezier(0.25, 1.4, 0.5, 1);
+  }
+  .part-icon { width: 100%; height: 100%; display: block; }
+  .part-meta { text-align: center; line-height: 1.2; }
+  .part-num {
+    display: inline-block;
+    background: #ffe9c2;
+    color: #7a1f10;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-bottom: 2px;
+  }
+  .part-name { display: block; font-size: 11px; color: #2a1a10; font-weight: 500; }
+  .part-apply {
+    width: 100%;
+    padding: 5px 8px;
+    background: #7a1f10;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .part-apply:hover { background: #5a1408; }
+  .part-apply:active { transform: scale(0.96); }
+  .part-apply:disabled { background: #d0c8bd; cursor: not-allowed; }
+  /* States */
+  .assembly-part-card.is-active {
+    border-color: #7a1f10;
+    box-shadow: 0 0 0 2px rgba(122, 31, 16, 0.18), 0 6px 14px rgba(42, 26, 16, 0.1);
+  }
+  .assembly-part-card.is-active .part-icon-wrap {
+    transform: scale(1.1);
+  }
+  .assembly-part-card.is-done {
+    opacity: 0.55;
+  }
+  .assembly-part-card.is-done .part-apply {
+    background: #1e7a1e;
+    cursor: default;
+  }
+  .assembly-part-card.is-done .part-apply::before { content: "✓ "; }
+
+  /* Immersive (full-screen demo) */
+  body.assembly-immersive-active {
+    overflow: hidden;
+  }
+  body.assembly-immersive-active #assembly-shell {
+    position: fixed;
+    inset: 0;
+    max-width: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 16px 18px;
+    margin: 0;
+    z-index: 1000;
+    background: linear-gradient(180deg, #fff8eb 0%, #ffe9c2 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  body.assembly-immersive-active #assembly-stage {
+    flex: 1;
+    border-radius: 20px;
+  }
+  body.assembly-immersive-active #assembly-parts-tray {
+    margin-bottom: 0;
+  }
+  body.assembly-immersive-active .assembly-part-card {
+    padding: 10px 8px 8px;
+  }
+  body.assembly-immersive-active .part-icon-wrap {
+    width: 60px;
+    height: 50px;
+  }
+
+  @media (max-width: 720px) {
+    #assembly-parts-tray { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .assembly-part-card { padding: 8px 5px 6px; }
+    .part-icon-wrap { width: 50px; height: 40px; }
+    .part-name { font-size: 9px; }
+    .part-apply { font-size: 10px; padding: 4px 6px; }
+  }
+</style>
+
+<script>
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+  // ============================================================================
+  // SVG ASSETS — duplicated here so /assembly stands on its own.
+  // ============================================================================
+
+  const labelSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 360" width="1440" height="360">
+    <rect width="1440" height="360" fill="#fbf6ec"/>
+    <g transform="translate(158, 30)" font-family="'Inter', 'Helvetica Neue', sans-serif" fill="#2a1a10">
+      <text x="0" y="14" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">INGREDIENTS</text>
+      <text x="0" y="36" font-size="12">Raw Mango (60%), Mustard Oil (25%), Salt,</text>
+      <text x="0" y="52" font-size="12">Spices (Mustard, Fenugreek, Red Chilli,</text>
+      <text x="0" y="68" font-size="12">Turmeric, Asafoetida).</text>
+      <text x="0" y="94" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">ALLERGEN</text>
+      <text x="0" y="114" font-size="12">Contains Mustard.</text>
+      <text x="0" y="140" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">NUTRITION (per 100g)</text>
+      <g font-size="11">
+        <text x="0" y="158">Energy</text><text x="280" y="158" text-anchor="end" font-variant-numeric="tabular-nums">168 kcal</text>
+        <text x="0" y="174">Protein</text><text x="280" y="174" text-anchor="end" font-variant-numeric="tabular-nums">1.2 g</text>
+        <text x="0" y="190">Carbohydrates</text><text x="280" y="190" text-anchor="end" font-variant-numeric="tabular-nums">8.4 g</text>
+        <text x="0" y="206">Total Fat</text><text x="280" y="206" text-anchor="end" font-variant-numeric="tabular-nums">14.8 g</text>
+        <text x="0" y="222">Sodium</text><text x="280" y="222" text-anchor="end" font-variant-numeric="tabular-nums">2,840 mg</text>
+      </g>
+      <text x="0" y="248" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="13" letter-spacing="1.5" fill="#7a1f10">STORAGE</text>
+      <text x="0" y="266" font-size="12">Cool, dry place. Refrigerate after opening.</text>
+      <text x="0" y="282" font-size="12">Use a clean, dry spoon.</text>
+      <line x1="0" y1="298" x2="400" y2="298" stroke="#2a1a10" stroke-opacity="0.15" stroke-width="0.6"/>
+      <g transform="translate(0, 312)">
+        <text x="0" y="0" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="9" letter-spacing="0.6" fill="#7a1f10">FSSAI</text>
+        <text x="0" y="13" font-size="10" font-variant-numeric="tabular-nums">10012345000123</text>
+        <text x="140" y="0" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="9" letter-spacing="0.6" fill="#7a1f10">BATCH</text>
+        <text x="140" y="13" font-size="10" font-variant-numeric="tabular-nums">MGS-2026-04-001</text>
+        <text x="290" y="0" font-family="'Fraunces', Georgia, serif" font-weight="700" font-size="9" letter-spacing="0.6" fill="#7a1f10">MFG / BB</text>
+        <text x="290" y="13" font-size="9.5" font-variant-numeric="tabular-nums">04/2026–04/2027</text>
+      </g>
+    </g>
+    <rect x="716" y="0" width="4" height="360" fill="#7a1f10" fill-opacity="0.05"/>
+    <g transform="translate(720, 0)" font-family="'Inter', 'Helvetica Neue', sans-serif" fill="#2a1a10">
+      <g transform="translate(360, 52)">
+        <line x1="-105" y1="0" x2="-90" y2="0" stroke="#7a1f10" stroke-width="1"/>
+        <text x="0" y="3" text-anchor="middle" font-size="11" letter-spacing="2.6" fill="#7a1f10" font-weight="600">HAND-MADE IN BANGALORE</text>
+        <line x1="105" y1="0" x2="90" y2="0" stroke="#7a1f10" stroke-width="1"/>
+      </g>
+      <text x="360" y="104" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600" font-size="30" fill="#2a1a10">Mother's Gold Spice</text>
+      <g transform="translate(360, 124)">
+        <line x1="-52" y1="0" x2="-14" y2="0" stroke="#e08712" stroke-width="1.5"/>
+        <path d="M 0 -7 C 5 -3 5 4 0 7 C -5 4 -5 -3 0 -7 Z" fill="#e08712"/>
+        <line x1="14" y1="0" x2="52" y2="0" stroke="#e08712" stroke-width="1.5"/>
+      </g>
+      <text x="360" y="186" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="56" fill="#7a1f10">Mango Pickle</text>
+      <text x="360" y="214" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="20" fill="#2a1a10" fill-opacity="0.7">in Mustard Oil</text>
+      <g transform="translate(360, 250)">
+        <line x1="-170" y1="-13" x2="170" y2="-13" stroke="#7a1f10" stroke-opacity="0.3" stroke-width="1"/>
+        <line x1="-170" y1="13" x2="170" y2="13" stroke="#7a1f10" stroke-opacity="0.3" stroke-width="1"/>
+        <text x="-80" y="5" text-anchor="middle" font-weight="600" font-size="11" letter-spacing="1.8" fill="#7a1f10">NO PRESERVATIVES</text>
+        <text x="0" y="5" text-anchor="middle" font-size="14" fill="#7a1f10" fill-opacity="0.4">·</text>
+        <text x="80" y="5" text-anchor="middle" font-weight="600" font-size="11" letter-spacing="1.8" fill="#7a1f10">NO ADDITIVES</text>
+      </g>
+      <g transform="translate(360, 318)">
+        <g transform="translate(-115, 0)">
+          <text x="0" y="0" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="#7a1f10" font-weight="600">NET WT.</text>
+          <text x="0" y="22" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="22" fill="#2a1a10">250g</text>
+        </g>
+        <rect x="-17" y="-10" width="34" height="34" fill="none" stroke="#1e7a1e" stroke-width="2.2"/>
+        <circle cx="0" cy="7" r="10" fill="#1e7a1e"/>
+        <g transform="translate(115, 0)">
+          <text x="0" y="0" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="#7a1f10" font-weight="600">MRP</text>
+          <text x="0" y="22" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="22" fill="#2a1a10">₹449</text>
+        </g>
+      </g>
+    </g>
+  </svg>`;
+
+  const capDecalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+    <defs>
+      <path id="asmCapTopArc" d="M 90,265 A 160,160 0 0 1 410,265" fill="none"/>
+    </defs>
+    <circle cx="250" cy="250" r="225" fill="none" stroke="#7a1f10" stroke-width="1" stroke-opacity="0.5"/>
+    <circle cx="250" cy="250" r="218" fill="none" stroke="#7a1f10" stroke-width="0.6" stroke-opacity="0.35"/>
+    <text font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="34" font-weight="600" fill="#7a1f10">
+      <textPath href="#asmCapTopArc" startOffset="50%" text-anchor="middle">Mother's Gold Spice</textPath>
+    </text>
+    <g transform="translate(250, 240)">
+      <line x1="-46" y1="0" x2="-14" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
+      <path d="M 0,-7 C 5,-3 5,4 0,7 C -5,4 -5,-3 0,-7 Z" fill="#7a1f10"/>
+      <line x1="14" y1="0" x2="46" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
+    </g>
+    <g transform="translate(250, 300)">
+      <path d="M 0,-46 C 9,-38 17,-22 18,-2 C 17,18 9,34 0,46 C -9,34 -17,18 -18,-2 C -17,-22 -9,-38 0,-46 Z" fill="#7a1f10"/>
+    </g>
+    <text x="250" y="412" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="600" letter-spacing="3.0" fill="#7a1f10">A FAMILY RECIPE</text>
+    <circle cx="250" cy="92" r="2.5" fill="#7a1f10"/>
+    <circle cx="80" cy="250" r="1.8" fill="#7a1f10"/>
+    <circle cx="420" cy="250" r="1.8" fill="#7a1f10"/>
+  </svg>`;
+
+  const foilSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <defs>
+      <radialGradient id="asmFoilGrad" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#fff4d6"/>
+        <stop offset="65%" stop-color="#dcc28c"/>
+        <stop offset="100%" stop-color="#b89758"/>
+      </radialGradient>
+      <path id="asmFoilArc" d="M 106,275 A 150,150 0 0 1 406,275" fill="none"/>
+    </defs>
+    <circle cx="256" cy="256" r="248" fill="url(#asmFoilGrad)"/>
+    <circle cx="256" cy="256" r="240" fill="none" stroke="#7a1f10" stroke-width="1" stroke-opacity="0.5"/>
+    <text font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="44" font-weight="600" fill="#7a1f10">
+      <textPath href="#asmFoilArc" startOffset="50%" text-anchor="middle">Mother's Gold Spice</textPath>
+    </text>
+    <text x="256" y="285" text-anchor="middle" font-family="'Inter', sans-serif" font-size="38" font-weight="700" letter-spacing="6" fill="#7a1f10">SEALED</text>
+    <text x="256" y="320" text-anchor="middle" font-family="'Inter', sans-serif" font-size="16" font-weight="500" letter-spacing="4" fill="#7a1f10" opacity="0.85">FOR FRESHNESS</text>
+    <text x="256" y="420" text-anchor="middle" font-family="'Inter', sans-serif" font-size="14" font-weight="600" letter-spacing="3" fill="#7a1f10" opacity="0.7">↑ PEEL HERE ↑</text>
+  </svg>`;
+
+  const tamperBandSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 96" width="2048" height="96">
+    <rect x="0" y="0" width="2048" height="96" fill="#7a1f10"/>
+    <g font-family="'Inter', sans-serif" font-size="34" font-weight="600" fill="#fbf6ec" text-anchor="middle" dominant-baseline="middle" letter-spacing="3">
+      <text x="170"  y="50">SEALED</text>
+      <text x="510"  y="50">· MOTHER'S GOLD SPICE ·</text>
+      <text x="1024" y="50">SMALL BATCH</text>
+      <text x="1538" y="50">· MOTHER'S GOLD SPICE ·</text>
+      <text x="1878" y="50">SEALED</text>
+    </g>
+    <g stroke="#fbf6ec" stroke-opacity="0.35" stroke-width="1">
+      <line x1="0" y1="14" x2="2048" y2="14"/>
+      <line x1="0" y1="82" x2="2048" y2="82"/>
+    </g>
+  </svg>`;
+
+  // ============================================================================
+  // HELPERS
+  // ============================================================================
+
+  function svgToTexture(svg: string, w = 1024, h = w): Promise<THREE.CanvasTexture> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext("2d");
+        if (!ctx) return reject(new Error("no ctx"));
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        const tex = new THREE.CanvasTexture(cv);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        resolve(tex);
+      };
+      img.onerror = reject;
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    });
+  }
+
+  // ---- Simple tween — interpolate object props over time -------------------
+  const easeInOutCubic = (t: number) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+  const easeOutBack = (t: number) => {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  };
+
+  type TweenTargets = Record<string, number>;
+  function tween(
+    obj: any,
+    paths: { path: string[]; from?: number; to: number }[],
+    duration: number,
+    easing: (t: number) => number = easeInOutCubic
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      // Resolve start values
+      for (const p of paths) {
+        if (p.from === undefined) {
+          let v = obj;
+          for (let i = 0; i < p.path.length - 1; i++) v = v[p.path[i]];
+          p.from = v[p.path[p.path.length - 1]];
+        }
+      }
+      const start = performance.now();
+      function step(now: number) {
+        const t = Math.min((now - start) / duration, 1);
+        const e = easing(t);
+        for (const p of paths) {
+          let v = obj;
+          for (let i = 0; i < p.path.length - 1; i++) v = v[p.path[i]];
+          v[p.path[p.path.length - 1]] = p.from! + (p.to - p.from!) * e;
+        }
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+  // ============================================================================
+  // SCENE INIT
+  // ============================================================================
+
+  async function init() {
+    await document.fonts.ready;
+    const container = document.getElementById("assembly3d-container");
+    if (!container) return;
+
+    const w = container.clientWidth, h = container.clientHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = null;
+    const camera = new THREE.PerspectiveCamera(30, w / h, 0.1, 100);
+    camera.position.set(0, 0.8, 12.5); // pulled back so all 5 floating parts fit on screen
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.appendChild(renderer.domElement);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    scene.add(new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.45));
+    const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(6, 8, 6); scene.add(key);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.25); fill.position.set(-6, 3, 4); scene.add(fill);
+
+    // ---- MATERIALS ----------------------------------------------------------
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xfffaf0, roughness: 0.05, metalness: 0, transmission: 1.0,
+      thickness: 0.6, ior: 1.05, transparent: true, opacity: 1,
+      side: THREE.DoubleSide, clearcoat: 0.6, clearcoatRoughness: 0.06,
+    });
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xc9a96e, roughness: 0.42, metalness: 0.85, side: THREE.DoubleSide,
+    });
+    const linerMat = new THREE.MeshStandardMaterial({
+      color: 0xf5e8d0, roughness: 0.95, metalness: 0,
+    });
+
+    // ---- LOAD TEXTURES ------------------------------------------------------
+    const [labelTex, capDecalTex, foilTex, tamperTex] = await Promise.all([
+      svgToTexture(labelSvg, 2880, 720),
+      svgToTexture(capDecalSvg, 1024),
+      svgToTexture(foilSvg, 1024),
+      svgToTexture(tamperBandSvg, 2048, 96),
+    ]);
+    labelTex.wrapS = THREE.RepeatWrapping;
+    labelTex.offset.set(0.75, 0);
+
+    // ---- JAR BODY (with neck + threads) -------------------------------------
+    const bodyProfile: THREE.Vector2[] = [
+      new THREE.Vector2(0, -1.30),
+      new THREE.Vector2(0.80, -1.30),
+    ];
+    {
+      const r = 0.20, cx = 0.80, cy = -1.10, segs = 16;
+      for (let i = 1; i <= segs; i++) {
+        const ang = -Math.PI / 2 + (Math.PI / 2) * (i / segs);
+        bodyProfile.push(new THREE.Vector2(cx + r * Math.cos(ang), cy + r * Math.sin(ang)));
+      }
+    }
+    {
+      const r = 0.17, cx = 0.83, cy = 1.08, segs = 14;
+      bodyProfile.push(new THREE.Vector2(1.00, 1.08));
+      for (let i = 1; i <= segs; i++) {
+        const ang = (Math.PI / 2) * (i / segs);
+        bodyProfile.push(new THREE.Vector2(cx + r * Math.cos(ang), cy + r * Math.sin(ang)));
+      }
+    }
+    bodyProfile.push(new THREE.Vector2(0.85, 1.62));
+    bodyProfile.push(new THREE.Vector2(0.86, 1.625));
+    bodyProfile.push(new THREE.Vector2(0.88, 1.63));
+    bodyProfile.push(new THREE.Vector2(0.88, 1.66));
+    bodyProfile.push(new THREE.Vector2(0.79, 1.66));
+    const body = new THREE.Mesh(new THREE.LatheGeometry(bodyProfile, 160), glassMat);
+    // Jar group — body + neck + threads + any *placed* parts all live here so they
+    // rotate together as a single object. Floating (unplaced) parts stay outside.
+    const jarGroup = new THREE.Group();
+    jarGroup.add(body);
+    scene.add(jarGroup);
+
+    // ---- HELIX HELPER -------------------------------------------------------
+    class HelixCurve extends THREE.Curve<THREE.Vector3> {
+      constructor(
+        private radius: number,
+        private yStart: number,
+        private yEnd: number,
+        private turns: number
+      ) { super(); }
+      getPoint(t: number, target = new THREE.Vector3()) {
+        const angle = this.turns * Math.PI * 2 * t;
+        const y = this.yStart + (this.yEnd - this.yStart) * t;
+        return target.set(this.radius * Math.cos(angle), y, this.radius * Math.sin(angle));
+      }
+    }
+    const neckThreadGeo = new THREE.TubeGeometry(
+      new HelixCurve(0.86, 1.31, 1.59, 2.5), 360, 0.028, 16, false
+    );
+    const neckThread = new THREE.Mesh(neckThreadGeo, glassMat);
+    jarGroup.add(neckThread);
+
+    // ---- LABEL CYLINDER (hovers as miniature, scales up on click) ---------
+    const labelMat = new THREE.MeshStandardMaterial({
+      map: labelTex, side: THREE.FrontSide,
+      roughness: 0.85, metalness: 0, envMapIntensity: 0.25,
+    });
+    const labelMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.018, 1.018, 1.55, 128, 1, true),
+      labelMat
+    );
+    scene.add(labelMesh);
+
+    // ---- INDUCTION FOIL ----------------------------------------------------
+    const foilTopMat = new THREE.MeshStandardMaterial({
+      map: foilTex, metalness: 0.85, roughness: 0.25,
+    });
+    const foilSideMat = new THREE.MeshStandardMaterial({
+      color: 0xc9aa6a, metalness: 0.95, roughness: 0.3,
+    });
+    const foil = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.88, 0.88, 0.02, 96, 1, false),
+      [foilSideMat, foilTopMat, foilSideMat]
+    );
+    scene.add(foil);
+
+    // ---- CAP + DECAL + INTERNAL THREAD (cap group, starts above jar) -------
+    const capGroup = new THREE.Group();
+    const capProfile: THREE.Vector2[] = [
+      new THREE.Vector2(0, 1.85),
+      new THREE.Vector2(0.78, 1.85),
+    ];
+    {
+      const r = 0.18, cx = 0.78, cy = 1.67, segs = 14;
+      for (let i = 1; i <= segs; i++) {
+        const a = (Math.PI / 2) * (i / segs);
+        capProfile.push(new THREE.Vector2(cx + r * Math.sin(a), cy + r * Math.cos(a)));
+      }
+    }
+    capProfile.push(new THREE.Vector2(0.96, 1.36));
+    {
+      const r = 0.06, cx = 0.90, cy = 1.36, segs = 6;
+      for (let i = 1; i <= segs; i++) {
+        const a = (Math.PI / 2) * (i / segs);
+        capProfile.push(new THREE.Vector2(cx + r * Math.cos(a), cy - r * Math.sin(a)));
+      }
+    }
+    capProfile.push(new THREE.Vector2(0.86, 1.30));
+    const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 128), goldMat);
+    capGroup.add(cap);
+    const capDecalMat = new THREE.MeshStandardMaterial({
+      map: capDecalTex, transparent: true, alphaTest: 0.02,
+      roughness: 0.4, metalness: 0.6, side: THREE.DoubleSide,
+    });
+    const capDecal = new THREE.Mesh(new THREE.CircleGeometry(0.74, 96), capDecalMat);
+    capDecal.rotation.x = -Math.PI / 2;
+    capDecal.position.y = 1.86;
+    capGroup.add(capDecal);
+    const capThreadGeo = new THREE.TubeGeometry(
+      new HelixCurve(0.92, 1.33, 1.61, 2.5), 360, 0.020, 14, false
+    );
+    const capThread = new THREE.Mesh(capThreadGeo, goldMat);
+    capGroup.add(capThread);
+    scene.add(capGroup);
+
+    // ---- EPE LINER (separate mesh; parented to cap after step 3) ----------
+    const liner = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.82, 0.82, 0.06, 64),
+      linerMat
+    );
+    scene.add(liner);
+
+    // ---- TAMPER BAND --------------------------------------------------------
+    const tamperMat = new THREE.MeshStandardMaterial({
+      map: tamperTex, roughness: 0.45, metalness: 0.0, side: THREE.DoubleSide,
+    });
+    tamperTex.wrapS = THREE.RepeatWrapping;
+    const tamperBand = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.98, 0.98, 0.19, 96, 1, true),
+      tamperMat
+    );
+    scene.add(tamperBand);
+
+    // ---- PARTS REGISTRY — initial rest positions + scales + final targets ---
+    // Each part hovers around the jar at a "tray" position. Click → fly to final.
+    type Part = {
+      id: string;
+      step: number;
+      obj: THREE.Object3D;
+      restPos: THREE.Vector3;
+      restScale: number;
+      finalPos: THREE.Vector3;   // local OR world depending on parent
+      finalScale: number;
+      bobPhase: number;
+      placed: boolean;
+      pickMeshes: THREE.Object3D[]; // for raycaster
+    };
+
+    // Rest positions hover around the jar within the default viewport (camera back
+    // at z=12.5 + FOV 30° comfortably fits y ∈ [-2.5, 3.5], x ∈ [-4.5, 4.5]).
+    const parts: Part[] = [
+      {
+        id: "label", step: 1, obj: labelMesh,
+        restPos: new THREE.Vector3(-2.6, 0.0, 1.5),
+        restScale: 0.4,
+        finalPos: new THREE.Vector3(0, -0.05, 0),
+        finalScale: 1.0,
+        bobPhase: 0, placed: false,
+        pickMeshes: [labelMesh],
+      },
+      {
+        id: "foil", step: 2, obj: foil,
+        restPos: new THREE.Vector3(2.6, 0.0, 1.5),
+        restScale: 0.5,
+        finalPos: new THREE.Vector3(0, 1.67, 0),
+        finalScale: 1.0,
+        bobPhase: 0, placed: false,
+        pickMeshes: [foil],
+      },
+      {
+        id: "liner", step: 3, obj: liner,
+        restPos: new THREE.Vector3(-2.4, 2.0, 1.5),
+        restScale: 0.55,
+        finalPos: new THREE.Vector3(0, 1.66, 0),
+        finalScale: 1.0,
+        bobPhase: 0, placed: false,
+        pickMeshes: [liner],
+      },
+      {
+        id: "cap", step: 4, obj: capGroup,
+        restPos: new THREE.Vector3(2.2, 2.0, 1.5),
+        restScale: 0.5,
+        finalPos: new THREE.Vector3(0, 0, 0),
+        finalScale: 1.0,
+        bobPhase: 0, placed: false,
+        pickMeshes: [cap, capThread, capDecal],
+      },
+      {
+        id: "band", step: 5, obj: tamperBand,
+        restPos: new THREE.Vector3(0, -2.0, 1.5),
+        restScale: 0.55,
+        finalPos: new THREE.Vector3(0, 1.35, 0),
+        finalScale: 1.0,
+        bobPhase: 0, placed: false,
+        pickMeshes: [tamperBand],
+      },
+    ];
+
+    // Position parts at rest and tag them for raycasting
+    for (const p of parts) {
+      p.obj.position.copy(p.restPos);
+      p.obj.scale.setScalar(p.restScale);
+      p.obj.visible = true;
+      // Tag every pickable child with the partId so raycast can resolve back to a Part
+      for (const m of p.pickMeshes) {
+        m.userData.partId = p.id;
+      }
+    }
+    // Cap has rotation 0 initially
+    capGroup.rotation.y = 0;
+
+    // ---- ORBIT CONTROLS -----------------------------------------------------
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    controls.minDistance = 6;
+    controls.maxDistance = 22;
+    controls.minPolarAngle = 0.4;
+    controls.maxPolarAngle = Math.PI - 0.4;
+    controls.enableRotate = true;
+    controls.autoRotate = false; // jar rotates itself via jarGroup.rotation.y; camera stays put
+    controls.rotateSpeed = 0.5;
+    controls.target.set(0, 0.3, 0);
+    controls.update();
+
+    // Step progression — declared early because the render loop references currentStep.
+    let currentStep = 0;
+    let busy = false;
+
+    // ---- PICKING (raycast) — hover highlights + click triggers placement ----
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC = new THREE.Vector2();
+    let hoveredPartId: string | null = null;
+
+    function setMouseFromEvent(e: PointerEvent | MouseEvent) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+    function pickPart(): Part | null {
+      raycaster.setFromCamera(mouseNDC, camera);
+      const pickList: THREE.Object3D[] = [];
+      for (const p of parts) {
+        if (p.placed) continue;
+        for (const m of p.pickMeshes) pickList.push(m);
+      }
+      const hits = raycaster.intersectObjects(pickList, true);
+      if (!hits.length) return null;
+      let obj: any = hits[0].object;
+      while (obj && !obj.userData?.partId) obj = obj.parent;
+      if (!obj?.userData?.partId) return null;
+      return parts.find((p) => p.id === obj.userData.partId) || null;
+    }
+
+    renderer.domElement.addEventListener("pointermove", (e) => {
+      setMouseFromEvent(e);
+      const p = pickPart();
+      if (p && p.id !== hoveredPartId) {
+        hoveredPartId = p.id;
+        renderer.domElement.style.cursor = "pointer";
+      } else if (!p && hoveredPartId) {
+        hoveredPartId = null;
+        renderer.domElement.style.cursor = "grab";
+      }
+    });
+    // Click triggers placement only if the picked part is the next pending step.
+    renderer.domElement.addEventListener("click", (e) => {
+      setMouseFromEvent(e);
+      const p = pickPart();
+      if (!p) return;
+      if (p.step !== currentStep + 1) return;  // must be in sequence
+      runStep(p.step);
+    });
+
+    // ---- RENDER LOOP — slow jar rotation + render ---------------------------
+    // Parts stay still at their rest positions. Hover effect is a tiny scale bump
+    // smoothed via per-frame lerp so the cursor flicking on/off the mesh doesn't
+    // cause visible snap. No pulsing, no bobbing, no spinning of rest parts.
+    const clock = new THREE.Clock();
+    function loop() {
+      const dt = clock.getDelta();
+      jarGroup.rotation.y += dt * 0.35; // slow continuous spin (~20°/sec)
+      for (const p of parts) {
+        if (p.placed) continue;
+        p.obj.position.copy(p.restPos);
+        p.obj.rotation.set(0, 0, 0);
+        // Target scale: rest, with a tiny bump if hovered. Lerp toward it so the
+        // raycast flicker (when the cursor grazes edges) reads as smooth motion.
+        const target = p.restScale * (hoveredPartId === p.id ? 1.06 : 1.0);
+        const current = p.obj.scale.x;
+        const next = current + (target - current) * 0.12;
+        p.obj.scale.setScalar(next);
+      }
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    window.addEventListener("resize", () => {
+      const w = container!.clientWidth, h = container!.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    // ============================================================================
+    // ANIMATION CHOREOGRAPHY
+    // ============================================================================
+
+    const status = document.getElementById("assembly-status")!;
+    const setStatus = (s: string) => { status.innerHTML = s; };
+    // No HTML step cards anymore — interaction happens via clicking parts in 3D.
+    function setStepState(_i: number, _state: "pending" | "active" | "done") { /* no-op */ }
+    function enableThrough(_maxStep: number) { /* no-op */ }
+
+    // Common animator: take a hovering part from its current rest pos/scale → final.
+    // Stops bobbing it (sets placed=true). Optionally runs extra tweens in parallel.
+    async function flyPartToFinal(
+      partId: string,
+      duration = 1200,
+      extra?: () => Promise<void> | void
+    ) {
+      const p = parts.find((x) => x.id === partId)!;
+      // Step 1: snap part to a "ready" position above its final target for a beat
+      // so the bob freezes cleanly before the dive-in.
+      p.obj.rotation.y = 0;
+      const fromX = p.obj.position.x, fromY = p.obj.position.y, fromZ = p.obj.position.z;
+      const fromScale = p.obj.scale.x;
+      // Mark placed so the bob loop stops touching it
+      p.placed = true;
+      const promises: Promise<void>[] = [];
+      promises.push(
+        tween(p.obj.position, [
+          { path: ["x"], from: fromX, to: p.finalPos.x },
+          { path: ["y"], from: fromY, to: p.finalPos.y },
+          { path: ["z"], from: fromZ, to: p.finalPos.z },
+        ], duration, easeInOutCubic)
+      );
+      promises.push(
+        tween(p.obj.scale, [
+          { path: ["x"], from: fromScale, to: p.finalScale },
+          { path: ["y"], from: fromScale, to: p.finalScale },
+          { path: ["z"], from: fromScale, to: p.finalScale },
+        ], duration, easeOutCubic)
+      );
+      if (extra) {
+        const r = extra();
+        if (r instanceof Promise) promises.push(r);
+      }
+      await Promise.all(promises);
+    }
+
+    async function step1_applyLabel() {
+      setStatus("Applying wraparound label to the body…");
+      setStepState(1, "active");
+      await flyPartToFinal("label", 1100);
+      // Attach to jar group so it rotates with the body
+      jarGroup.attach(labelMesh);
+      setStepState(1, "done");
+      setStatus("Label applied. Click the gold foil disc next.");
+    }
+
+    async function step2_placeFoil() {
+      setStatus("Foil disc descending onto the sealing rim…");
+      setStepState(2, "active");
+      await flyPartToFinal("foil", 1100);
+      jarGroup.attach(foil);
+      setStepState(2, "done");
+      setStatus("Foil on rim. Now click the EPE foam liner.");
+    }
+
+    async function step3_insertLiner() {
+      setStatus("EPE foam liner flying into the cap…");
+      setStepState(3, "active");
+      // The cap itself is still hovering. Animate the liner so it ends up at the
+      // cap's CURRENT world position + a small inset under the cap top.
+      // Compute current cap world rest position
+      const capWorldX = capGroup.position.x;
+      const capWorldY = capGroup.position.y;
+      const capWorldZ = capGroup.position.z;
+      // Cap profile inner top is at local y=1.66. With cap scale 0.4, world offset = 0.4*1.66=0.664
+      // Liner should end at the cap's centre, just under the inner ceiling
+      const linerCapScale = capGroup.scale.x;
+      const targetX = capWorldX;
+      const targetY = capWorldY + linerCapScale * 1.66 - 0.05;
+      const targetZ = capWorldZ;
+      const finalScale = linerCapScale * 0.95; // slightly smaller than cap's interior
+      const p = parts.find((x) => x.id === "liner")!;
+      p.placed = true;
+      await Promise.all([
+        tween(liner.position, [
+          { path: ["x"], to: targetX },
+          { path: ["y"], to: targetY },
+          { path: ["z"], to: targetZ },
+        ], 1000, easeOutBack),
+        tween(liner.scale, [
+          { path: ["x"], to: finalScale },
+          { path: ["y"], to: finalScale },
+          { path: ["z"], to: finalScale },
+        ], 900, easeOutCubic),
+      ]);
+      liner.rotation.y = 0;
+      // Now parent the liner to the cap so it travels with the cap in step 4.
+      capGroup.attach(liner);  // preserves world transform
+      setStepState(3, "done");
+      setStatus("Liner seated. Now click the gold cap to screw it on.");
+    }
+
+    async function step4_screwCap() {
+      setStatus("Cap descending — threads engaging — torquing down…");
+      setStepState(4, "active");
+      const p = parts.find((x) => x.id === "cap")!;
+      p.placed = true;
+      // Two-phase: (a) glide horizontally to be centred over the jar at altitude,
+      // (b) descend + rotate (2.5 turns clockwise to match GPI 63/2030 thread)
+      const fromX = capGroup.position.x, fromY = capGroup.position.y, fromZ = capGroup.position.z;
+      const fromScale = capGroup.scale.x;
+      // Phase A: glide to (0, 2.5, 0) at scale 1.0
+      capGroup.rotation.y = 0;
+      await Promise.all([
+        tween(capGroup.position, [
+          { path: ["x"], from: fromX, to: 0 },
+          { path: ["y"], from: fromY, to: 2.5 },
+          { path: ["z"], from: fromZ, to: 0 },
+        ], 700, easeInOutCubic),
+        tween(capGroup.scale, [
+          { path: ["x"], from: fromScale, to: 1.0 },
+          { path: ["y"], from: fromScale, to: 1.0 },
+          { path: ["z"], from: fromScale, to: 1.0 },
+        ], 700, easeInOutCubic),
+      ]);
+      // Phase B: screw down — descend + rotate
+      const rotationTurns = -2.5;
+      await Promise.all([
+        tween(capGroup.position, [
+          { path: ["y"], to: 0 },
+        ], 1400, easeOutCubic),
+        tween(capGroup.rotation, [
+          { path: ["y"], from: 0, to: rotationTurns * Math.PI * 2 },
+        ], 1400, easeInOutCubic),
+      ]);
+      jarGroup.attach(capGroup);  // travels with the jar from now on
+      setStepState(4, "done");
+      setStatus("Cap torqued. Airtight seal. One step left — the tamper band.");
+    }
+
+    async function step5_applyBand() {
+      setStatus("Tamper band sliding over the cap-neck joint…");
+      setStepState(5, "active");
+      const p = parts.find((x) => x.id === "band")!;
+      p.placed = true;
+      const fromX = tamperBand.position.x, fromY = tamperBand.position.y, fromZ = tamperBand.position.z;
+      const fromScale = tamperBand.scale.x;
+      tamperBand.rotation.y = 0;
+      // Phase A: glide directly above the joint at a slightly larger pre-shrink scale
+      await Promise.all([
+        tween(tamperBand.position, [
+          { path: ["x"], from: fromX, to: 0 },
+          { path: ["y"], from: fromY, to: 3.0 },
+          { path: ["z"], from: fromZ, to: 0 },
+        ], 600, easeInOutCubic),
+        tween(tamperBand.scale, [
+          { path: ["x"], from: fromScale, to: 1.18 },
+          { path: ["y"], from: fromScale, to: 1.0 },
+          { path: ["z"], from: fromScale, to: 1.18 },
+        ], 600, easeInOutCubic),
+      ]);
+      // Phase B: descend onto the joint
+      await tween(tamperBand.position, [
+        { path: ["y"], to: 1.35 },
+      ], 800, easeOutCubic);
+      // Phase C: shrink to fit (heat shrink)
+      await tween(tamperBand.scale, [
+        { path: ["x"], to: 1.0 },
+        { path: ["z"], to: 1.0 },
+      ], 600, easeInOutCubic);
+      jarGroup.attach(tamperBand);  // last part rotates with the jar too
+      setStepState(5, "done");
+      setStatus("Assembly complete. Airtight, leak-proof, tamper-evident, retail-ready.");
+    }
+
+    // ---- Wiring -------------------------------------------------------------
+    const steps = [step1_applyLabel, step2_placeFoil, step3_insertLiner, step4_screwCap, step5_applyBand];
+
+    async function runStep(n: number) {
+      if (busy || n !== currentStep + 1) return;
+      busy = true;
+      enableThrough(n - 1);  // disable everything while running
+      try { await steps[n - 1](); } finally {
+        currentStep = n;
+        enableThrough(Math.min(currentStep + 1, 5));
+        busy = false;
+      }
+    }
+
+    document.getElementById("assembly-play")?.addEventListener("click", async () => {
+      if (busy) return;
+      while (currentStep < 5 && !busy) {
+        await runStep(currentStep + 1);
+        await delay(300);
+      }
+    });
+
+    document.getElementById("assembly-reset")?.addEventListener("click", () => {
+      if (busy) return;
+      currentStep = 0;
+      // Pull any placed parts off the jar group back to scene root so they hover
+      // independently again. If liner got parented to capGroup in step 3, undo too.
+      if (liner.parent === capGroup) scene.attach(liner);
+      [labelMesh, foil, liner, capGroup, tamperBand].forEach((m) => {
+        if (m.parent !== scene) scene.attach(m);
+      });
+      // Reset each part to its rest pos + scale + rotation
+      for (const p of parts) {
+        p.placed = false;
+        p.obj.position.copy(p.restPos);
+        p.obj.rotation.set(0, 0, 0);
+        p.obj.scale.setScalar(p.restScale);
+      }
+      // Also reset jar group rotation so labels/etc. align cleanly on next play
+      jarGroup.rotation.y = 0;
+      capGroup.rotation.y = 0;
+      tamperBand.scale.set(0.55, 0.55, 0.55);
+      setStatus("Click any floating part to snap it onto the jar.");
+    });
+
+    // Immersive mode toggle — body class flips the layout to full-screen
+    const immersiveBtn = document.getElementById("assembly-immersive");
+    const immersiveLabel = immersiveBtn?.querySelector("[data-immersive-label]");
+    function setImmersive(on: boolean) {
+      document.body.classList.toggle("assembly-immersive-active", on);
+      if (immersiveLabel) immersiveLabel.textContent = on ? "Exit (ESC)" : "Immersive";
+      // Resize three.js renderer to match new container size
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    }
+    immersiveBtn?.addEventListener("click", () => {
+      setImmersive(!document.body.classList.contains("assembly-immersive-active"));
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && document.body.classList.contains("assembly-immersive-active")) {
+        setImmersive(false);
+      }
+    });
+
+    // Initial state: only Step 1 enabled
+    enableThrough(1);
+
+    // Force a resize tick after first paint — the container's clientWidth/Height
+    // can be stale during init (layout not yet settled), which leads to wrong
+    // camera aspect and content squeezed into one half of the canvas.
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+  }
+
+  init();
+</script>

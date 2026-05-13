@@ -717,6 +717,92 @@ const nutrition = [
       </p>
     </section>
 
+    <!-- Seal architecture (3-layer exploded view) -->
+    <section class="max-w-6xl mx-auto px-6 py-16 border-t border-ink/10">
+      <div class="mb-2 flex items-baseline gap-4 flex-wrap">
+        <h2 class="font-serif text-2xl text-ink">5. Seal architecture — how the jar stays airtight</h2>
+      </div>
+      <p class="text-sm text-ink/60 max-w-3xl mb-8">
+        Three layers stack between the pickle and the outside world. Each does a different job —
+        together they make the jar airtight, leak-proof in transit, and tamper-evident. Spec details
+        in <a href="https://github.com/mothersgoldspice/mothers-gold-spice/blob/main/PACKAGING.md#9-sealing--airtight-integrity" class="text-spice underline">PACKAGING.md §9</a>.
+      </p>
+
+      <div class="grid lg:grid-cols-5 gap-6">
+        <!-- 3D exploded view -->
+        <div class="lg:col-span-3 relative rounded-3xl overflow-hidden" style="background: radial-gradient(ellipse at center, #fff8eb 0%, #ffe9c2 100%);">
+          <div
+            id="seal3d-container"
+            class="w-full relative"
+            style="aspect-ratio: 3 / 4; cursor: grab; touch-action: none;"
+          ></div>
+          <button
+            type="button"
+            id="seal-labels-toggle"
+            class="absolute top-4 left-4 px-3 py-1.5 text-xs rounded-full bg-white/80 border border-ink/15 text-ink hover:bg-white transition flex items-center gap-1.5 backdrop-blur-sm z-10"
+            aria-label="Toggle parts labels"
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M2 4 H14 M2 8 H10 M2 12 H12"/>
+            </svg>
+            <span data-label-text>Hide labels</span>
+          </button>
+          <button
+            type="button"
+            data-immersive-target="seal3d-container"
+            class="immersive-btn absolute top-4 right-4 px-3 py-1.5 text-xs rounded-full bg-white/80 border border-ink/15 text-ink hover:bg-white transition flex items-center gap-1.5 backdrop-blur-sm z-10"
+            aria-label="Open seal view in immersive full-screen view"
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M2 6 V2 H6 M14 6 V2 H10 M2 10 V14 H6 M14 10 V14 H10"/>
+            </svg>
+            Immersive
+          </button>
+          <p class="absolute bottom-3 left-0 right-0 text-center text-[11px] text-ink/50 italic">
+            Drag to rotate · scroll to zoom · exploded for clarity, not to scale
+          </p>
+        </div>
+
+        <!-- Layer legend -->
+        <div class="lg:col-span-2 space-y-5">
+          <div class="p-5 bg-white rounded-2xl border border-ink/5 shadow-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold" style="background: #c9a96e; color: #2a1a10;">3</span>
+              <p class="text-xs uppercase tracking-widest text-spice-500 font-medium">Tamper band (joint only)</p>
+            </div>
+            <h3 class="font-serif text-lg text-ink mb-1">Retail tamper signal</h3>
+            <p class="text-sm text-ink/70">A thin <span class="font-semibold">~6 mm PET band</span> printed with "SEALED · Mother's Gold Spice", wrapping <em>only</em> the cap-to-neck seam — gold cap surface stays fully visible. Tears the moment the cap is twisted. Loud tamper evidence for quick-commerce + modern-trade shelves.</p>
+            <p class="text-xs text-ink/50 mt-2">~₹0.50–0.80 per jar · recyclable PET · <em>not</em> a full sleeve</p>
+          </div>
+
+          <div class="p-5 bg-white rounded-2xl border border-ink/5 shadow-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold" style="background: #d8c89a; color: #2a1a10;">2</span>
+              <p class="text-xs uppercase tracking-widest text-spice-500 font-medium">Induction foil seal</p>
+            </div>
+            <h3 class="font-serif text-lg text-ink mb-1">The airtight layer</h3>
+            <p class="text-sm text-ink/70">Aluminium foil with heat-activated adhesive. After capping, an induction sealer melts the adhesive in 1–3 sec — foil bonds permanently to the glass rim. Customer peels it on first open.</p>
+            <p class="text-xs text-ink/50 mt-2">~₹1–2 per jar · 12-month shelf life · industry standard</p>
+          </div>
+
+          <div class="p-5 bg-white rounded-2xl border border-ink/5 shadow-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold" style="background: #f5e8d0; color: #2a1a10;">1</span>
+              <p class="text-xs uppercase tracking-widest text-spice-500 font-medium">Cap liner</p>
+            </div>
+            <h3 class="font-serif text-lg text-ink mb-1">The compression gasket</h3>
+            <p class="text-sm text-ink/70">EPE foam pre-inserted in the cap. Torquing the cap compresses it against the glass rim — primary mechanical seal at the threads. PVC-free, food-grade.</p>
+            <p class="text-xs text-ink/50 mt-2">~₹0.50–1 per cap · bundled in cap price</p>
+          </div>
+
+          <div class="p-4 bg-spice/5 rounded-2xl border border-spice/15 text-sm">
+            <p class="text-ink/80"><span class="font-semibold text-spice">Total seal cost</span> per jar: <span class="font-semibold">~₹3–5</span> on top of jar + cap + label.</p>
+            <p class="text-xs text-ink/60 mt-1">Pilot equipment kit: ~₹20–35k one-time (induction sealer + heat gun + torque tool).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Element notes -->
     <section class="max-w-4xl mx-auto px-6 py-16">
       <h2 class="font-serif text-2xl text-ink mb-6">Element notes</h2>
@@ -1010,36 +1096,52 @@ const nutrition = [
     function buildJar(labelTexture: THREE.CanvasTexture, capDecalTexture: THREE.CanvasTexture) {
       const jar = new THREE.Group();
 
-      // Clear glass body — high transmission, low roughness, slight warm tint
+      // Clear glass body — full transmission and thickness for a proper thick-glass
+      // look. `ior` is dropped from real-glass (1.5) to 1.05 so the curved lower wall
+      // no longer refracts the front label downward into a ghost band. Thickness gives
+      // it volume, clearcoat gives it surface sheen; no attenuation so it stays bright.
       glassMat = new THREE.MeshPhysicalMaterial({
         color: 0xfffaf0,
         roughness: 0.05,
         metalness: 0,
         transmission: 1.0,
-        thickness: 0.4,
-        ior: 1.5,
+        thickness: 0.6,
+        ior: 1.05,
         transparent: true,
         opacity: 1,
         side: THREE.DoubleSide,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.1,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.06,
       });
 
-      // Body profile (lathed around Y axis): rounded base, straight panel, shoulder taper to neck.
-      // Profile starts at the axis at the bottom and ends near the axis at the top (covered by cap).
-      const bodyProfile = [
-        new THREE.Vector2(0, -1.30),     // bottom centre (closed)
-        new THREE.Vector2(0.80, -1.30),  // flat base
-        new THREE.Vector2(0.90, -1.28),  // base bevel ↗
-        new THREE.Vector2(0.96, -1.25),
-        new THREE.Vector2(1.00, -1.20),  // body widest
-        new THREE.Vector2(1.00, 1.05),   // straight body
-        new THREE.Vector2(0.97, 1.13),   // shoulder bevel ↗
-        new THREE.Vector2(0.92, 1.20),
-        new THREE.Vector2(0.86, 1.25),   // neck taper
-        new THREE.Vector2(0.85, 1.28),   // neck (hidden by cap)
+      // Body profile (lathed around Y axis): rounded base, straight panel, shoulder
+      // taper to neck. Bottom corner + shoulder are built as quarter-circle arcs
+      // (instead of 3-point bevels) so they read as soft curves rather than chunky chamfers.
+      const bodyProfile: THREE.Vector2[] = [
+        new THREE.Vector2(0, -1.30),
+        new THREE.Vector2(0.80, -1.30),  // flat base ends, bottom curve starts
       ];
-      const body = new THREE.Mesh(new THREE.LatheGeometry(bodyProfile, 96), glassMat);
+      // Bottom corner: quarter-circle radius 0.20, centre (0.80, -1.10).
+      // Sweeps from (0.80, -1.30) at angle −π/2 up to (1.00, -1.10) at angle 0.
+      {
+        const r = 0.20, cx = 0.80, cy = -1.10, segs = 16;
+        for (let i = 1; i <= segs; i++) {
+          const ang = -Math.PI / 2 + (Math.PI / 2) * (i / segs);
+          bodyProfile.push(new THREE.Vector2(cx + r * Math.cos(ang), cy + r * Math.sin(ang)));
+        }
+      }
+      bodyProfile.push(new THREE.Vector2(1.00, 1.08));   // straight body, top end
+      // Shoulder: quarter-circle radius 0.17, centre (0.83, 1.08).
+      // Sweeps from (1.00, 1.08) at angle 0 up to (0.83, 1.25) at angle π/2.
+      {
+        const r = 0.17, cx = 0.83, cy = 1.08, segs = 14;
+        for (let i = 1; i <= segs; i++) {
+          const ang = (Math.PI / 2) * (i / segs);
+          bodyProfile.push(new THREE.Vector2(cx + r * Math.cos(ang), cy + r * Math.sin(ang)));
+        }
+      }
+      bodyProfile.push(new THREE.Vector2(0.83, 1.28));   // short neck (hidden by cap)
+      const body = new THREE.Mesh(new THREE.LatheGeometry(bodyProfile, 160), glassMat);
       jar.add(body);
 
       // Label wrap — thin cylinder on the straight body panel.
@@ -1070,15 +1172,28 @@ const nutrition = [
       });
       const capProfile = [
         new THREE.Vector2(0, 1.85),
-        new THREE.Vector2(0.85, 1.85),    // top flat
-        new THREE.Vector2(0.91, 1.83),    // top bevel ↘
-        new THREE.Vector2(0.95, 1.79),
-        new THREE.Vector2(0.96, 1.74),
-        new THREE.Vector2(0.96, 1.32),    // cap straight side
-        new THREE.Vector2(0.93, 1.30),    // tiny bottom bevel
-        new THREE.Vector2(0.86, 1.30),    // close to neck radius
+        new THREE.Vector2(0.78, 1.85),    // top flat ends (smaller flat → softer look)
       ];
-      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 64), goldMat);
+      // Top corner: quarter-circle radius 0.18, centred at (0.78, 1.67).
+      // Goes from (0.78, 1.85) over the top edge down to (0.96, 1.67) on the side wall.
+      const rTop = 0.18, cTopX = 0.78, cTopY = 1.67;
+      const topSegs = 14;
+      for (let i = 1; i <= topSegs; i++) {
+        const a = (Math.PI / 2) * (i / topSegs);
+        capProfile.push(new THREE.Vector2(cTopX + rTop * Math.sin(a), cTopY + rTop * Math.cos(a)));
+      }
+      capProfile.push(new THREE.Vector2(0.96, 1.36));   // straight side wall
+
+      // Bottom corner: smaller rounded chamfer (radius 0.06) so the cap-to-neck edge
+      // isn't a hard 90°.
+      const rBot = 0.06, cBotX = 0.90, cBotY = 1.36;
+      const botSegs = 6;
+      for (let i = 1; i <= botSegs; i++) {
+        const a = (Math.PI / 2) * (i / botSegs);
+        capProfile.push(new THREE.Vector2(cBotX + rBot * Math.cos(a), cBotY - rBot * Math.sin(a)));
+      }
+      capProfile.push(new THREE.Vector2(0.86, 1.30));   // close to neck radius
+      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 128), goldMat);
       jar.add(cap);
 
       // v2 cap-top decal (foil-stamped brand mark sitting just above the cap surface)
@@ -1322,19 +1437,63 @@ const nutrition = [
         side: THREE.DoubleSide,
       });
 
-      // Same lathed cap profile as the main jar (softly rounded top edge)
-      const capProfile = [
+      // Cap profile — rounded top corner (14-segment quarter-circle), rounded bottom
+      // chamfer. Same geometry as section 3 jar3d so the v2 mockup matches the v1 cap.
+      const capProfile: THREE.Vector2[] = [
         new THREE.Vector2(0, 1.85),
-        new THREE.Vector2(0.85, 1.85),
-        new THREE.Vector2(0.91, 1.83),
-        new THREE.Vector2(0.95, 1.79),
-        new THREE.Vector2(0.96, 1.74),
-        new THREE.Vector2(0.96, 1.32),
-        new THREE.Vector2(0.93, 1.30),
-        new THREE.Vector2(0.86, 1.30),
+        new THREE.Vector2(0.78, 1.85),
       ];
-      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 96), goldMat);
+      {
+        const r = 0.18, cx = 0.78, cy = 1.67, segs = 14;
+        for (let i = 1; i <= segs; i++) {
+          const a = (Math.PI / 2) * (i / segs);
+          capProfile.push(new THREE.Vector2(cx + r * Math.sin(a), cy + r * Math.cos(a)));
+        }
+      }
+      capProfile.push(new THREE.Vector2(0.96, 1.36));
+      {
+        const r = 0.06, cx = 0.90, cy = 1.36, segs = 6;
+        for (let i = 1; i <= segs; i++) {
+          const a = (Math.PI / 2) * (i / segs);
+          capProfile.push(new THREE.Vector2(cx + r * Math.cos(a), cy - r * Math.sin(a)));
+        }
+      }
+      capProfile.push(new THREE.Vector2(0.86, 1.30));
+      const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 128), goldMat);
       group.add(cap);
+
+      // Internal thread — matching GPI 63/2030 helix inside the cap, visible from
+      // below when the camera tilts under the cap. Same spec as section 5 seal view:
+      //   2.5 turns, 6 mm pitch, single-lead, right-hand, crest at radius 0.92.
+      class HelixCurve extends THREE.Curve<THREE.Vector3> {
+        constructor(
+          private radius: number,
+          private yStart: number,
+          private yEnd: number,
+          private turns: number,
+        ) { super(); }
+        getPoint(t: number, target = new THREE.Vector3()) {
+          const angle = this.turns * Math.PI * 2 * t;
+          const y = this.yStart + (this.yEnd - this.yStart) * t;
+          return target.set(this.radius * Math.cos(angle), y, this.radius * Math.sin(angle));
+        }
+      }
+      const capThreadCurve = new HelixCurve(0.92, 1.33, 1.61, 2.5);
+      const capThreadGeo = new THREE.TubeGeometry(capThreadCurve, 360, 0.020, 14, false);
+      const capThread = new THREE.Mesh(capThreadGeo, goldMat);
+      group.add(capThread);
+
+      // EPE liner — cream foam disc bonded inside the cap's underside top. Compresses
+      // against the jar rim when the cap is torqued down.
+      const linerMat = new THREE.MeshStandardMaterial({
+        color: 0xf5e8d0,
+        roughness: 0.95,
+        metalness: 0,
+      });
+      const linerGeo = new THREE.CylinderGeometry(0.82, 0.82, 0.06, 64);
+      const liner = new THREE.Mesh(linerGeo, linerMat);
+      liner.position.y = 1.66; // tucked against the cap's inner ceiling
+      group.add(liner);
 
       // Brand-mark decal disc — sits just above the cap top to avoid z-fighting
       const decalMat = new THREE.MeshStandardMaterial({
@@ -1416,4 +1575,533 @@ const nutrition = [
 
   initCap();
 </script>
+
+<script>
+  // ============================================================
+  // Seal exploded view (section 5) — the 3 layers separated
+  // vertically so each is visible: cap, foil seal, shrink sleeve.
+  // ============================================================
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+  // SVG for the v2 cap-top brand mark — same artwork as section 4's cap close-up.
+  const capDecalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+    <defs>
+      <path id="sealCapTopArc" d="M 90,265 A 160,160 0 0 1 410,265" fill="none"/>
+    </defs>
+    <circle cx="250" cy="250" r="225" fill="none" stroke="#7a1f10" stroke-width="1" stroke-opacity="0.5"/>
+    <circle cx="250" cy="250" r="218" fill="none" stroke="#7a1f10" stroke-width="0.6" stroke-opacity="0.35"/>
+    <text font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="34" font-weight="600" fill="#7a1f10">
+      <textPath href="#sealCapTopArc" startOffset="50%" text-anchor="middle">Mother's Gold Spice</textPath>
+    </text>
+    <g transform="translate(250, 240)">
+      <line x1="-46" y1="0" x2="-14" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
+      <path d="M 0,-7 C 5,-3 5,4 0,7 C -5,4 -5,-3 0,-7 Z" fill="#7a1f10"/>
+      <line x1="14" y1="0" x2="46" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
+    </g>
+    <g transform="translate(250, 300)">
+      <path d="M 0,-46
+               C 9,-38 17,-22 18,-2
+               C 17,18 9,34 0,46
+               C -9,34 -17,18 -18,-2
+               C -17,-22 -9,-38 0,-46 Z"
+            fill="#7a1f10"/>
+    </g>
+    <text x="250" y="412" text-anchor="middle" font-family="'Inter', sans-serif" font-size="13" font-weight="600" letter-spacing="3.0" fill="#7a1f10">A FAMILY RECIPE</text>
+    <circle cx="250" cy="92" r="2.5" fill="#7a1f10"/>
+    <circle cx="80" cy="250" r="1.8" fill="#7a1f10"/>
+    <circle cx="420" cy="250" r="1.8" fill="#7a1f10"/>
+  </svg>`;
+
+  // SVG for the tamper band — a thin 6mm-tall joint band (NOT a full shrink sleeve).
+  // Sits over the cap-to-neck seam only; cap sides stay visible. Tears on first twist.
+  const shrinkSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 96" width="2048" height="96">
+    <rect x="0" y="0" width="2048" height="96" fill="#7a1f10"/>
+    <g font-family="'Inter', sans-serif" font-size="34" font-weight="600" fill="#fbf6ec" text-anchor="middle" dominant-baseline="middle" letter-spacing="3">
+      <text x="170"  y="50">SEALED</text>
+      <text x="510"  y="50">· MOTHER'S GOLD SPICE ·</text>
+      <text x="1024" y="50">SMALL BATCH</text>
+      <text x="1538" y="50">· MOTHER'S GOLD SPICE ·</text>
+      <text x="1878" y="50">SEALED</text>
+    </g>
+    <g stroke="#fbf6ec" stroke-opacity="0.35" stroke-width="1">
+      <line x1="0" y1="14" x2="2048" y2="14"/>
+      <line x1="0" y1="82" x2="2048" y2="82"/>
+    </g>
+  </svg>`;
+
+  // SVG for the foil seal — printed face shown with "PEEL HERE" tab and brand mark
+  const foilSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <defs>
+      <radialGradient id="foilGrad" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#fff4d6"/>
+        <stop offset="65%" stop-color="#dcc28c"/>
+        <stop offset="100%" stop-color="#b89758"/>
+      </radialGradient>
+      <path id="foilArc" d="M 106,275 A 150,150 0 0 1 406,275" fill="none"/>
+    </defs>
+    <circle cx="256" cy="256" r="248" fill="url(#foilGrad)"/>
+    <circle cx="256" cy="256" r="240" fill="none" stroke="#7a1f10" stroke-width="1" stroke-opacity="0.5"/>
+    <text font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="44" font-weight="600" fill="#7a1f10">
+      <textPath href="#foilArc" startOffset="50%" text-anchor="middle">Mother's Gold Spice</textPath>
+    </text>
+    <text x="256" y="285" text-anchor="middle" font-family="'Inter', sans-serif" font-size="38" font-weight="700" letter-spacing="6" fill="#7a1f10">SEALED</text>
+    <text x="256" y="320" text-anchor="middle" font-family="'Inter', sans-serif" font-size="16" font-weight="500" letter-spacing="4" fill="#7a1f10" opacity="0.85">FOR FRESHNESS</text>
+    <text x="256" y="420" text-anchor="middle" font-family="'Inter', sans-serif" font-size="14" font-weight="600" letter-spacing="3" fill="#7a1f10" opacity="0.7">↑ PEEL HERE ↑</text>
+  </svg>`;
+
+  function svgToTexture(svg: string, w = 1024, h = w): Promise<THREE.CanvasTexture> {
+    // NOTE: must use a data URL (not Blob URL). Blob URLs sometimes silently fail to
+    // draw to a 2D canvas — symptoms: no error, no image, getImageData returns 0,0,0,0.
+    // Data URLs encoded via encodeURIComponent are the proven-working path here (see
+    // jar3d's svgToCanvasTexture and cap3d's inline loader).
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext("2d");
+        if (!ctx) return reject(new Error("no ctx"));
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(new THREE.CanvasTexture(cv));
+      };
+      img.onerror = (err) => reject(err);
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    });
+  }
+
+  async function initSeal() {
+    await document.fonts.ready;
+    const container = document.getElementById("seal3d-container");
+    if (!container) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = null;
+    const camera = new THREE.PerspectiveCamera(28, w / h, 0.1, 100);
+    camera.position.set(2.0, 3.5, 9.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.appendChild(renderer.domElement);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    scene.add(new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.45));
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(6, 8, 6);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.25);
+    fill.position.set(-6, 3, 4);
+    scene.add(fill);
+
+    // ---- GROUP: full assembly ----
+    const assembly = new THREE.Group();
+
+    // Reuse: jar body (same profile as section 3 jar3d) ----------------------
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xfffaf0,
+      roughness: 0.05,
+      metalness: 0,
+      transmission: 1.0,
+      thickness: 0.6,
+      ior: 1.05,
+      transparent: true,
+      opacity: 1,
+      side: THREE.DoubleSide,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.06,
+    });
+    const bodyProfile: THREE.Vector2[] = [
+      new THREE.Vector2(0, -1.30),
+      new THREE.Vector2(0.80, -1.30),
+    ];
+    {
+      const r = 0.20, cx = 0.80, cy = -1.10, segs = 16;
+      for (let i = 1; i <= segs; i++) {
+        const ang = -Math.PI / 2 + (Math.PI / 2) * (i / segs);
+        bodyProfile.push(new THREE.Vector2(cx + r * Math.cos(ang), cy + r * Math.sin(ang)));
+      }
+    }
+    bodyProfile.push(new THREE.Vector2(1.00, 1.08));
+    {
+      const r = 0.17, cx = 0.83, cy = 1.08, segs = 14;
+      for (let i = 1; i <= segs; i++) {
+        const ang = (Math.PI / 2) * (i / segs);
+        bodyProfile.push(new THREE.Vector2(cx + r * Math.cos(ang), cy + r * Math.sin(ang)));
+      }
+    }
+    // GLASS NECK — modelled to GPI 63/2030 finish (the Indian + ISO 9100 standard for
+    // 63 mm wide-mouth food jars). Dimensions below scale so 1 unit ≈ 31.5 mm.
+    //
+    //   T (thread OD)  ≈ 62 mm  → radius 0.985 → thread crest at 0.875 (neck OD 0.85
+    //                                            + thread height 0.025)
+    //   E (root dia.)  ≈ 60 mm  → radius 0.85   → straight neck wall
+    //   S (rim OD)     ≈ 66 mm  → radius 1.05   → outward flare for seal land
+    //   I (mouth ID)   ≈ 50 mm  → radius 0.79
+    //   Sealing surface height ≈ 1.5 mm flat ring on top of rim
+    //   Total neck height (shoulder → rim top) ≈ 12 mm
+    //
+    // The lathe profile builds the OUTER silhouette: straight neck → outward bevel →
+    // flat sealing rim → step in to mouth ID. Threads are added as a separate helical
+    // mesh below.
+    bodyProfile.push(new THREE.Vector2(0.85, 1.62));   // top of straight neck wall
+    bodyProfile.push(new THREE.Vector2(0.86, 1.625));  // tiny outward bevel
+    bodyProfile.push(new THREE.Vector2(0.88, 1.63));   // rim shoulder out
+    bodyProfile.push(new THREE.Vector2(0.88, 1.66));   // top of rim OD
+    bodyProfile.push(new THREE.Vector2(0.79, 1.66));   // mouth ID (foil seals here)
+    const body = new THREE.Mesh(new THREE.LatheGeometry(bodyProfile, 160), glassMat);
+    assembly.add(body);
+
+    // ---- NECK THREADS (external) — GPI 63/2030 continuous single-lead --------
+    // Built as a TubeGeometry traced along a helical curve. The thread CENTRELINE sits
+    // AT the neck wall radius (0.85) — so the inner half of the tube is buried inside
+    // the neck glass and the outer half protrudes. With the same `glassMat` reference
+    // shared with the body, both meshes refract+reflect identically and the thread
+    // visually fuses to the neck instead of looking like a wrapped wire.
+    //   pitch ≈ 4 mm (one turn rises 4 mm along the jar axis at our 1u≈31.5mm scale)
+    //   thread height (crest – root) ≈ 0.8 mm = 0.025 units (tube radius)
+    //   turns: 2.5 (hand-tight in <1 full rotation)
+    //   start: just above the shoulder (y = 1.31)
+    //   end:   ~1 mm below the rim base   (y = 1.59)
+    class HelixCurve extends THREE.Curve<THREE.Vector3> {
+      constructor(
+        private radius: number,
+        private yStart: number,
+        private yEnd: number,
+        private turns: number,
+        private direction: 1 | -1 = 1
+      ) { super(); }
+      getPoint(t: number, target = new THREE.Vector3()) {
+        const angle = this.direction * this.turns * Math.PI * 2 * t;
+        const y = this.yStart + (this.yEnd - this.yStart) * t;
+        return target.set(this.radius * Math.cos(angle), y, this.radius * Math.sin(angle));
+      }
+    }
+    const neckThreadCurve = new HelixCurve(0.86, 1.31, 1.59, 2.5, 1);
+    const neckThreadGeo = new THREE.TubeGeometry(neckThreadCurve, 360, 0.028, 16, false);
+    const neckThread = new THREE.Mesh(neckThreadGeo, glassMat);
+    assembly.add(neckThread);
+
+    // ---- LAYER 2: induction foil seal ----------------------------------------
+    // In real life it bonds flat to the jar rim (top sealing surface at y = 1.66).
+    // For the exploded view, lift it well above the rim so it reads as a distinct disc.
+    const foilTex = await svgToTexture(foilSvg, 1024);
+    foilTex.colorSpace = THREE.SRGBColorSpace;
+    const foilTopMat = new THREE.MeshStandardMaterial({
+      map: foilTex,
+      metalness: 0.85,
+      roughness: 0.25,
+    });
+    const foilSideMat = new THREE.MeshStandardMaterial({
+      color: 0xc9aa6a,
+      metalness: 0.95,
+      roughness: 0.3,
+    });
+    // CylinderGeometry materials: [side, top, bottom]. Foil OD matches rim OD (0.88).
+    const foilGeo = new THREE.CylinderGeometry(0.88, 0.88, 0.02, 96, 1, false);
+    const foil = new THREE.Mesh(foilGeo, [foilSideMat, foilTopMat, foilSideMat]);
+    foil.position.y = 2.30;
+    assembly.add(foil);
+
+    // ---- LAYER 1: cap with visible EPE liner + internal threads --------------
+    // Lifted further above so the foil is between jar and cap.
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xc9a96e,
+      roughness: 0.42,
+      metalness: 0.85,
+      side: THREE.DoubleSide,
+    });
+    const capProfile: THREE.Vector2[] = [
+      new THREE.Vector2(0, 1.85),
+      new THREE.Vector2(0.78, 1.85),
+    ];
+    {
+      const r = 0.18, cx = 0.78, cy = 1.67, segs = 14;
+      for (let i = 1; i <= segs; i++) {
+        const a = (Math.PI / 2) * (i / segs);
+        capProfile.push(new THREE.Vector2(cx + r * Math.sin(a), cy + r * Math.cos(a)));
+      }
+    }
+    capProfile.push(new THREE.Vector2(0.96, 1.36));
+    {
+      const r = 0.06, cx = 0.90, cy = 1.36, segs = 6;
+      for (let i = 1; i <= segs; i++) {
+        const a = (Math.PI / 2) * (i / segs);
+        capProfile.push(new THREE.Vector2(cx + r * Math.cos(a), cy - r * Math.sin(a)));
+      }
+    }
+    capProfile.push(new THREE.Vector2(0.86, 1.30));
+    const capLift = 2.55;
+    const capGroup = new THREE.Group();
+    const cap = new THREE.Mesh(new THREE.LatheGeometry(capProfile, 128), goldMat);
+    capGroup.add(cap);
+
+    // v2 cap-top brand mark — foil-stamped artwork sitting just above the cap dome.
+    const capDecalTex = await svgToTexture(capDecalSvg, 1024);
+    capDecalTex.colorSpace = THREE.SRGBColorSpace;
+    const capDecalMat = new THREE.MeshStandardMaterial({
+      map: capDecalTex,
+      transparent: true,
+      alphaTest: 0.02,
+      roughness: 0.4,
+      metalness: 0.6,
+      side: THREE.DoubleSide,
+    });
+    const capDecal = new THREE.Mesh(new THREE.CircleGeometry(0.74, 96), capDecalMat);
+    capDecal.rotation.x = -Math.PI / 2;
+    capDecal.position.y = 1.851; // sit just above the cap top to avoid z-fighting
+    capGroup.add(capDecal);
+
+    // CAP INNER THREADS — matching helical ridge on the cap's inside wall.
+    // Inverse direction so it mates with the jar neck thread (right-hand convention).
+    // Radius 0.92 sits inside cap wall (0.96) by ~1.3 mm = 0.04 units.
+    // Y range matches the neck thread range but shifted by 0.02 vertical so cap+jar
+    // engagement clamps with a residual half-turn of compression.
+    const capThreadCurve = new HelixCurve(0.92, 1.33, 1.61, 2.5, 1);
+    const capThreadGeo = new THREE.TubeGeometry(capThreadCurve, 360, 0.020, 14, false);
+    const capThread = new THREE.Mesh(capThreadGeo, goldMat);
+    capGroup.add(capThread);
+
+    capGroup.position.y = capLift;
+    assembly.add(capGroup);
+
+    // EPE liner — in real life this is bonded inside the cap (factory-pressed). For
+    // the exploded view, pull it out and float it as its own layer between the cap
+    // and the foil so the user can clearly see all four parts that go into the seal:
+    // cap → liner → foil → jar.
+    const linerMat = new THREE.MeshStandardMaterial({
+      color: 0xf5e8d0,
+      roughness: 0.95,
+      metalness: 0,
+    });
+    const linerGeo = new THREE.CylinderGeometry(0.84, 0.84, 0.06, 64);
+    const liner = new THREE.Mesh(linerGeo, linerMat);
+    liner.position.y = 3.05; // floating between foil (y=2.30) and cap bottom (y=3.85)
+    assembly.add(liner);
+
+    // ---- LAYER 3: tamper band (joint only, not a full sleeve) ----------------
+    // A thin ~6mm-tall printed PET band that wraps the cap-to-neck seam ONLY,
+    // leaving the gold cap surface fully visible. Tears the moment the cap is twisted —
+    // tamper evidence for retail/quick-commerce shelves (Blinkit, modern trade).
+    // In real life it sits at y=1.27 (just below cap bottom) to y=1.46 (overlapping
+    // the top of the neck). For the exploded view, float it off to the side.
+    const shrinkTex = await svgToTexture(shrinkSvg, 2048, 96);
+    shrinkTex.colorSpace = THREE.SRGBColorSpace;
+    shrinkTex.wrapS = THREE.RepeatWrapping;
+    shrinkTex.repeat.x = 1;
+    const shrinkMat = new THREE.MeshStandardMaterial({
+      map: shrinkTex,
+      roughness: 0.45,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+    });
+    const shrinkGeo = new THREE.CylinderGeometry(0.98, 0.98, 0.19, 96, 1, true);
+    const shrink = new THREE.Mesh(shrinkGeo, shrinkMat);
+    shrink.position.set(2.3, 1.6, 0); // off to the side, near the joint level
+    shrink.rotation.y = -0.35;
+    assembly.add(shrink);
+
+    // Center the whole assembly vertically so the orbit feels balanced
+    assembly.position.y = -1.0;
+    scene.add(assembly);
+
+    // ---- Dashed connector lines (visually link separated layers) -------------
+    const connectorMat = new THREE.LineDashedMaterial({
+      color: 0x7a1f10,
+      dashSize: 0.08,
+      gapSize: 0.06,
+      transparent: true,
+      opacity: 0.35,
+    });
+    const makeConnector = (y1: number, y2: number, x = 0) => {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(x, y1, 0),
+        new THREE.Vector3(x, y2, 0),
+      ]);
+      const line = new THREE.Line(geo, connectorMat);
+      line.computeLineDistances();
+      return line;
+    };
+    // jar-rim → foil → liner → cap (all four parts on one stacked axis)
+    assembly.add(makeConnector(1.67, 2.29));   // rim → foil
+    assembly.add(makeConnector(2.31, 3.02));   // foil → liner
+    assembly.add(makeConnector(3.08, 1.26 + capLift));  // liner → cap
+    scene.add(assembly);
+
+    // ---- OrbitControls -------------------------------------------------------
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    controls.enableZoom = true;
+    controls.minDistance = 5;
+    controls.maxDistance = 18;
+    controls.minPolarAngle = 0.2;
+    controls.maxPolarAngle = Math.PI - 0.4;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.9;
+    controls.rotateSpeed = 0.7;
+    controls.target.set(0.5, 0.8, 0);
+    controls.update();
+
+    let idleTimer: ReturnType<typeof setTimeout>;
+    const resumeIdle = () => {
+      clearTimeout(idleTimer);
+      controls.autoRotate = false;
+      idleTimer = setTimeout(() => (controls.autoRotate = true), 4000);
+    };
+    renderer.domElement.addEventListener("pointerdown", resumeIdle);
+    renderer.domElement.addEventListener("wheel", resumeIdle);
+
+    // ---- LABELS with arrows (toggleable) -------------------------------------
+    // Each label is a fixed-position HTML card anchored at the container edge.
+    // An SVG arrow connects the card to a tracked 3D point. As the camera rotates,
+    // only the arrow endpoint moves (label stays anchored — easier to read).
+    type LabelSide = "left" | "right";
+    type LabelDef = { text: string; sub: string; target: THREE.Vector3; side: LabelSide; topPct: number };
+    // Target points are in WORLD coordinates (assembly is offset by -1.0 on Y).
+    const labelDefs: LabelDef[] = [
+      { text: "Cap",                 sub: "tinplate, gold lacquer",      target: new THREE.Vector3(0.6, 1.85 + capLift - 1.0, 0), side: "left",  topPct: 5  },
+      { text: "EPE foam liner",      sub: "Layer 1 · primary gasket",    target: new THREE.Vector3(0.4, 3.05 - 1.0, 0),           side: "right", topPct: 23 },
+      { text: "Induction foil",      sub: "Layer 2 · airtight seal",     target: new THREE.Vector3(0.5, 2.30 - 1.0, 0),           side: "left",  topPct: 38 },
+      { text: "GPI 63/2030 neck",    sub: "thread + sealing rim",        target: new THREE.Vector3(0.86, 1.45 - 1.0, 0),          side: "right", topPct: 54 },
+      { text: "Glass body + label",  sub: "flint glass, hand-filled",    target: new THREE.Vector3(1.0, -0.4 - 1.0, 0),           side: "left",  topPct: 72 },
+      { text: "Tamper band",         sub: "Layer 3 · 6mm joint seal",    target: new THREE.Vector3(2.3, 1.6 - 1.0, 0.4),          side: "right", topPct: 88 },
+    ];
+
+    const labelLayer = document.createElement("div");
+    labelLayer.id = "seal-labels-layer";
+    labelLayer.style.cssText = "position:absolute; inset:0; pointer-events:none; z-index:5;";
+    container.appendChild(labelLayer);
+
+    const arrowSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    arrowSvg.style.cssText = "position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible;";
+    labelLayer.appendChild(arrowSvg);
+
+    // SVG <defs> for arrowhead marker
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+      <marker id="seal-arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a1f10"/>
+      </marker>
+    `;
+    arrowSvg.appendChild(defs);
+
+    type LabelInstance = { def: LabelDef; el: HTMLDivElement; line: SVGLineElement };
+    const labels: LabelInstance[] = labelDefs.map((def) => {
+      const el = document.createElement("div");
+      el.className = `seal-label seal-label-${def.side}`;
+      el.style.cssText = `position:absolute; ${def.side}:10px; top:${def.topPct}%; transform:translateY(-50%); pointer-events:none;`;
+      el.innerHTML = `
+        <div class="seal-label-card">
+          <div class="seal-label-title">${def.text}</div>
+          <div class="seal-label-sub">${def.sub}</div>
+        </div>
+      `;
+      labelLayer.appendChild(el);
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("stroke", "#7a1f10");
+      line.setAttribute("stroke-width", "1.2");
+      line.setAttribute("stroke-dasharray", "3 3");
+      line.setAttribute("marker-end", "url(#seal-arrow-head)");
+      arrowSvg.appendChild(line);
+
+      return { def, el, line };
+    });
+
+    function updateLabels() {
+      const cw = container!.clientWidth;
+      const ch = container!.clientHeight;
+      const cRect = container!.getBoundingClientRect();
+      for (const { def, el, line } of labels) {
+        // Project the 3D target point to 2D screen coords inside the container.
+        const v = def.target.clone().project(camera);
+        const x2 = (v.x + 1) / 2 * cw;
+        const y2 = (1 - v.y) / 2 * ch;
+        // Start point: inner edge of the label card.
+        const r = el.getBoundingClientRect();
+        const x1 = def.side === "left" ? (r.right - cRect.left) : (r.left - cRect.left);
+        const y1 = (r.top + r.bottom) / 2 - cRect.top;
+        line.setAttribute("x1", String(x1));
+        line.setAttribute("y1", String(y1));
+        line.setAttribute("x2", String(x2));
+        line.setAttribute("y2", String(y2));
+        // If the projected point is behind the camera, hide that arrow.
+        const visible = v.z < 1;
+        line.style.opacity = visible ? "0.7" : "0";
+      }
+    }
+
+    // Toggle button wiring (the button is in the Astro markup)
+    const toggleBtn = document.getElementById("seal-labels-toggle");
+    let labelsVisible = true;
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        labelsVisible = !labelsVisible;
+        labelLayer.style.display = labelsVisible ? "" : "none";
+        const txt = toggleBtn.querySelector("[data-label-text]");
+        if (txt) txt.textContent = labelsVisible ? "Hide labels" : "Show labels";
+      });
+    }
+
+    function tick() {
+      controls.update();
+      renderer.render(scene, camera);
+      if (labelsVisible) updateLabels();
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    window.addEventListener("resize", () => {
+      const w = container!.clientWidth;
+      const h = container!.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  }
+
+  initSeal();
+</script>
+
+<style is:global>
+  .seal-label-card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(122, 31, 16, 0.18);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-family: "Inter", system-ui, sans-serif;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(42, 26, 16, 0.08);
+    max-width: 160px;
+  }
+  .seal-label-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2a1a10;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+  }
+  .seal-label-sub {
+    font-size: 9.5px;
+    color: #2a1a10;
+    opacity: 0.6;
+    margin-top: 1px;
+    line-height: 1.25;
+  }
+  @media (max-width: 720px) {
+    .seal-label-card { max-width: 110px; padding: 4px 7px; }
+    .seal-label-title { font-size: 10px; }
+    .seal-label-sub { font-size: 8.5px; }
+  }
+</style>
 
