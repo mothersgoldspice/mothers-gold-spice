@@ -789,7 +789,9 @@ const nutrition = [
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // Neutral tone mapping preserves the bagasse cream and spice-red colors faithfully.
+    // ACES (the previous choice) made the cream look bright-white by amplifying highlights.
+    renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
 
@@ -798,16 +800,16 @@ const nutrition = [
     const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envTexture;
 
-    // Lighting — refs so the control panel can toggle/intensify each
-    const ambient = new THREE.AmbientLight(0xffffff, 0.18);
+    // Lighting — balanced for honest cream-paper reproduction (key dropped from 1.8 → 1.0)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambient);
-    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.28);
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.45);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.8);
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.12);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.2);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.18);
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
     scene.add(rim);
 
     // Materials we'll mutate from the control panel
@@ -816,7 +818,7 @@ const nutrition = [
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
     // Base values — what gets multiplied by the "brightness" slider
-    const BASE = { ambient: 0.18, hemi: 0.28, key: 1.8, fill: 0.12, rim: 0.18 };
+    const BASE = { ambient: 0.35, hemi: 0.45, key: 1.0, fill: 0.2, rim: 0.2 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
@@ -1118,7 +1120,7 @@ const nutrition = [
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
 
@@ -1127,20 +1129,20 @@ const nutrition = [
     const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envTexture;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.18);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambient);
-    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.28);
+    const hemi = new THREE.HemisphereLight(0xfff5e0, 0x6a4a28, 0.45);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.8);
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xfff4d6, 0.12);
+    const fill = new THREE.DirectionalLight(0xfff4d6, 0.2);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffe5b8, 0.18);
+    const rim = new THREE.DirectionalLight(0xffe5b8, 0.2);
     scene.add(rim);
 
     let goldMat: THREE.MeshStandardMaterial | null = null;
 
-    const BASE = { ambient: 0.18, hemi: 0.28, key: 1.8, fill: 0.12, rim: 0.18 };
+    const BASE = { ambient: 0.35, hemi: 0.45, key: 1.0, fill: 0.2, rim: 0.2 };
     const COOL = new THREE.Color(0xffffff);
     const WARM = new THREE.Color(0xffd5a0);
     const FILL_COOL = new THREE.Color(0xfff4d6);
