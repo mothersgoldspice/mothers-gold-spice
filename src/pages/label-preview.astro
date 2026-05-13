@@ -1022,10 +1022,21 @@ const nutrition = [
       <line x1="14" y1="0" x2="46" y2="0" stroke="#7a1f10" stroke-width="1.4"/>
     </g>
 
-    <!-- Centre: clean abstract leaf (universal across all pickle types) -->
-    <g transform="translate(250, 340)" fill="#7a1f10">
-      <path d="M 0,-38 C 24,-28 26,-2 14,22 C 6,38 -6,38 -14,22 C -26,-2 -24,-28 0,-38 Z" />
-      <path d="M 0,-30 L 0,30" stroke="#fbf6ec" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+    <!-- Centre: realistic leaf with pointed tip + stem (universal across all pickle types) -->
+    <g transform="translate(250, 338)">
+      <!-- Stem -->
+      <path d="M 0,40 L 0,50" stroke="#7a1f10" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <!-- Leaf body: pointed top, rounded mid, tapering to stem -->
+      <path d="M 0,-40 C 4,-32 18,-18 22,2 C 24,18 14,32 0,40 C -14,32 -24,18 -22,2 C -18,-18 -4,-32 0,-40 Z" fill="#7a1f10"/>
+      <!-- Central vein -->
+      <path d="M 0,-36 L 0,38" stroke="#fbf6ec" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <!-- Side veins (curve outward from midrib) -->
+      <path d="M 0,-20 Q 8,-16 14,-8" stroke="#fbf6ec" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M 0,-20 Q -8,-16 -14,-8" stroke="#fbf6ec" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M 0,-4 Q 9,0 17,8" stroke="#fbf6ec" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M 0,-4 Q -9,0 -17,8" stroke="#fbf6ec" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M 0,14 Q 7,18 12,24" stroke="#fbf6ec" stroke-width="1" fill="none" stroke-linecap="round"/>
+      <path d="M 0,14 Q -7,18 -12,24" stroke="#fbf6ec" stroke-width="1" fill="none" stroke-linecap="round"/>
     </g>
 
     <!-- Bottom: shelf-friendly tagline (no backstory needed) -->
