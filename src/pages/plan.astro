@@ -169,24 +169,19 @@ const scenarios = [
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
       <h2 class="font-serif text-2xl text-ink mb-2">The 12-week timeline</h2>
       <p class="text-sm text-ink/60 mb-8">Six phases. Some overlap (3 + 4 run together while we wait on FSSAI).</p>
-      <div class="relative">
-        <!-- Vertical line -->
-        <div class="absolute left-3 top-1 bottom-1 w-px bg-spice/30 hidden md:block"></div>
-        <ol class="space-y-2">
-          {phases.map((p) => (
-            <li class="relative md:pl-10 flex items-center gap-3">
-              <span class="timeline-badge timeline-badge-desktop">{p.n}</span>
-              <span class="timeline-badge timeline-badge-mobile">{p.n}</span>
-              <div class="flex-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
-                <span class="font-serif text-base text-ink">{p.title}</span>
-                <span class="text-xs text-ink/50">{p.weeks}</span>
-                <span class="text-xs text-ink/50">·</span>
-                <span class="text-xs text-ink/50">≈₹{(p.investThisPhase / 1000).toFixed(0)}k</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <ol class="timeline-list">
+        {phases.map((p) => (
+          <li class="timeline-row">
+            <span class="timeline-badge">{p.n}</span>
+            <div class="timeline-meta">
+              <span class="timeline-title">{p.title}</span>
+              <span class="timeline-aside">{p.weeks}</span>
+              <span class="timeline-aside">·</span>
+              <span class="timeline-aside">≈₹{(p.investThisPhase / 1000).toFixed(0)}k</span>
+            </div>
+          </li>
+        ))}
+      </ol>
     </section>
 
     <!-- PHASE CARDS -->
@@ -210,9 +205,9 @@ const scenarios = [
                 <h3 class="font-serif text-lg text-ink leading-tight">{step.task}</h3>
               </div>
               <p class="text-sm text-ink/70 pl-9 mb-3">{step.why}</p>
-              <div class="pl-9 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink/60">
-                <span><strong class="text-ink/80">Cost:</strong> {step.cost}</span>
-                <span><strong class="text-ink/80">Time:</strong> {step.time}</span>
+              <div class="step-meta">
+                <span class="step-meta-item"><strong>Cost:</strong> {step.cost}</span>
+                <span class="step-meta-item"><strong>Time:</strong> {step.time}</span>
               </div>
             </div>
           ))}
@@ -379,13 +374,27 @@ const scenarios = [
     font-size: 16px;
     line-height: 1;
   }
-  /* Small badges in the timeline list at the top of the page */
+  /* Timeline list (top of page — six phases at a glance) */
+  .timeline-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .timeline-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
   .timeline-badge {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    min-height: 24px;
-    flex: 0 0 24px;
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    flex: 0 0 28px;
     border-radius: 9999px;
     background: #7a1f10;
     color: #fff;
@@ -394,29 +403,33 @@ const scenarios = [
     font-family: "Inter", system-ui, sans-serif;
     font-style: normal;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1;
   }
-  .timeline-badge-desktop {
-    display: none;
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
+  .timeline-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
   }
-  .timeline-badge-mobile { display: inline-flex; }
-  @media (min-width: 768px) {
-    .timeline-badge-desktop { display: inline-flex; }
-    .timeline-badge-mobile  { display: none; }
+  .timeline-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 17px;
+    color: #2a1a10;
   }
+  .timeline-aside {
+    font-size: 12px;
+    color: rgba(42, 26, 16, 0.5);
+  }
+
   /* Small numbered step circles inside each phase card */
   .step-badge {
     display: inline-flex;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    min-height: 24px;
-    flex: 0 0 24px;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    flex: 0 0 26px;
     border-radius: 9999px;
     background: #ffe9c2;
     color: #7a1f10;
@@ -425,8 +438,24 @@ const scenarios = [
     font-family: "Inter", system-ui, sans-serif;
     font-style: normal;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1;
     margin-top: 2px;
+  }
+
+  /* Cost + Time meta line inside each step card */
+  .step-meta {
+    padding-left: 36px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    font-size: 12px;
+    color: rgba(42, 26, 16, 0.6);
+    margin-top: 8px;
+  }
+  .step-meta-item strong {
+    color: rgba(42, 26, 16, 0.8);
+    font-weight: 600;
+    margin-right: 4px;
   }
 </style>
