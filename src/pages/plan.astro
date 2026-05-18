@@ -175,8 +175,8 @@ const scenarios = [
         <ol class="space-y-2">
           {phases.map((p) => (
             <li class="relative md:pl-10 flex items-center gap-3">
-              <span class="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-spice text-white text-xs items-center justify-center font-sans font-bold not-italic">{p.n}</span>
-              <span class="md:hidden inline-flex w-6 h-6 rounded-full bg-spice text-white text-xs items-center justify-center shrink-0 font-sans font-bold not-italic">{p.n}</span>
+              <span class="timeline-badge timeline-badge-desktop">{p.n}</span>
+              <span class="timeline-badge timeline-badge-mobile">{p.n}</span>
               <div class="flex-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
                 <span class="font-serif text-base text-ink">{p.title}</span>
                 <span class="text-xs text-ink/50">{p.weeks}</span>
@@ -194,8 +194,8 @@ const scenarios = [
       <section class={`max-w-5xl mx-auto px-6 py-12 ${p.n % 2 === 0 ? 'bg-white/40' : ''}`}>
         <div class="flex flex-wrap items-center gap-3 mb-2">
           <span
-            class="inline-flex w-10 h-10 shrink-0 rounded-full items-center justify-center font-sans font-bold text-base leading-none"
-            style={p.accent === 'spice' ? 'background:#7a1f10;color:#fff;font-style:normal;' : 'background:#ffe9c2;color:#7a1f10;font-style:normal;'}
+            class="phase-badge"
+            style={`background:${p.accent === 'spice' ? '#7a1f10' : '#ffe9c2'};color:${p.accent === 'spice' ? '#fff' : '#7a1f10'};`}
           >{p.n}</span>
           <h2 class="font-serif text-2xl md:text-3xl text-ink">{p.title}</h2>
           <span class="text-sm text-ink/50">· {p.weeks} ({p.weekLabel})</span>
@@ -206,7 +206,7 @@ const scenarios = [
           {p.steps.map((step, i) => (
             <div class="p-5 bg-white rounded-xl border border-ink/8 shadow-sm">
               <div class="flex items-start gap-3 mb-2">
-                <span class="inline-flex shrink-0 w-6 h-6 rounded-full bg-mango-100 text-spice text-[11px] font-bold items-center justify-center mt-0.5 font-sans not-italic">{i + 1}</span>
+                <span class="step-badge">{i + 1}</span>
                 <h3 class="font-serif text-lg text-ink leading-tight">{step.task}</h3>
               </div>
               <p class="text-sm text-ink/70 pl-9 mb-3">{step.why}</p>
@@ -359,3 +359,74 @@ const scenarios = [
     </section>
   </main>
 </Layout>
+
+<style>
+  /* Phase header badge (next to each phase title). Hard pixel sizes so the circle
+     never gets crushed by parent flex layout or missing Tailwind size utilities. */
+  .phase-badge {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    flex: 0 0 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1;
+  }
+  /* Small badges in the timeline list at the top of the page */
+  .timeline-badge {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    flex: 0 0 24px;
+    border-radius: 9999px;
+    background: #7a1f10;
+    color: #fff;
+    align-items: center;
+    justify-content: center;
+    font-family: "Inter", system-ui, sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .timeline-badge-desktop {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .timeline-badge-mobile { display: inline-flex; }
+  @media (min-width: 768px) {
+    .timeline-badge-desktop { display: inline-flex; }
+    .timeline-badge-mobile  { display: none; }
+  }
+  /* Small numbered step circles inside each phase card */
+  .step-badge {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    flex: 0 0 24px;
+    border-radius: 9999px;
+    background: #ffe9c2;
+    color: #7a1f10;
+    align-items: center;
+    justify-content: center;
+    font-family: "Inter", system-ui, sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    font-size: 11px;
+    line-height: 1;
+    margin-top: 2px;
+  }
+</style>
