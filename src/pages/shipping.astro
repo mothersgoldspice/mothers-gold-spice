@@ -1,0 +1,486 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Shipping economics & operations — Mother's Gold Spice" description="Real numbers and an operational playbook for D2C shipping pan-India on a small-batch pickle brand.">
+  <main class="bg-cream min-h-screen">
+    <!-- HERO -->
+    <header class="border-b border-ink/10">
+      <div class="max-w-5xl mx-auto px-6 py-16">
+        <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-4">Operations playbook</p>
+        <h1 class="font-serif text-4xl md:text-5xl text-ink mb-5 leading-tight">Shipping economics<br/>& D2C operations</h1>
+        <p class="text-ink/70 max-w-2xl text-lg leading-relaxed">
+          A 250 g glass jar with mustard oil is one of the trickiest things to ship: fragile, heavy-for-its-value, and prone to oil leakage. This page lays out the realistic costs and the operational workflow — written for a full-time-employed founder running a small-batch D2C brand.
+        </p>
+        <p class="mt-5 text-sm">
+          <a href="/plan" class="text-spice underline hover:text-spice-700">← Back to the launch plan</a>
+        </p>
+      </div>
+    </header>
+
+    <!-- SECTION 1: LOCAL BANGALORE -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">1. Local Bangalore — on-demand bike couriers</h2>
+      <p class="text-sm text-ink/60 mb-6">For Bangalore-local D2C orders (first 3 months will be ~70% Bangalore).</p>
+
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Service</th><th>0–5 km</th><th>5–10 km</th><th>10–15 km</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Porter Bikes</strong></td><td>₹60–80</td><td>₹100–130</td><td>₹140–180</td><td>Most reliable; drivers handle parcels properly</td></tr>
+            <tr><td><strong>Swiggy Genie</strong></td><td>₹50–70</td><td>₹90–120</td><td>₹130–170</td><td>Cheapest short hops; less careful with fragile</td></tr>
+            <tr><td><strong>Borzo</strong> (ex-WeFast)</td><td>₹55–75</td><td>₹85–115</td><td>₹130–170</td><td>Widely used by Bangalore D2C brands</td></tr>
+            <tr><td><strong>Dunzo</strong></td><td colspan="3">⚠️ Mostly defunct — pivoted to B2B in 2024</td><td>Don't budget</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-5 text-sm text-ink/70"><strong>Surge pricing:</strong> 1.5–2× during peak hours (lunch 12–2 PM, dinner 7–9 PM, rain). Schedule pickups at <strong>2–4 PM</strong> for the cheapest rates.</p>
+
+      <div class="ship-callout">
+        <p class="ship-callout-label">Budget for Bangalore</p>
+        <p><strong>₹90–110 per delivery</strong> is a safe average for a single-jar drop within Bangalore. That's about <strong>22% of MRP</strong> if you charge full price + free shipping — too much. Mitigation: batch deliveries (next section) and self-delivery loops in the first month.</p>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Batch deliveries — half the cost</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Method</th><th>Cost</th><th>Per-jar cost for 5 jars</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>5 separate Porter Bike deliveries</td><td>₹500 total</td><td>₹100/jar</td></tr>
+            <tr><td><strong>Porter Mini Truck</strong> routed (5 stops, 2–3 hr booking)</td><td>₹450–600</td><td>₹90–120/jar</td></tr>
+            <tr><td><strong>Self-delivery loop</strong> (own scooter, 5 drops on one route)</td><td>fuel only ~₹50</td><td><strong>₹10/jar</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-4 text-sm text-ink/70">For the first 30–50 orders concentrated in Bangalore, <strong>do a Saturday delivery loop yourself</strong> — group 5–10 orders by area, deliver in one route. Customers love meeting the founder (great for reviews + Instagram content), and you save real money.</p>
+    </section>
+
+    <!-- SECTION 2: PAN-INDIA WITH SHIPROCKET -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">2. Pan-India — Shiprocket aggregator</h2>
+      <p class="text-sm text-ink/60 mb-6">For anything outside Bangalore. Shiprocket integrates with 25+ couriers (Delhivery, DTDC, India Post, Ekart, Bluedart, etc.) and auto-picks the cheapest per pincode.</p>
+
+      <h3 class="font-serif text-xl text-ink mb-3">Shiprocket zones (2026 rates, 500 g jar)</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Zone</th><th>What it means</th><th>Example route</th><th>Surface rate</th><th>Transit</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>A</strong></td><td>Within city</td><td>BLR → BLR</td><td>₹35–50</td><td>1–2 days</td></tr>
+            <tr><td><strong>B</strong></td><td>Within state</td><td>BLR → Mysore / Mangalore</td><td>₹50–70</td><td>2–3 days</td></tr>
+            <tr><td><strong>C</strong></td><td>Metro to metro</td><td>BLR → Mumbai / Delhi / Chennai</td><td>₹70–95</td><td>3–5 days</td></tr>
+            <tr><td><strong>D</strong></td><td>Rest of India</td><td>BLR → small towns in UP, MP, Bihar</td><td>₹90–120</td><td>4–7 days</td></tr>
+            <tr><td><strong>E</strong></td><td>Special zones</td><td>BLR → NE states, J&K, Ladakh, islands</td><td>₹120–160</td><td>5–10 days</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-5 text-sm text-ink/70"><strong>Express rates</strong> (1–2 day delivery): add ~50–80% to surface. So Bangalore → Delhi Express ≈ ₹130 vs Surface ₹85.</p>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">⚠️ The volumetric weight trap</h3>
+      <p class="text-sm text-ink/70 mb-3">Couriers bill the <strong>higher of</strong>:</p>
+      <ul class="ship-bullets">
+        <li>Actual weight (your packaged jar: 500 g)</li>
+        <li>Volumetric weight: L × W × H in cm ÷ 5000</li>
+      </ul>
+      <div class="ship-callout-amber">
+        <p>For a pickle jar in a 15 × 15 × 15 cm box: volumetric = 3,375 ÷ 5,000 = <strong>675 g</strong> → bills as 750 g slab.</p>
+        <p class="mt-2"><strong>Fix:</strong> use a 13 × 13 × 13 cm tight-fit box. Volumetric drops to 440 g, you stay in the 500 g slab. <strong>Saves ~₹15 per shipment</strong> — at 500 orders/month, that's ₹7,500/month back into the brand.</p>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Weighted all-India average</h3>
+      <p class="text-sm text-ink/70 mb-4">For a typical Indian e-commerce customer distribution:</p>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Zone</th><th>Share of orders</th><th>Cost (750 g billable)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A</td><td>30%</td><td>₹45</td></tr>
+            <tr><td>B</td><td>20%</td><td>₹65</td></tr>
+            <tr><td>C</td><td>25%</td><td>₹85</td></tr>
+            <tr><td>D</td><td>20%</td><td>₹110</td></tr>
+            <tr><td>E</td><td>5%</td><td>₹140</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-4 text-sm text-ink/70"><strong>Weighted average ≈ ₹78 per 1-jar shipment (Surface)</strong>. If 30% of customers want Express: <strong>blended average ~₹90 per 1-jar shipment all-India</strong>.</p>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Multi-jar orders — per-jar cost drops sharply</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Order</th><th>Actual</th><th>Billable</th><th>All-India avg surface</th><th>Per-jar shipping</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1 jar</td><td>500 g</td><td>750 g</td><td>₹78</td><td><strong>₹78</strong></td></tr>
+            <tr><td>2 jars</td><td>1.0 kg</td><td>1.25 kg</td><td>₹100</td><td><strong>₹50</strong></td></tr>
+            <tr><td>3 jars</td><td>1.5 kg</td><td>1.75 kg</td><td>₹125</td><td><strong>₹42</strong></td></tr>
+            <tr><td>5 jars</td><td>2.5 kg</td><td>2.5 kg</td><td>₹175</td><td><strong>₹35</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-4 text-sm text-ink/70">This is why <strong>"Free shipping above ₹999" (= 2 jars)</strong> works. A 3-jar order costs almost the same to ship as a 2-jar order, but the per-jar economics jump significantly. Strong incentive to push multi-jar baskets.</p>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Hidden costs to budget for</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Item</th><th>Cost</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>COD handling fee</strong></td><td>₹30 OR 2% of order, whichever higher</td><td>Every COD order</td></tr>
+            <tr><td><strong>Insurance</strong> (optional)</td><td>1% of declared value</td><td>₹4.49 for ₹449 jar — worth it for glass</td></tr>
+            <tr><td><strong>RTO</strong> (return to origin)</td><td>₹50–80 per failed delivery</td><td>~15% of COD orders fail</td></tr>
+            <tr><td><strong>GST on shipping</strong></td><td>18% on top</td><td>Recoverable if you have GSTIN</td></tr>
+            <tr><td><strong>Address-correction fee</strong></td><td>₹10–30</td><td>Wrong pincode/address fixes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Volume tiers and new-brand discounts</h3>
+      <ul class="ship-bullets">
+        <li><strong>First 90 days new signup:</strong> 10–15% off rack rates (Shiprocket promotional)</li>
+        <li><strong>50+ orders/month:</strong> Shiprocket Plus tier — 5–10% off</li>
+        <li><strong>500+ orders/month:</strong> Shiprocket Premium — another 10% off + dedicated account manager</li>
+        <li><strong>Year 2 / negotiated rates:</strong> Brands at 500+ orders/month often get 20–30% off rack via direct negotiation</li>
+      </ul>
+    </section>
+
+    <!-- SECTION 3: FULL-TIME EMPLOYEE WORKFLOW -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">3. Operational rhythm for a full-time-employed founder</h2>
+      <p class="text-sm text-ink/60 mb-6">D2C ops fit in ~5–7 hours/week if you batch the work right. Most small Indian D2C brands at pilot scale do this.</p>
+
+      <h3 class="font-serif text-xl text-ink mb-3">Realistic week (for ~30–50 orders/month)</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Day</th><th>Time</th><th>Activity</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Mon evening</td><td>30 min</td><td>Check weekend orders + customer messages in WhatsApp Business</td></tr>
+            <tr><td>Tue evening</td><td>45 min</td><td>Reply to inquiries · update Instagram</td></tr>
+            <tr><td><strong>Wed evening (packing day)</strong></td><td>90 min</td><td>Pack 10–20 orders · print shipping labels · schedule Shiprocket pickup for next morning</td></tr>
+            <tr><td>Thu morning (before work)</td><td>15 min</td><td>Hand boxes to Shiprocket courier at door</td></tr>
+            <tr><td>Fri evening</td><td>30 min</td><td>Customer service catch-up</td></tr>
+            <tr><td><strong>Sat afternoon (packing day)</strong></td><td>120 min</td><td>Pack remaining week's orders · schedule Sunday pickup</td></tr>
+            <tr><td>Sun morning</td><td>15 min</td><td>Hand boxes to Shiprocket · weekly admin</td></tr>
+            <tr><td>Sun evening</td><td>30 min</td><td>Restock inventory · update spreadsheet · plan next week</td></tr>
+            <tr class="ship-table-total"><td><strong>Total</strong></td><td><strong>~6 hrs/week</strong></td><td>For 30–50 orders/month</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">When you'd need to scale beyond this</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Orders/month</th><th>What it looks like</th><th>Time needed</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>0–50</td><td>Comfortably part-time</td><td>5–7 hrs/week</td></tr>
+            <tr><td>50–150</td><td>Tight but doable; mom/family helping</td><td>10–15 hrs/week</td></tr>
+            <tr><td>150–300</td><td>Hire a part-time helper (~₹15k/month)</td><td>20+ hrs/week</td></tr>
+            <tr><td>300–600</td><td>Either quit job OR move to a <strong>3PL</strong> (WareIQ, EasyShip — they pack + ship for ₹40–60/order)</td><td>5 hrs/week again</td></tr>
+            <tr><td>600+</td><td>Full-time founder OR 3PL only</td><td>Full-time required</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Tools stack that makes part-time D2C possible</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Tool</th><th>What it does</th><th>Cost</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Razorpay payment confirmations</td><td>Auto-confirms order at the moment of payment — you don't have to reply manually</td><td>Free with Razorpay</td></tr>
+            <tr><td>WhatsApp Business autoresponder</td><td>"Thanks! We reply by 7 PM daily." Sets expectations during work hours</td><td>Free</td></tr>
+            <tr><td>WhatsApp Business catalog</td><td>Customer browses + orders via WhatsApp without you typing each product</td><td>Free</td></tr>
+            <tr><td>Shiprocket dashboard</td><td>Bulk-print 20 labels in one click; schedule pickup with 2 clicks</td><td>Free signup, pay per shipment</td></tr>
+            <tr><td>Shiprocket pickup scheduling</td><td>Courier comes to your door — no post office trips</td><td>Free</td></tr>
+            <tr><td>Pre-printed packing slips + thank-you cards</td><td>Sticker-glue, drop in box, done in 30 sec/order</td><td>₹2/order</td></tr>
+            <tr><td>Google Sheet + Zapier (free tier)</td><td>Orders auto-populate from Razorpay webhooks; no manual entry</td><td>Free</td></tr>
+            <tr><td>Mom on weekends to help pack</td><td>Cuts packing time in half; quality time together</td><td>Family</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 4: REAL BRANDS -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">4. Small Indian D2C brands that started exactly this way</h2>
+      <p class="text-sm text-ink/60 mb-6">All of these are now ₹50 crore+ brands. They all started from a home/garage using Shiprocket.</p>
+      <div class="ship-brand-grid">
+        <div class="ship-brand">
+          <p class="ship-brand-name">The Whole Truth Foods</p>
+          <p class="ship-brand-detail">Shashank Mehta packed the first 6 months from his Mumbai apartment</p>
+        </div>
+        <div class="ship-brand">
+          <p class="ship-brand-name">Two Brothers Organic Farms</p>
+          <p class="ship-brand-detail">Family-run, home-shipped for the first year</p>
+        </div>
+        <div class="ship-brand">
+          <p class="ship-brand-name">Paper Boat (Hector Beverages)</p>
+          <p class="ship-brand-detail">First 3 months out of a Bangalore garage</p>
+        </div>
+        <div class="ship-brand">
+          <p class="ship-brand-name">Bombay Shaving Company</p>
+          <p class="ship-brand-detail">Shantanu Deshpande shipped from his flat for the first year</p>
+        </div>
+        <div class="ship-brand">
+          <p class="ship-brand-name">SUGAR Cosmetics</p>
+          <p class="ship-brand-detail">Vineeta Singh's first 6 months were home-fulfilled</p>
+        </div>
+        <div class="ship-brand">
+          <p class="ship-brand-name">Mokobara</p>
+          <p class="ship-brand-detail">Co-founders did home fulfillment for first 3 months</p>
+        </div>
+      </div>
+      <p class="mt-6 text-sm text-ink/70 italic">The pattern is consistent: home warehouse → Shiprocket → scale. No special equipment, no expensive office, no early hires. Just a sturdy box, bubble wrap, and a couple of hours on the weekend.</p>
+    </section>
+
+    <!-- SECTION 5: WORKING TIPS FOR FT JOB -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">5. Five tricks small D2C founders use to work around a full-time job</h2>
+      <ol class="ship-tricks">
+        <li>
+          <p class="ship-trick-title">Run with 2-day handling time</p>
+          <p>Your website says <em>"Ships within 2 working days"</em> instead of "Ships within 24 hours." Customers are fine with this for handmade premium products. Buys you flexibility to batch on Wed + Sat.</p>
+        </li>
+        <li>
+          <p class="ship-trick-title">Limit COD orders</p>
+          <p>COD requires customer-confirmation calls during the day. Encourage prepaid via <em>"₹50 off with UPI prepaid."</em> Most successful D2C brands hit 60–80% prepaid within a year.</p>
+        </li>
+        <li>
+          <p class="ship-trick-title">Family handles customer service</p>
+          <p>Mom or sibling on WhatsApp during the day. <em>"Will get back to you by evening"</em> is acceptable for premium handmade products.</p>
+        </li>
+        <li>
+          <p class="ship-trick-title">Auto-pause inventory when stocked out</p>
+          <p>Show <em>"Sold out. Next batch on Aug 15."</em> rather than taking orders you can't fulfil. Premium positioning move — "small batch, when it's gone it's gone."</p>
+        </li>
+        <li>
+          <p class="ship-trick-title">Pre-orders for the next batch</p>
+          <p>Let customers pay upfront for a specific batch date. Tracklements (UK), Three Trees Treats (India) all do this. Locks in revenue + lets you plan production.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- SECTION 6: UNIT ECONOMICS -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">6. Realistic D2C unit economics (with shipping)</h2>
+      <p class="text-sm text-ink/60 mb-6">For your pricing model (₹449 MRP, "free shipping above ₹999"):</p>
+
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead>
+            <tr><th>Scenario</th><th>Customer pays</th><th>You pay Shiprocket</th><th>Net per jar</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1 jar, Bangalore (Zone A)</td><td>₹70 shipping</td><td>₹45 + ₹15 pack</td><td><strong>+₹10</strong></td></tr>
+            <tr><td>1 jar, Mysore 150 km (Zone B)</td><td>₹70</td><td>₹65 + ₹15</td><td>−₹10</td></tr>
+            <tr><td>1 jar, Mumbai (Zone C)</td><td>₹70</td><td>₹85 + ₹15</td><td>−₹30</td></tr>
+            <tr><td>1 jar, NE India (Zone E)</td><td>₹70</td><td>₹140 + ₹15</td><td>−₹85</td></tr>
+            <tr><td>2 jars (free shipping triggered)</td><td>₹0</td><td>₹100 + ₹20</td><td>−₹120</td></tr>
+            <tr><td>3 jars (free shipping)</td><td>₹0</td><td>₹125 + ₹20</td><td>−₹145</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ship-callout">
+        <p class="ship-callout-label">The workable rule</p>
+        <p>The ₹70 flat-rate-for-1-jar covers Zone A/B comfortably but you absorb ₹20–80 on long-distance single-jar orders. Multi-jar free-shipping orders lose ₹120–150 into margin.</p>
+        <p class="mt-3">For the first 6 months, budget <strong>~₹85 average shipping cost per shipment</strong>. Recover it via:</p>
+        <ul class="ship-bullets ship-bullets-tight">
+          <li>60%+ of orders being 2+ jars (the free shipping incentive works)</li>
+          <li>Shiprocket new-brand discount (10–15%)</li>
+          <li>Tight-fit packaging to stay in the 500 g slab</li>
+        </ul>
+        <p class="mt-3">Even after all this, <strong>D2C remains the most profitable channel by a wide margin</strong> (~₹220/jar net) vs Amazon (~₹100) vs Blinkit (~₹50).</p>
+      </div>
+    </section>
+
+    <!-- CLOSING -->
+    <section class="max-w-3xl mx-auto px-6 py-16 text-center">
+      <p class="font-serif text-2xl text-ink leading-relaxed mb-4">
+        Shipping doesn't kill D2C economics.<br/>
+        Bad packaging and bad batching do.
+      </p>
+      <p class="text-sm text-ink/60 mb-8">Tight-fit boxes + Shiprocket + Wed/Sat batching is the recipe. Same as every Indian D2C food brand that scaled before us.</p>
+      <div class="flex flex-wrap justify-center gap-3">
+        <a href="/plan" class="px-5 py-2.5 bg-spice text-white text-sm rounded-full hover:bg-spice-700 transition">← Back to the plan</a>
+        <a href="/label-preview" class="px-5 py-2.5 bg-white border border-ink/15 text-ink text-sm rounded-full hover:bg-mango-50 transition">See the jar in 3D</a>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .ship-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    background: #fff;
+  }
+  .ship-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .ship-table th,
+  .ship-table td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(42, 26, 16, 0.06);
+    color: rgba(42, 26, 16, 0.85);
+  }
+  .ship-table thead th {
+    background: #fff8eb;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #2a1a10;
+    border-bottom: 2px solid #ffe9c2;
+  }
+  .ship-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .ship-table tbody tr:hover {
+    background: #fffbf3;
+  }
+  .ship-table-total td {
+    background: #fff8eb;
+    border-top: 2px solid #ffe9c2;
+  }
+  .ship-callout {
+    margin-top: 24px;
+    padding: 20px 24px;
+    background: rgba(122, 31, 16, 0.06);
+    border-left: 4px solid #7a1f10;
+    border-radius: 0 12px 12px 0;
+    font-size: 14px;
+    color: rgba(42, 26, 16, 0.85);
+    line-height: 1.6;
+  }
+  .ship-callout-amber {
+    margin-top: 16px;
+    padding: 16px 20px;
+    background: rgba(224, 135, 18, 0.08);
+    border-left: 4px solid #e08712;
+    border-radius: 0 12px 12px 0;
+    font-size: 14px;
+    color: rgba(42, 26, 16, 0.85);
+    line-height: 1.6;
+  }
+  .ship-callout-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #7a1f10;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .ship-callout strong,
+  .ship-callout-amber strong {
+    color: #2a1a10;
+    font-weight: 600;
+  }
+  .ship-bullets {
+    list-style: disc;
+    padding-left: 20px;
+    font-size: 14px;
+    color: rgba(42, 26, 16, 0.75);
+    line-height: 1.65;
+  }
+  .ship-bullets li {
+    margin-bottom: 4px;
+  }
+  .ship-bullets-tight {
+    margin-top: 6px;
+  }
+  .ship-brand-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .ship-brand-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 900px) {
+    .ship-brand-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .ship-brand {
+    background: #fff;
+    padding: 16px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+  }
+  .ship-brand-name {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: #2a1a10;
+    margin: 0 0 4px;
+  }
+  .ship-brand-detail {
+    font-size: 12px;
+    color: rgba(42, 26, 16, 0.65);
+    line-height: 1.4;
+    margin: 0;
+  }
+  .ship-tricks {
+    list-style: none;
+    padding: 0;
+    counter-reset: trick;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ship-tricks li {
+    background: #fff;
+    padding: 18px 20px 18px 56px;
+    border-radius: 12px;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    counter-increment: trick;
+    position: relative;
+  }
+  .ship-tricks li::before {
+    content: counter(trick);
+    position: absolute;
+    left: 16px;
+    top: 18px;
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: #7a1f10;
+    color: #fff;
+    font-family: "Inter", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    align-items: center;
+    justify-content: center;
+  }
+  .ship-trick-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 16px;
+    color: #2a1a10;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .ship-tricks li p:not(.ship-trick-title) {
+    font-size: 13.5px;
+    color: rgba(42, 26, 16, 0.7);
+    line-height: 1.55;
+    margin: 0;
+  }
+</style>
