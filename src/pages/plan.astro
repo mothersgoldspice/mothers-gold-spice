@@ -1,0 +1,358 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const phases = [
+  {
+    n: 1,
+    title: "Legal foundation",
+    weeks: "Week 1",
+    weekLabel: "Days 1–7",
+    accent: "spice",
+    summary: "Become a real business on paper. Nothing else can start until we have a legal entity.",
+    steps: [
+      { task: "Register as Sole Proprietorship", why: "Fastest legal entity. Just one form. Can upgrade to Pvt Ltd later when we raise funds.", cost: "₹2,000", time: "1–3 days" },
+      { task: "Apply for GST registration", why: "Required to sell on Amazon, Blinkit, Big Basket, or any modern retailer.", cost: "₹0", time: "3–7 days" },
+      { task: "Open business current account", why: "All money in and out of the business should flow through this account — not Ricky's personal account.", cost: "₹0", time: "2 days" },
+      { task: "Get Udyam (MSME) certificate", why: "Free recognition as a Micro-enterprise. Unlocks priority bank loans + government schemes.", cost: "₹0", time: "30 minutes online" },
+    ],
+    milestone: "We exist legally as 'Mother's Gold Spice'.",
+    investThisPhase: 2000,
+  },
+  {
+    n: 2,
+    title: "Kitchen + recipe finalisation",
+    weeks: "Week 2",
+    weekLabel: "Days 8–14",
+    accent: "mango",
+    summary: "Find a licensed commercial kitchen to rent. Send mom's recipe to a lab for the official nutrition numbers.",
+    steps: [
+      { task: "Rent a shared commercial kitchen in Bangalore", why: "FSSAI will NOT license a home kitchen. Several cloud-kitchen operators rent kitchen hours by the day (Curefoods, Foodcloud, local commissaries) — exactly what a pilot needs.", cost: "₹8,000 deposit + ₹500/day", time: "3–5 days to lock" },
+      { task: "Cook the recipe in the rented kitchen, exactly", why: "FSSAI needs the manufacturing premises to match where the recipe is made.", cost: "ingredients only", time: "1 day" },
+      { task: "Send 250g of finished pickle to an NABL-accredited food lab", why: "Real nutritional numbers replace the estimates on the label (energy, protein, fat, sodium etc.). Required for the label.", cost: "₹3,000", time: "7 days to get report" },
+    ],
+    milestone: "We have a real kitchen, a tested recipe, and real nutritional values.",
+    investThisPhase: 11500,
+  },
+  {
+    n: 3,
+    title: "Apply for FSSAI",
+    weeks: "Week 3",
+    weekLabel: "Days 15–21",
+    accent: "spice",
+    summary: "Submit the FSSAI State License application. Then we wait while they inspect the kitchen.",
+    steps: [
+      { task: "File the FSSAI State License application", why: "Without an FSSAI number, we cannot legally sell a single jar. The number must appear on every label.", cost: "₹2,000/year", time: "1 day to file, then wait" },
+      { task: "FSSAI officer visits and inspects the kitchen", why: "They check hygiene, water quality, storage. They will either approve, ask for changes, or reject.", cost: "₹0", time: "Usually within 3 weeks of filing" },
+      { task: "Receive FSSAI license certificate with our license number", why: "This is the green light. Until this arrives, we can prepare everything else — but not print labels or sell.", cost: "₹0", time: "30–45 days from filing" },
+    ],
+    milestone: "Real FSSAI license number in hand. Ready to print labels.",
+    investThisPhase: 2000,
+  },
+  {
+    n: 4,
+    title: "Packaging + samples (runs in parallel with phase 3)",
+    weeks: "Weeks 3–6",
+    weekLabel: "Days 15–42",
+    accent: "mango",
+    summary: "While FSSAI is processing, get the jar + cap + label samples ready so we are not waiting after the license arrives.",
+    steps: [
+      { task: "Send jar specification (PACKAGING.md) to the Jabalpur factory", why: "Get a quote for 500 jars (Tier A pilot). Order 10 sample jars + caps for testing.", cost: "₹2,000 (sample order + shipping)", time: "Quote in 3 days, samples in 10 days" },
+      { task: "Drop-test the samples, oil-leak test for 1 week", why: "Make sure the jar doesn't crack on the courier journey from Bangalore to Mumbai, and the cap doesn't leak mustard oil in transit.", cost: "₹0", time: "7 days of monitoring" },
+      { task: "Finalise label design with FSSAI number + real nutrition", why: "Replace the placeholders in LABEL.md / label-preview with real values. Send to print shop for a single 'wet proof' (one physical print) before bulk run.", cost: "₹1,500 (wet proof)", time: "5 days" },
+      { task: "Source induction-seal foil + tamper bands + heat gun + sealer", why: "Equipment kit for the 3-layer airtight seal — bought once, used for every batch.", cost: "₹25,000 (sealer + gun + first 500 foils + first 500 bands)", time: "Order on IndiaMART, arrive in 5–10 days" },
+    ],
+    milestone: "Samples validated. Equipment owned. Ready to manufacture as soon as the license arrives.",
+    investThisPhase: 28500,
+  },
+  {
+    n: 5,
+    title: "First batch — 500 jars",
+    weeks: "Weeks 7–8",
+    weekLabel: "Days 43–56",
+    accent: "spice",
+    summary: "License is here. Print labels with the real number. Make the first 500 jars.",
+    steps: [
+      { task: "Place order: 500 jars + 500 caps from Jabalpur factory", why: "Tier A pilot quantity. Lowest financial risk if anything goes wrong.", cost: "₹15,000 (jar+cap ₹30 each)", time: "Manufacturing 10 days, shipping 5 days" },
+      { task: "Print 500 labels with real FSSAI number", why: "Local Bangalore print shop. Sugarcane bagasse paper, food-safe matte laminate.", cost: "₹4,000 (₹8/label)", time: "5 days" },
+      { task: "Buy ingredients for 500 × 250g = 125 kg of pickle", why: "Raw mango, mustard oil, salt, spices. Local market sourcing.", cost: "₹25,000 (₹50/jar in ingredients)", time: "1 day" },
+      { task: "Cook + fill + seal 500 jars in the rented kitchen", why: "This is the real production run, done by mom + 1 helper. ~5 working days for full batch.", cost: "₹5,000 (helper wages + kitchen rental)", time: "5 days" },
+      { task: "QC: invert 5 jars at 40°C for 24h, taste-test one", why: "Catches any seal failures or off-batches before shipping. Reject + redo if anything fails.", cost: "₹0", time: "24 hours" },
+    ],
+    milestone: "500 sealed, labeled, retail-ready jars sitting in our storage.",
+    investThisPhase: 49000,
+  },
+  {
+    n: 6,
+    title: "Launch + first income",
+    weeks: "Weeks 9–12",
+    weekLabel: "Days 57–84",
+    accent: "mango",
+    summary: "Photoshoot. List everywhere. Sell. First money in the bank.",
+    steps: [
+      { task: "Professional product photoshoot", why: "Real labeled jar in 5–8 settings (lifestyle + flat-lay). These photos go on Amazon, the website, Instagram, WhatsApp catalog.", cost: "₹8,000", time: "1 day shoot + 3 days editing" },
+      { task: "Amazon listing live + first inventory shipped to FBA", why: "Send 200 of the 500 jars to Amazon's warehouse. Customers find us, Amazon handles delivery + returns.", cost: "₹2,000 (FBA inward shipping)", time: "3 days" },
+      { task: "D2C website (mothersgoldspice.com) live with real product photos + checkout", why: "Direct-to-consumer site. Higher margin per jar than Amazon. WhatsApp + UPI checkout.", cost: "₹0 (already built)", time: "1 day update" },
+      { task: "Soft launch to family + Bangalore network + Ricky's professional contacts", why: "First 50 sales come from people who already trust us. They become the first reviewers + word-of-mouth.", cost: "₹0", time: "Ongoing" },
+      { task: "Sell first 250 jars across all channels in month 1", why: "Target: 50% of stock sold in 30 days. If we hit this, we re-order Tier B (1,000 jars). If not, we listen + adjust.", cost: "₹0", time: "30 days" },
+    ],
+    milestone: "First revenue in the business account. Real customers. Real reviews.",
+    investThisPhase: 10000,
+  },
+];
+
+const totalInvest = phases.reduce((s, p) => s + p.investThisPhase, 0);
+
+// First-month revenue scenarios (conservative / target / stretch)
+const mrpD2C = 449;
+const mrpAmazon = 449;
+const amazonNetMargin = 0.55; // ~₹247 net to us per jar after Amazon fees + COGS handled at next level
+const d2cNetMargin = 0.78;    // ~₹350 net to us per jar after card fees + delivery
+
+const scenarios = [
+  { name: "Conservative", units: 150, label: "30% of stock in month 1", color: "neutral" },
+  { name: "Target",       units: 250, label: "50% of stock in month 1", color: "spice" },
+  { name: "Stretch",      units: 400, label: "80% of stock in month 1", color: "mango" },
+];
+---
+
+<Layout title="The plan — Mother's Gold Spice from idea to first sale" description="A step-by-step plan for taking Mother's Gold Spice from a recipe in mom's kitchen to the first paying customer.">
+  <main class="bg-cream min-h-screen">
+    <!-- HERO -->
+    <header class="border-b border-ink/10">
+      <div class="max-w-5xl mx-auto px-6 py-16 md:py-20">
+        <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-4">The plan · for the family</p>
+        <h1 class="font-serif text-4xl md:text-5xl text-ink mb-5 leading-tight">From mom's recipe<br/>to the first paying customer.</h1>
+        <p class="text-ink/70 max-w-2xl text-lg leading-relaxed">
+          Right now we have <strong>an idea, a recipe, a brand, and a website</strong>. Nothing physical exists yet — no jar, no label, no customer. This document lays out exactly how we go from here to the first jar sold in the next <strong>~12 weeks</strong>, with every step, every cost, and every decision spelled out.
+        </p>
+        <div class="mt-6 inline-flex items-center gap-2 text-sm text-ink/60">
+          <span class="inline-block w-2 h-2 rounded-full bg-spice"></span>
+          <span>Total investment to first income: <strong class="text-ink">~₹{(totalInvest / 1000).toFixed(0)}k</strong></span>
+          <span class="text-ink/30">·</span>
+          <span>Time to first sale: <strong class="text-ink">~12 weeks</strong></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- WHERE WE ARE -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-2xl text-ink mb-6">Where we are today</h2>
+      <div class="grid sm:grid-cols-2 gap-5">
+        <div class="p-5 bg-mango-50 rounded-2xl border border-mango-100">
+          <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-2">Done</p>
+          <ul class="text-sm text-ink/80 space-y-1.5">
+            <li>✓ Recipe developed (mom's, decades-tested)</li>
+            <li>✓ Brand name + identity</li>
+            <li>✓ Website live at mothersgoldspice.com</li>
+            <li>✓ Jar + cap + label designed (3D mockups)</li>
+            <li>✓ Packaging spec written (PACKAGING.md)</li>
+            <li>✓ Pricing model worked out (PRICING.md)</li>
+            <li>✓ Sealing process designed (3-layer)</li>
+          </ul>
+        </div>
+        <div class="p-5 bg-white rounded-2xl border border-ink/10">
+          <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-2">Not yet</p>
+          <ul class="text-sm text-ink/80 space-y-1.5">
+            <li>✗ Business not registered legally</li>
+            <li>✗ No FSSAI license</li>
+            <li>✗ No GST number</li>
+            <li>✗ No real jars / caps / labels printed</li>
+            <li>✗ No nutritional lab test done</li>
+            <li>✗ No production kitchen rented</li>
+            <li>✗ Zero jars sold</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-2xl text-ink mb-2">The 12-week timeline</h2>
+      <p class="text-sm text-ink/60 mb-8">Six phases. Some overlap (3 + 4 run together while we wait on FSSAI).</p>
+      <div class="relative">
+        <!-- Vertical line -->
+        <div class="absolute left-3 top-1 bottom-1 w-px bg-spice/30 hidden md:block"></div>
+        <ol class="space-y-2">
+          {phases.map((p) => (
+            <li class="relative md:pl-10 flex items-baseline gap-3">
+              <span class="hidden md:flex absolute left-0 top-1 w-6 h-6 rounded-full bg-spice text-white text-xs font-semibold items-center justify-center">{p.n}</span>
+              <span class="md:hidden inline-flex w-6 h-6 rounded-full bg-spice text-white text-xs font-semibold items-center justify-center shrink-0">{p.n}</span>
+              <div class="flex-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+                <span class="font-serif text-base text-ink">{p.title}</span>
+                <span class="text-xs text-ink/50">{p.weeks}</span>
+                <span class="text-xs text-ink/50">·</span>
+                <span class="text-xs text-ink/50">≈₹{(p.investThisPhase / 1000).toFixed(0)}k</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+
+    <!-- PHASE CARDS -->
+    {phases.map((p) => (
+      <section class={`max-w-5xl mx-auto px-6 py-12 ${p.n % 2 === 0 ? 'bg-white/40' : ''}`}>
+        <div class="flex flex-wrap items-baseline gap-3 mb-2">
+          <span class="inline-flex w-9 h-9 rounded-full text-sm font-semibold items-center justify-center" style={p.accent === 'spice' ? 'background: #7a1f10; color: #fff;' : 'background: #ffe9c2; color: #7a1f10;'}>{p.n}</span>
+          <h2 class="font-serif text-2xl md:text-3xl text-ink">{p.title}</h2>
+          <span class="text-sm text-ink/50">· {p.weeks} ({p.weekLabel})</span>
+        </div>
+        <p class="text-ink/70 text-base mb-7 max-w-3xl">{p.summary}</p>
+
+        <div class="space-y-3 mb-7">
+          {p.steps.map((step, i) => (
+            <div class="p-5 bg-white rounded-xl border border-ink/8 shadow-sm">
+              <div class="flex items-start gap-3 mb-2">
+                <span class="inline-flex shrink-0 w-6 h-6 rounded-full bg-mango-100 text-spice text-[11px] font-bold items-center justify-center mt-0.5">{i + 1}</span>
+                <h3 class="font-serif text-lg text-ink leading-tight">{step.task}</h3>
+              </div>
+              <p class="text-sm text-ink/70 pl-9 mb-3">{step.why}</p>
+              <div class="pl-9 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink/60">
+                <span><strong class="text-ink/80">Cost:</strong> {step.cost}</span>
+                <span><strong class="text-ink/80">Time:</strong> {step.time}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div class="p-4 bg-spice/5 border-l-4 border-spice rounded-r-lg">
+          <p class="text-xs uppercase tracking-widest text-spice-700 font-medium mb-1">End of phase {p.n} milestone</p>
+          <p class="text-sm text-ink/80 italic">{p.milestone}</p>
+          <p class="text-xs text-ink/50 mt-2">Investment this phase: <strong class="text-ink/80">₹{p.investThisPhase.toLocaleString('en-IN')}</strong></p>
+        </div>
+      </section>
+    ))}
+
+    <!-- INVESTMENT SUMMARY -->
+    <section class="max-w-5xl mx-auto px-6 py-16 border-t border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">What it will cost</h2>
+      <p class="text-sm text-ink/60 mb-8">The whole journey — from registering the business to having 500 jars ready and sold — in one table.</p>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="border-b-2 border-spice/20">
+              <th class="text-left py-3 px-3 font-serif text-ink/80">Phase</th>
+              <th class="text-left py-3 px-3 font-serif text-ink/80">What we get</th>
+              <th class="text-right py-3 px-3 font-serif text-ink/80">Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {phases.map((p) => (
+              <tr class="border-b border-ink/8">
+                <td class="py-3 px-3 text-ink/80">{p.n}. {p.title}</td>
+                <td class="py-3 px-3 text-ink/60 text-xs">{p.milestone}</td>
+                <td class="py-3 px-3 text-right font-medium text-ink tabular-nums">₹{p.investThisPhase.toLocaleString('en-IN')}</td>
+              </tr>
+            ))}
+            <tr class="bg-spice/5">
+              <td class="py-4 px-3 font-serif text-base text-spice-700 font-semibold">Total investment to first sale</td>
+              <td class="py-4 px-3"></td>
+              <td class="py-4 px-3 text-right font-serif text-lg text-spice-700 font-semibold tabular-nums">₹{totalInvest.toLocaleString('en-IN')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-xs text-ink/50 mt-4 italic">All numbers are estimates from current vendor research and PRICING.md / PACKAGING.md. Actual costs could swing ±15%. The largest single line item is the 500-jar production batch (₹49k), which is what generates the first ₹1L+ of revenue.</p>
+    </section>
+
+    <!-- FIRST INCOME -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-t border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">What the first income looks like</h2>
+      <p class="text-sm text-ink/60 mb-8">Three scenarios for month 1 (Phase 6) — depending on how many of the 500 jars sell. MRP is ₹{mrpD2C} per jar across channels.</p>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        {scenarios.map((s) => {
+          const grossRevenue = s.units * mrpD2C;
+          // Assume 60% via Amazon, 40% via D2C for blended margin
+          const blendedNet = (s.units * 0.6 * mrpAmazon * amazonNetMargin) + (s.units * 0.4 * mrpD2C * d2cNetMargin);
+          return (
+            <div class={`p-6 rounded-2xl border ${s.color === 'spice' ? 'bg-spice/5 border-spice/25 ring-2 ring-spice/15' : 'bg-white border-ink/10'}`}>
+              {s.color === 'spice' && <p class="text-[10px] uppercase tracking-widest text-spice font-semibold mb-2">Target</p>}
+              <p class="font-serif text-xl text-ink">{s.name}</p>
+              <p class="text-xs text-ink/60 mb-4">{s.label}</p>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-ink/60">Jars sold</span><span class="font-medium tabular-nums">{s.units}</span></div>
+                <div class="flex justify-between"><span class="text-ink/60">Gross revenue</span><span class="font-medium tabular-nums">₹{grossRevenue.toLocaleString('en-IN')}</span></div>
+                <div class="flex justify-between pt-2 border-t border-ink/10"><span class="text-ink/60">Net after fees</span><span class="font-serif font-semibold text-lg text-spice-700 tabular-nums">₹{Math.round(blendedNet).toLocaleString('en-IN')}</span></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div class="mt-8 p-5 bg-mango-50 rounded-xl border border-mango-100 text-sm text-ink/80">
+        <p><strong class="text-ink">In the target scenario:</strong> we sell 250 jars in month 1, net ~₹{Math.round((250 * 0.6 * mrpAmazon * amazonNetMargin) + (250 * 0.4 * mrpD2C * d2cNetMargin)).toLocaleString('en-IN')} into the business account. That funds the next batch (Tier B — 1,000 jars) without putting in another rupee of our own money.</p>
+        <p class="mt-3"><strong class="text-ink">The first ₹{totalInvest.toLocaleString('en-IN')} is the only money we put in.</strong> Everything from batch 2 onwards is funded by the previous batch's revenue.</p>
+      </div>
+    </section>
+
+    <!-- RISKS / HONEST -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-t border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">What could go wrong (honest)</h2>
+      <p class="text-sm text-ink/60 mb-8">Better to acknowledge the risks now than pretend they don't exist.</p>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-spice-700 mb-2">FSSAI inspection delayed beyond 45 days</p>
+          <p class="text-sm text-ink/70">Realistic — government timelines slip. Mitigation: file in Week 3, not later. Packaging samples in parallel so we are not waiting after the license arrives.</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-spice-700 mb-2">First batch has a quality issue</p>
+          <p class="text-sm text-ink/70">A seal fails, oil leaks in transit, or the recipe tastes slightly off in production volume. Mitigation: sample-test 10 jars before placing the full order, QC every batch (the invert-test from PACKAGING.md §9).</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-spice-700 mb-2">First 250 jars don't sell in month 1</p>
+          <p class="text-sm text-ink/70">Possible — premium pickle is a slow-build category. Mitigation: we own the entire pilot batch ourselves, we are not in debt. Revenue catches up in months 2–3. We listen to customer feedback and adjust.</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-spice-700 mb-2">Amazon rejects the listing</p>
+          <p class="text-sm text-ink/70">Rare, but happens (usually for label or category issues). Mitigation: the label follows FSSAI + Legal Metrology spec exactly (LABEL.md). D2C site is the fallback channel — no platform can reject it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT FAMILY CAN DO -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-t border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">How the family can help</h2>
+      <p class="text-sm text-ink/60 mb-8">This is a family business. Each person can contribute differently — none of this needs to be money.</p>
+      <div class="space-y-3">
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-ink">Mom</p>
+          <p class="text-sm text-ink/70 mt-1">Recipe owner. Cooks the first batch in the rented kitchen. Trains a helper for batch 2 onwards.</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-ink">Anyone with a car or two-wheeler in Bangalore</p>
+          <p class="text-sm text-ink/70 mt-1">Local delivery for the first month of D2C orders. Or grocery runs for ingredients on batch days.</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-ink">Anyone with a WhatsApp network</p>
+          <p class="text-sm text-ink/70 mt-1">Soft launch: share the website and the first product photos in WhatsApp groups. The first 50 customers come from people we already know.</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-ink">Anyone with photography or design skills</p>
+          <p class="text-sm text-ink/70 mt-1">The product photoshoot in Phase 6 doesn't have to be hired — a good phone camera + natural light works. Saves ₹8k.</p>
+        </div>
+        <div class="p-5 bg-white rounded-xl border border-ink/10">
+          <p class="font-serif text-base text-ink">Anyone willing to try the first jars</p>
+          <p class="text-sm text-ink/70 mt-1">Honest feedback before launch is worth more than 100 strangers' reviews after. Try a sample jar and tell us what's wrong.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLOSING -->
+    <section class="max-w-3xl mx-auto px-6 py-16 text-center">
+      <p class="font-serif text-2xl text-ink leading-relaxed mb-4">
+        The plan is not a guess.<br/>
+        It is mom's recipe + a real business + a clear path to the first paying customer.
+      </p>
+      <p class="text-sm text-ink/60">~12 weeks. ~₹{(totalInvest / 1000).toFixed(0)}k investment. First jar sold by Week 12.</p>
+      <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <a href="/" class="px-5 py-2.5 bg-spice text-white text-sm rounded-full hover:bg-spice-700 transition">See the brand</a>
+        <a href="/label-preview" class="px-5 py-2.5 bg-white border border-ink/15 text-ink text-sm rounded-full hover:bg-mango-50 transition">See the jar in 3D</a>
+        <a href="/assembly" class="px-5 py-2.5 bg-white border border-ink/15 text-ink text-sm rounded-full hover:bg-mango-50 transition">See how it's assembled</a>
+      </div>
+      <p class="text-xs text-ink/40 mt-10 italic">Document version: pre-FSSAI · For the family</p>
+    </section>
+  </main>
+</Layout>
