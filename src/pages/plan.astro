@@ -4,49 +4,51 @@ import Layout from "../layouts/Layout.astro";
 const phases = [
   {
     n: 1,
-    title: "Legal foundation",
+    title: "Legal entity + Basic FSSAI",
     weeks: "Week 1",
     weekLabel: "Days 1–7",
     accent: "spice",
-    summary: "Become a real business on paper. Nothing else can start until we have a legal entity.",
+    summary: "Become a real business on paper. Apply for the fast FSSAI tier (Basic Registration) which lets us start selling D2C from mom's kitchen within 7 days.",
     steps: [
       { task: "Register as Sole Proprietorship", why: "Fastest legal entity. Just one form. Can upgrade to Pvt Ltd later when we raise funds.", cost: "₹2,000", time: "1–3 days" },
-      { task: "Apply for GST registration", why: "Required to sell on Amazon, Blinkit, Big Basket, or any modern retailer.", cost: "₹0", time: "3–7 days" },
-      { task: "Open business current account", why: "All money in and out of the business should flow through this account — not Ricky's personal account.", cost: "₹0", time: "2 days" },
+      { task: "Apply for GST registration", why: "Required for Amazon, Blinkit, Big Basket, modern retail.", cost: "₹0", time: "3–7 days" },
+      { task: "Open business current account", why: "All money in and out flows through this account — not anyone's personal account.", cost: "₹0", time: "2 days" },
       { task: "Get Udyam (MSME) certificate", why: "Free recognition as a Micro-enterprise. Unlocks priority bank loans + government schemes.", cost: "₹0", time: "30 minutes online" },
+      { task: "Apply for FSSAI Basic Registration (from mom's home address)", why: "₹100/year tier, no kitchen inspection, allowed for petty manufacturers with turnover under ₹12 lakh. Comes in 3–7 days. THIS is what legally unlocks the first jar sold via D2C / Instagram / WhatsApp.", cost: "₹100/year", time: "3–7 days" },
     ],
-    milestone: "We exist legally as 'Mother's Gold Spice'.",
-    investThisPhase: 2000,
+    milestone: "We exist legally + can lawfully sell pickle from week 2 onwards via D2C.",
+    investThisPhase: 2100,
   },
   {
     n: 2,
-    title: "Kitchen + recipe finalisation",
+    title: "Recipe lab test + first 20 jars",
     weeks: "Week 2",
     weekLabel: "Days 8–14",
     accent: "mango",
-    summary: "Find a licensed commercial kitchen to rent. Send mom's recipe to a lab for the official nutrition numbers.",
+    summary: "Get real nutritional numbers for the label. Make 20 jars in mom's kitchen for friends-and-family pre-sale — first revenue.",
     steps: [
-      { task: "Rent a shared commercial kitchen in Bangalore", why: "FSSAI will NOT license a home kitchen. Several cloud-kitchen operators rent kitchen hours by the day (Curefoods, Foodcloud, local commissaries) — exactly what a pilot needs.", cost: "₹8,000 deposit + ₹500/day", time: "3–5 days to lock" },
-      { task: "Cook the recipe in the rented kitchen, exactly", why: "FSSAI needs the manufacturing premises to match where the recipe is made.", cost: "ingredients only", time: "1 day" },
-      { task: "Send 250g of finished pickle to an NABL-accredited food lab", why: "Real nutritional numbers replace the estimates on the label (energy, protein, fat, sodium etc.). Required for the label.", cost: "₹3,000", time: "7 days to get report" },
+      { task: "Send 250g of finished pickle to an NABL-accredited food lab", why: "Real nutritional numbers (energy, protein, fat, sodium) replace the placeholders on the label. Required for the printed label.", cost: "₹3,000", time: "7 days to get report" },
+      { task: "Buy a small batch of jars + caps + simple printed labels", why: "20 jars to test the packaging, recipe, and customer reaction. Simple labels (no foil seal yet) — just to validate.", cost: "₹2,000 (20 jars × ₹100 all-in)", time: "5 days to source locally" },
+      { task: "Cook 20 jars of pickle in mom's home kitchen", why: "Legal under Basic Registration. This is the test batch — we taste it ourselves, then send to friends + family + first D2C buyers.", cost: "₹1,000 (ingredients)", time: "1 day" },
     ],
-    milestone: "We have a real kitchen, a tested recipe, and real nutritional values.",
-    investThisPhase: 11500,
+    milestone: "20 home-kitchen jars ready. First revenue (~₹9k from these 20) by Week 3.",
+    investThisPhase: 6000,
   },
   {
     n: 3,
-    title: "Apply for FSSAI",
-    weeks: "Week 3",
-    weekLabel: "Days 15–21",
+    title: "Apply for State License + scout commercial kitchen",
+    weeks: "Weeks 3–4",
+    weekLabel: "Days 15–28",
     accent: "spice",
-    summary: "Submit the FSSAI State License application. Then we wait while they inspect the kitchen.",
+    summary: "While the first 20 jars sell via D2C, lock down a commercial kitchen and apply for State License — needed for Amazon and modern retail.",
     steps: [
-      { task: "File the FSSAI State License application", why: "Without an FSSAI number, we cannot legally sell a single jar. The number must appear on every label.", cost: "₹2,000/year", time: "1 day to file, then wait" },
-      { task: "FSSAI officer visits and inspects the kitchen", why: "They check hygiene, water quality, storage. They will either approve, ask for changes, or reject.", cost: "₹0", time: "Usually within 3 weeks of filing" },
-      { task: "Receive FSSAI license certificate with our license number", why: "This is the green light. Until this arrives, we can prepare everything else — but not print labels or sell.", cost: "₹0", time: "30–45 days from filing" },
+      { task: "Sell first 20 home-kitchen jars via D2C + Instagram + WhatsApp", why: "Generates first revenue (~₹9k), first reviews, first product photos, first customers. Validates the brand before we commit to the 500-jar pilot.", cost: "₹0", time: "2–3 weeks of soft selling" },
+      { task: "Visit and rent a shared commercial kitchen in Bangalore", why: "Required for State License — FSSAI will inspect this premises. Cloud-kitchen operators (Curefoods, Foodcloud, others) rent kitchen hours by the day.", cost: "₹8,000 deposit + ₹500/day", time: "3–5 days to lock" },
+      { task: "File the FSSAI State License application", why: "Unlocks Amazon, modern trade, eventually Blinkit. Takes 30–60 days. Premises proof = the commercial kitchen rental.", cost: "₹2,000/year", time: "1 day to file" },
+      { task: "FSSAI officer visits + inspects the commercial kitchen", why: "Checks hygiene, water quality, storage. Usually 2–3 weeks after filing.", cost: "₹0", time: "2–3 weeks after filing" },
     ],
-    milestone: "Real FSSAI license number in hand. Ready to print labels.",
-    investThisPhase: 2000,
+    milestone: "First revenue in the bank. State License inspection complete. Now waiting on the certificate.",
+    investThisPhase: 10000,
   },
   {
     n: 4,
@@ -83,19 +85,19 @@ const phases = [
   },
   {
     n: 6,
-    title: "Launch + first income",
+    title: "Launch on D2C + Amazon",
     weeks: "Weeks 9–12",
     weekLabel: "Days 57–84",
     accent: "mango",
-    summary: "Photoshoot. List everywhere. Sell. First money in the bank.",
+    summary: "State License is in hand. Amazon listing live with real photos. D2C site scaled up. First serious revenue.",
     steps: [
       { task: "Professional product photoshoot", why: "Real labeled jar in 5–8 settings (lifestyle + flat-lay). These photos go on Amazon, the website, Instagram, WhatsApp catalog.", cost: "₹8,000", time: "1 day shoot + 3 days editing" },
-      { task: "Amazon listing live + first inventory shipped to FBA", why: "Send 200 of the 500 jars to Amazon's warehouse. Customers find us, Amazon handles delivery + returns.", cost: "₹2,000 (FBA inward shipping)", time: "3 days" },
-      { task: "D2C website (mothersgoldspice.com) live with real product photos + checkout", why: "Direct-to-consumer site. Higher margin per jar than Amazon. WhatsApp + UPI checkout.", cost: "₹0 (already built)", time: "1 day update" },
-      { task: "Soft launch to family + Bangalore network + Ricky's professional contacts", why: "First 50 sales come from people who already trust us. They become the first reviewers + word-of-mouth.", cost: "₹0", time: "Ongoing" },
-      { task: "Sell first 250 jars across all channels in month 1", why: "Target: 50% of stock sold in 30 days. If we hit this, we re-order Tier B (1,000 jars). If not, we listen + adjust.", cost: "₹0", time: "30 days" },
+      { task: "Amazon listing live + first inventory shipped to FBA", why: "Now legal with State License. Send 200 of the 500 jars to Amazon's warehouse. They handle delivery + returns. Listing takes ~1 week for new-brand approval.", cost: "₹2,000 (FBA inward shipping)", time: "3 days to ship, 7 days to go live" },
+      { task: "D2C website refresh with real product photos + reviews from phase 3", why: "Direct-to-consumer site. Higher margin per jar than Amazon. WhatsApp + UPI checkout already built.", cost: "₹0", time: "1 day update" },
+      { task: "Soft launch to extended network: family + Bangalore + Ricky's contacts", why: "Reach beyond phase 3's 20 customers — now we have 500 jars to move. Goal: 250 sold via mix of D2C + Amazon in month 1.", cost: "₹0", time: "Ongoing through month 1" },
+      { task: "Track unit economics + reviews + repeat purchase rate", why: "Numbers tell us whether to reorder Tier B (1,000 jars) immediately, or adjust price/recipe/positioning first.", cost: "₹0", time: "Ongoing" },
     ],
-    milestone: "First revenue in the business account. Real customers. Real reviews.",
+    milestone: "₹50k–1L net revenue in month 1. Brand has real data to bring to Blinkit and modern retail.",
     investThisPhase: 10000,
   },
 ];
@@ -220,6 +222,102 @@ const scenarios = [
         </div>
       </section>
     ))}
+
+    <!-- CHANNEL SEQUENCE -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-t border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">Where we sell, and when</h2>
+      <p class="text-sm text-ink/60 mb-8">Not all sales channels are open from day one. Different FSSAI tiers + brand maturity unlock different platforms. Here is the realistic order.</p>
+
+      <div class="channel-list">
+        <div class="channel-row channel-row-now">
+          <div class="channel-when">
+            <span class="channel-when-label">Week 2</span>
+            <span class="channel-when-sub">Basic FSSAI Reg in hand</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">D2C website · Instagram · WhatsApp · friends & family</p>
+            <p class="channel-detail">Mom's home kitchen is legal under Basic Registration. Sell direct, highest margin (~78% net of MRP), no platform middlemen. <strong>First 20 jars sold here in weeks 2–4.</strong></p>
+            <div class="channel-tags"><span class="tag tag-ok">Basic Reg ✓</span><span class="tag">No commercial kitchen needed</span></div>
+          </div>
+        </div>
+
+        <div class="channel-row channel-row-now">
+          <div class="channel-when">
+            <span class="channel-when-label">Week 2+</span>
+            <span class="channel-when-sub">After tasting events</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">Local kirana shops + Bangalore Sunday markets + pop-ups</p>
+            <p class="channel-detail">Door-to-door + market-stall sales using personal Bangalore network. Cash sales, instant feedback from customers. Each shopkeeper takes 5–10 jars on consignment.</p>
+            <div class="channel-tags"><span class="tag tag-ok">Basic Reg ✓</span></div>
+          </div>
+        </div>
+
+        <div class="channel-row channel-row-soon">
+          <div class="channel-when">
+            <span class="channel-when-label">Week 8–10</span>
+            <span class="channel-when-sub">State License arrives</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">Amazon (own Seller Central account, FBA)</p>
+            <p class="channel-detail">Open marketplace — anyone with State License + GST + bank account can list. New-brand approval ~1 week. Pan-India shipping handled by Amazon. ~55% net margin after fees.</p>
+            <div class="channel-tags"><span class="tag tag-needs">Needs State License</span><span class="tag">GST + bank required</span></div>
+          </div>
+        </div>
+
+        <div class="channel-row channel-row-later">
+          <div class="channel-when">
+            <span class="channel-when-label">Month 4–6</span>
+            <span class="channel-when-sub">After Amazon traction</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">Big Basket Seller Hub · Flipkart Grocery</p>
+            <p class="channel-detail">Open seller programs but require brand registration + 3 months of sales history. Pitch in month 4 once Amazon shows traction.</p>
+            <div class="channel-tags"><span class="tag tag-needs">State License + brand history</span></div>
+          </div>
+        </div>
+
+        <div class="channel-row channel-row-later">
+          <div class="channel-when">
+            <span class="channel-when-label">Month 4–9</span>
+            <span class="channel-when-sub">If sales data is strong</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">Blinkit · Zepto · Swiggy Instamart (quick commerce)</p>
+            <p class="channel-detail">B2B procurement — their category buyers pick brands. Need: State License + trademark + 200+ monthly units of sales history + 25–40% wholesale margin + MOQ commitment. Your personal connections shorten the timeline but don't remove the requirements.</p>
+            <div class="channel-tags"><span class="tag tag-needs">State License + traction + distributor model</span></div>
+          </div>
+        </div>
+
+        <div class="channel-row channel-row-later">
+          <div class="channel-when">
+            <span class="channel-when-label">Month 6–12</span>
+            <span class="channel-when-sub">Year-1 ambition</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">Modern trade: Nature's Basket · Reliance Fresh · More Megastore</p>
+            <p class="channel-detail">Premium shelf presence. Requires distributor + 6+ months of D2C / Amazon sales + slotting fees ₹50k–3L per chain. Goal for late Year 1.</p>
+            <div class="channel-tags"><span class="tag tag-needs">State License + distributor + slotting fees</span></div>
+          </div>
+        </div>
+
+        <div class="channel-row channel-row-later">
+          <div class="channel-when">
+            <span class="channel-when-label">Year 2+</span>
+            <span class="channel-when-sub">If revenue > ₹20 cr or exports</span>
+          </div>
+          <div class="channel-what">
+            <p class="channel-title">Exports + national modern trade</p>
+            <p class="channel-detail">Central FSSAI License + APEDA registration + export certifications. Whole separate phase — Year 2 ambition.</p>
+            <div class="channel-tags"><span class="tag tag-needs">Central License</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="channel-summary">
+        <p><strong>The honest takeaway:</strong> Blinkit and quick-commerce are <em>not launch-day channels</em>. They are month 4–9 conversations after we have real Amazon sales data + trademark + State License. <strong>D2C + Instagram + WhatsApp + local network</strong> is what carries the first ₹50k–1L of revenue, starting Week 2.</p>
+      </div>
+    </section>
 
     <!-- INVESTMENT SUMMARY -->
     <section class="max-w-5xl mx-auto px-6 py-16 border-t border-ink/10">
@@ -457,5 +555,113 @@ const scenarios = [
     color: rgba(42, 26, 16, 0.8);
     font-weight: 600;
     margin-right: 4px;
+  }
+
+  /* Channel sequence list */
+  .channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .channel-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(42, 26, 16, 0.04);
+  }
+  @media (min-width: 720px) {
+    .channel-row {
+      grid-template-columns: 160px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+  }
+  .channel-row-now {
+    border-left: 4px solid #1e7a1e;
+    background: #f5fbf3;
+  }
+  .channel-row-soon {
+    border-left: 4px solid #e08712;
+    background: #fff8eb;
+  }
+  .channel-row-later {
+    border-left: 4px solid rgba(122, 31, 16, 0.3);
+  }
+  .channel-when {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .channel-when-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2a1a10;
+    line-height: 1.2;
+  }
+  .channel-when-sub {
+    font-size: 11px;
+    color: rgba(42, 26, 16, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .channel-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 16px;
+    color: #2a1a10;
+    margin: 0 0 4px;
+    line-height: 1.3;
+  }
+  .channel-detail {
+    font-size: 13px;
+    color: rgba(42, 26, 16, 0.7);
+    line-height: 1.55;
+    margin: 0 0 8px;
+  }
+  .channel-detail strong {
+    color: #2a1a10;
+    font-weight: 600;
+  }
+  .channel-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    background: rgba(42, 26, 16, 0.06);
+    color: rgba(42, 26, 16, 0.65);
+    letter-spacing: 0.02em;
+  }
+  .tag-ok {
+    background: rgba(30, 122, 30, 0.12);
+    color: #1e7a1e;
+    font-weight: 600;
+  }
+  .tag-needs {
+    background: rgba(224, 135, 18, 0.15);
+    color: #b06509;
+    font-weight: 600;
+  }
+  .channel-summary {
+    margin-top: 24px;
+    padding: 18px 22px;
+    background: rgba(122, 31, 16, 0.06);
+    border-left: 4px solid #7a1f10;
+    border-radius: 0 12px 12px 0;
+    font-size: 14px;
+    color: rgba(42, 26, 16, 0.85);
+    line-height: 1.6;
+  }
+  .channel-summary strong {
+    color: #2a1a10;
+    font-weight: 600;
   }
 </style>
