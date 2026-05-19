@@ -494,6 +494,115 @@ import Layout from "../layouts/Layout.astro";
       <p class="text-sm text-ink/70 mt-4">Plus a refundable ₹10,000 in the bank account (this becomes working capital). Effective registration cost: <strong>~₹8,000 out the door</strong>.</p>
     </section>
 
+    <!-- MULTIPLE BUSINESSES UNDER ONE PAN -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">Bonus — running Variolearn + Mother's Gold Spice under one PAN</h2>
+      <p class="text-sm text-ink/60 mb-6">Both businesses are Sole Proprietorships in your name. Indian law allows unlimited trade names under one PAN — most registrations from the MGS setup are reused for Variolearn at zero extra cost.</p>
+
+      <h3 class="font-serif text-xl text-ink mt-2 mb-3">The key insight</h3>
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.8); line-height: 1.7; margin-bottom: 16px;">
+        A Sole Proprietorship is <strong>not a separate legal entity</strong>. It's you, doing business under a trade name. So "Mother's Gold Spice" and "Variolearn" are both just trade names under the same legal person — you. One PAN. One GSTIN. Two trade names, two bank accounts, two trademarks.
+      </p>
+
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What's shared between MGS and Variolearn</h3>
+      <div class="su-table-wrap">
+        <table class="su-table">
+          <thead>
+            <tr><th>Item</th><th>For MGS</th><th>For Variolearn</th><th>Action needed for Variolearn</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>PAN</td><td>Yours</td><td>Yours</td><td>✓ Reused</td></tr>
+            <tr><td>Aadhaar</td><td>Yours</td><td>Yours</td><td>✓ Reused</td></tr>
+            <tr><td>Udyam (MSME)</td><td>Listed as "Pickle manufacturing"</td><td>Add "Software / Edtech" as additional activity</td><td>Amend Udyam (free, 10 min)</td></tr>
+            <tr><td>Shops & Establishments (Karnataka)</td><td>Listed as "Food manufacturing"</td><td>Add "Software services" to same registration</td><td>Amend Shops & Est (free, 1 day)</td></tr>
+            <tr><td>GST (Karnataka)</td><td>One GSTIN, trade name "Mother's Gold Spice"</td><td>Same GSTIN, add "Variolearn" as additional trade name</td><td>GST amendment (free, 3 days)</td></tr>
+            <tr><td>ITR (income tax)</td><td>Business schedule 1</td><td>Business schedule 2</td><td>One ITR-3 covers both</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">What's separate</h3>
+      <div class="su-table-wrap">
+        <table class="su-table">
+          <thead>
+            <tr><th>Item</th><th>For MGS</th><th>For Variolearn</th><th>Incremental cost</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Bank current account</td><td>"a/c Mother's Gold Spice"</td><td>"a/c Variolearn" — separate account</td><td>₹0–2,000</td></tr>
+            <tr><td>Trademark</td><td>"Mother's Gold Spice" Class 29 (pickles)</td><td>"Variolearn" Class 9 (software) or Class 41 (educational services)</td><td>₹4,500 (MSME rate)</td></tr>
+            <tr><td>Domain + website</td><td>mothersgoldspice.com</td><td>variolearn.com / illustraflow.com</td><td>~₹1,000/year</td></tr>
+            <tr><td>Razorpay sub-account</td><td>Linked to MGS bank account</td><td>Separate Razorpay link pointed at Variolearn bank account</td><td>₹0</td></tr>
+            <tr><td>FSSAI</td><td>Required (food)</td><td>Not required (software)</td><td>₹0</td></tr>
+            <tr><td>Shiprocket</td><td>Required (physical product)</td><td>Not required (digital product)</td><td>₹0</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">How to add Variolearn as a second trade name on the existing GST</h3>
+      <ol class="su-step-list">
+        <li>Log into <a href="https://www.gst.gov.in" target="_blank" rel="noopener" class="su-link">gst.gov.in</a> with your existing GSTIN</li>
+        <li>Navigate to <strong>Services → Registration → Amendment of Registration (Core Fields)</strong></li>
+        <li>Under "Trade Name", add <strong>"Variolearn"</strong> as additional trade name</li>
+        <li>Under "Additional Place of Business" — if Variolearn operates from the same rental flat, no need to add. If it operates from a different address (e.g., a coworking space), add that</li>
+        <li>Update Business Activity to include "Software services / Education services"</li>
+        <li>Submit — updated GST certificate emailed in 3 days listing both trade names</li>
+        <li>From now on, MGS invoices show "Mother's Gold Spice" as trade name; Variolearn invoices show "Variolearn" — but both use the SAME 15-digit GSTIN</li>
+      </ol>
+
+      <div class="su-outcome">Outcome: <strong>Same GSTIN covers both businesses</strong>. No second GST registration needed in Karnataka.</div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Incremental cost to add Variolearn</h3>
+      <div class="su-table-wrap">
+        <table class="su-table">
+          <thead><tr><th>Item</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>GST amendment (add trade name)</td><td>₹0</td></tr>
+            <tr><td>Udyam amendment (add activity)</td><td>₹0</td></tr>
+            <tr><td>Shops & Est amendment</td><td>₹0</td></tr>
+            <tr><td>Second business bank account (Variolearn)</td><td>₹0–2,000</td></tr>
+            <tr><td>Variolearn trademark (Class 9 or 41, MSME rate)</td><td>₹4,500</td></tr>
+            <tr><td>variolearn.com domain (Cloudflare or Namecheap)</td><td>₹1,000/year</td></tr>
+            <tr><td>Optional: separate Razorpay account</td><td>₹0</td></tr>
+            <tr class="su-table-total"><td><strong>Total incremental</strong></td><td><strong>~₹5,500–7,500</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.75); line-height: 1.6; margin-top: 16px;">
+        Roughly <strong>half the cost of starting MGS</strong>, because Udyam + Shops & Est + GST are all reused. The bulk is the Variolearn trademark + domain.
+      </p>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Operational separation — even with one PAN, keep books clean</h3>
+      <ul class="su-bullets">
+        <li><strong>Two bank accounts</strong> — never co-mingle. Pickle revenue lands in MGS account; software revenue in Variolearn account.</li>
+        <li><strong>Two Razorpay sub-accounts</strong> (or two separate payment links) — pointed at the respective bank accounts</li>
+        <li><strong>Two folders in your accounting tool</strong> (Zoho Books / Tally / spreadsheet) — separate P&L per business</li>
+        <li><strong>Two trademarks</strong> — different classes, different brand identities</li>
+        <li><strong>One CA for both</strong> — they consolidate at ITR time. Tell them upfront you run two businesses; they'll handle ITR-3 with multiple business schedules (~₹5–8k/year fee, slightly higher than one business)</li>
+        <li><strong>One Udyam, one GST, one Shops & Est</strong> — these are about you as a person, not per business</li>
+      </ul>
+
+      <div class="su-callout-amber">
+        <p class="su-callout-label">⚠️ Visibility consideration</p>
+        <p>Both trade names appear under your PAN on the GST portal. If anyone searches your PAN (employer compliance team, for example), they'll see BOTH businesses linked to you.</p>
+        <p style="margin-top: 8px;">If your IT employer has strict anti-moonlighting policies, consider splitting the legal ownership: <strong>Variolearn stays in your name</strong> (you're the technical operator) and <strong>Mother's Gold Spice goes in mom's name</strong> (she's the actual cook). This halves the PAN-level footprint.</p>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">When to split into separate legal entities</h3>
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-bottom: 8px;">
+        Stay with two Sole Props under one PAN until:
+      </p>
+      <ul class="su-bullets">
+        <li>Either business crosses <strong>~₹50 lakh/year revenue</strong> — at that point upgrade THAT one to LLP or Pvt Ltd for tax + liability reasons</li>
+        <li>You're <strong>raising investment</strong> for either — investors need a Pvt Ltd to hold shares</li>
+        <li>You want to <strong>hire formal employees</strong> with PF/ESI — easier under LLP/Pvt Ltd</li>
+        <li>You're <strong>leaving your IT job</strong> and going full-time on one — formal entity gives more credibility for partnerships, bank loans, vendor contracts</li>
+      </ul>
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-top: 10px;">
+        Until any of those triggers, two Sole Props under one PAN is the right structure — minimum compliance overhead, full legal separation between businesses, clean ITR.
+      </p>
+    </section>
+
     <!-- CLOSING -->
     <section class="max-w-3xl mx-auto px-6 py-16 text-center">
       <p class="font-serif text-2xl text-ink leading-relaxed mb-4">
