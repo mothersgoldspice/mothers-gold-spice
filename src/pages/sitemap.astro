@@ -1,0 +1,400 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const pages = [
+  { path: "/",              title: "Home",          short: "Home",        x: 500, y: 60,  desc: "Brand landing — hero jar, story, contact" },
+  { path: "/plan",          title: "The Plan",      short: "Plan",        x: 500, y: 200, desc: "Idea → first sale in 12 weeks · for the family" },
+  { path: "/label-preview", title: "Label Preview", short: "Label",       x: 90,  y: 380, desc: "3D jar mockups · sections 1–5 (flat label, 3D viewer, cap, seal architecture)" },
+  { path: "/assembly",      title: "Assembly Sim",  short: "Assembly",    x: 280, y: 380, desc: "Interactive assembly simulation · click parts to fly into place" },
+  { path: "/shipping",      title: "Shipping",      short: "Shipping",    x: 500, y: 380, desc: "D2C shipping economics + operations playbook" },
+  { path: "/trademark",     title: "Trademark",     short: "Trademark",   x: 720, y: 380, desc: "Brand protection · ₹4,500 TM-A filing guide" },
+  { path: "/setup",         title: "Setup",         short: "Setup",       x: 910, y: 380, desc: "Sole Proprietorship registration checklist · 3 weeks, ~₹8k" },
+];
+
+// Edges between pages: { from, to, type: 'primary' | 'cross' }
+const edges = [
+  // Primary hierarchy
+  { from: "/",              to: "/plan",          type: "primary" },
+  { from: "/plan",          to: "/label-preview", type: "primary" },
+  { from: "/plan",          to: "/assembly",      type: "primary" },
+  { from: "/plan",          to: "/shipping",      type: "primary" },
+  { from: "/plan",          to: "/trademark",     type: "primary" },
+  { from: "/plan",          to: "/setup",         type: "primary" },
+  // Cross-links between deep-dive pages
+  { from: "/label-preview", to: "/assembly",      type: "cross" },
+  { from: "/assembly",      to: "/label-preview", type: "cross" },
+  { from: "/shipping",      to: "/trademark",     type: "cross" },
+  { from: "/trademark",     to: "/shipping",      type: "cross" },
+  { from: "/setup",         to: "/trademark",     type: "cross" },
+  { from: "/setup",         to: "/shipping",      type: "cross" },
+];
+
+const PROD_BASE = "https://mothersgoldspice.com";
+const LOCAL_BASE = "http://localhost:4321";
+
+// Node box dimensions
+const NODE_W = 150;
+const NODE_H = 56;
+
+// Helper to find node by path
+const nodeByPath = (path: string) => pages.find((p) => p.path === path)!;
+
+// Compute edge path between two nodes (straight or curved)
+function edgePath(from: { x: number; y: number }, to: { x: number; y: number }, curved = false) {
+  if (!curved) {
+    return `M ${from.x},${from.y + NODE_H / 2} L ${to.x},${to.y - NODE_H / 2}`;
+  }
+  // Curved path for cross-edges between same-tier nodes
+  const cx1 = (from.x + to.x) / 2;
+  const cy1 = from.y + 50;
+  const cy2 = to.y + 50;
+  return `M ${from.x},${from.y + NODE_H / 2 - 10} C ${cx1},${cy1} ${cx1},${cy2} ${to.x},${to.y + NODE_H / 2 - 10}`;
+}
+---
+
+<Layout title="Sitemap — all pages and links" description="Visual map of all Mother's Gold Spice pages with local + production URLs.">
+  <main class="bg-cream min-h-screen">
+    <!-- HERO -->
+    <header class="border-b border-ink/10">
+      <div class="max-w-5xl mx-auto px-6 py-12">
+        <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-3">Internal · sitemap</p>
+        <h1 class="font-serif text-3xl md:text-4xl text-ink mb-3">Page map</h1>
+        <p class="text-ink/70 max-w-2xl text-sm">Every public page on the site. Click any node in the graph to navigate. Local + production URLs listed in the table below for reference.</p>
+
+        <div class="sm-env-row" id="sm-env-row">
+          <div class="sm-env-card" data-env="local">
+            <div class="sm-env-label">Local dev</div>
+            <code class="sm-env-url">{LOCAL_BASE}</code>
+          </div>
+          <div class="sm-env-card" data-env="prod">
+            <div class="sm-env-label">Production</div>
+            <code class="sm-env-url">{PROD_BASE}</code>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- GRAPH -->
+    <section class="max-w-6xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-2xl text-ink mb-2">Page graph</h2>
+      <p class="text-sm text-ink/60 mb-6">Solid lines = primary navigation. Dashed lines = cross-references between pages.</p>
+
+      <div class="sm-svg-wrap">
+        <svg viewBox="0 0 1000 480" preserveAspectRatio="xMidYMid meet" class="sm-svg">
+          <defs>
+            <marker id="sm-arrow-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a1f10"/>
+            </marker>
+            <marker id="sm-arrow-cross" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(122, 31, 16, 0.45)"/>
+            </marker>
+          </defs>
+
+          <!-- Edges (draw first so they go under nodes) -->
+          {edges.map((e) => {
+            const a = nodeByPath(e.from);
+            const b = nodeByPath(e.to);
+            const isCross = e.type === "cross";
+            const path = edgePath(a, b, isCross);
+            return (
+              <path
+                d={path}
+                fill="none"
+                stroke={isCross ? "rgba(122, 31, 16, 0.35)" : "#7a1f10"}
+                stroke-width={isCross ? "1.2" : "1.8"}
+                stroke-dasharray={isCross ? "4 4" : "0"}
+                marker-end={isCross ? "url(#sm-arrow-cross)" : "url(#sm-arrow-primary)"}
+              />
+            );
+          })}
+
+          <!-- Nodes -->
+          {pages.map((p) => (
+            <a href={p.path} class="sm-node-link">
+              <g transform={`translate(${p.x - NODE_W / 2}, ${p.y - NODE_H / 2})`} class="sm-node">
+                <rect
+                  width={NODE_W}
+                  height={NODE_H}
+                  rx="12"
+                  fill="#fff"
+                  stroke="#7a1f10"
+                  stroke-width="1.5"
+                />
+                <text x={NODE_W / 2} y={NODE_H / 2 - 4} text-anchor="middle" class="sm-node-title">{p.title}</text>
+                <text x={NODE_W / 2} y={NODE_H / 2 + 12} text-anchor="middle" class="sm-node-path">{p.path}</text>
+              </g>
+            </a>
+          ))}
+        </svg>
+      </div>
+    </section>
+
+    <!-- PAGE LIST -->
+    <section class="max-w-6xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-2xl text-ink mb-2">All pages</h2>
+      <p class="text-sm text-ink/60 mb-6">Click either URL to open in a new tab. Current environment is highlighted.</p>
+
+      <div class="sm-table-wrap">
+        <table class="sm-table" id="sm-table">
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th>Description</th>
+              <th>Local URL</th>
+              <th>Production URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pages.map((p) => (
+              <tr>
+                <td>
+                  <a href={p.path} class="sm-page-title">{p.title}</a>
+                </td>
+                <td class="sm-page-desc">{p.desc}</td>
+                <td>
+                  <a href={`${LOCAL_BASE}${p.path}`} target="_blank" rel="noopener" class="sm-url sm-url-local">
+                    {LOCAL_BASE}{p.path}
+                  </a>
+                </td>
+                <td>
+                  <a href={`${PROD_BASE}${p.path}`} target="_blank" rel="noopener" class="sm-url sm-url-prod">
+                    {PROD_BASE}{p.path}
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- EDGE LIST -->
+    <section class="max-w-6xl mx-auto px-6 py-12">
+      <h2 class="font-serif text-2xl text-ink mb-2">Links between pages</h2>
+      <p class="text-sm text-ink/60 mb-6">Every cross-page link in the codebase (primary navigation + cross-references).</p>
+
+      <div class="sm-edge-grid">
+        {edges.map((e) => {
+          const a = nodeByPath(e.from);
+          const b = nodeByPath(e.to);
+          return (
+            <div class={`sm-edge-card sm-edge-${e.type}`}>
+              <a href={e.from} class="sm-edge-from">{a.short}</a>
+              <span class="sm-edge-arrow">{e.type === "primary" ? "→" : "⇢"}</span>
+              <a href={e.to} class="sm-edge-to">{b.short}</a>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  // Detect environment and highlight the matching card + URLs
+  const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const envRow = document.getElementById("sm-env-row");
+  if (envRow) {
+    envRow.querySelector(`[data-env="${isLocal ? "local" : "prod"}"]`)?.classList.add("sm-env-current");
+  }
+  // Highlight matching URL column in the table
+  const table = document.getElementById("sm-table");
+  if (table) {
+    const cls = isLocal ? "sm-url-local" : "sm-url-prod";
+    table.querySelectorAll(`.${cls}`).forEach((el) => el.classList.add("sm-url-current"));
+  }
+</script>
+
+<style>
+  .sm-env-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .sm-env-card {
+    flex: 1 1 240px;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid rgba(42, 26, 16, 0.1);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .sm-env-current {
+    border-color: #7a1f10;
+    background: rgba(122, 31, 16, 0.04);
+    box-shadow: 0 0 0 2px rgba(122, 31, 16, 0.15);
+  }
+  .sm-env-current::after {
+    content: "you are here";
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #1e7a1e;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .sm-env-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #7a1f10;
+    font-weight: 600;
+  }
+  .sm-env-url {
+    font-size: 13.5px;
+    color: #2a1a10;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .sm-svg-wrap {
+    background: #fff;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    border-radius: 16px;
+    padding: 16px;
+    overflow-x: auto;
+  }
+  .sm-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-width: 720px;
+  }
+
+  .sm-node-link { cursor: pointer; }
+  .sm-node rect {
+    transition: fill 0.15s, stroke-width 0.15s, transform 0.15s;
+  }
+  .sm-node-link:hover .sm-node rect {
+    fill: #fff8eb;
+    stroke-width: 2.2;
+  }
+  .sm-node-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 14px;
+    font-weight: 600;
+    fill: #2a1a10;
+    pointer-events: none;
+  }
+  .sm-node-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    fill: rgba(42, 26, 16, 0.55);
+    pointer-events: none;
+  }
+
+  .sm-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    background: #fff;
+  }
+  .sm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .sm-table th,
+  .sm-table td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(42, 26, 16, 0.06);
+    color: rgba(42, 26, 16, 0.85);
+    vertical-align: top;
+  }
+  .sm-table thead th {
+    background: #fff8eb;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #2a1a10;
+    border-bottom: 2px solid #ffe9c2;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .sm-table tbody tr:last-child td { border-bottom: none; }
+  .sm-table tbody tr:hover { background: #fffbf3; }
+
+  .sm-page-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: #2a1a10;
+    text-decoration: none;
+  }
+  .sm-page-title:hover { color: #7a1f10; }
+
+  .sm-page-desc {
+    font-size: 12.5px;
+    color: rgba(42, 26, 16, 0.65);
+    max-width: 280px;
+  }
+
+  .sm-url {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    color: #7a1f10;
+    text-decoration: none;
+    word-break: break-all;
+    display: inline-block;
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: rgba(42, 26, 16, 0.04);
+  }
+  .sm-url:hover {
+    background: rgba(122, 31, 16, 0.1);
+    color: #5a1408;
+  }
+  .sm-url-current {
+    background: rgba(30, 122, 30, 0.1);
+    color: #1e7a1e;
+    font-weight: 600;
+  }
+  .sm-url-current:hover {
+    background: rgba(30, 122, 30, 0.18);
+    color: #1e7a1e;
+  }
+
+  /* Edge cards */
+  .sm-edge-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  @media (min-width: 600px) {
+    .sm-edge-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 900px) {
+    .sm-edge-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .sm-edge-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    border-radius: 10px;
+    font-size: 13px;
+  }
+  .sm-edge-primary { border-left: 3px solid #7a1f10; }
+  .sm-edge-cross   { border-left: 3px dashed rgba(122, 31, 16, 0.4); }
+  .sm-edge-from,
+  .sm-edge-to {
+    color: #2a1a10;
+    text-decoration: none;
+    font-weight: 600;
+    font-family: "Fraunces", Georgia, serif;
+  }
+  .sm-edge-from:hover,
+  .sm-edge-to:hover { color: #7a1f10; }
+  .sm-edge-arrow {
+    color: #7a1f10;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+</style>
