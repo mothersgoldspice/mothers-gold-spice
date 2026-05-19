@@ -2,15 +2,18 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Setup checklist — Mother's Gold Spice as a Sole Proprietorship" description="End-to-end registration checklist for launching Mother's Gold Spice as a Sole Proprietorship in Ricky's name — every form, fee, document, and timeline.">
+<Layout title="Setup checklist — Mother's Gold Spice as Mom's Sole Proprietorship" description="End-to-end registration checklist for launching Mother's Gold Spice as a Sole Proprietorship in Mom's name — every form, fee, document, and timeline.">
   <main class="bg-cream min-h-screen">
     <!-- HERO -->
     <header class="border-b border-ink/10">
       <div class="max-w-5xl mx-auto px-6 py-16">
-        <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-4">Setup checklist · Bangalore · Sole Prop</p>
+        <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-4">Setup checklist · Bangalore · Mom's Sole Prop</p>
         <h1 class="font-serif text-4xl md:text-5xl text-ink mb-5 leading-tight">Registering<br/>Mother's Gold Spice</h1>
         <p class="text-ink/70 max-w-2xl text-lg leading-relaxed">
-          Every form, every fee, every document — sequenced for a Bangalore-based full-time IT employee running this as a side business under his own name. Account for limited evening + weekend time (Variolearn / Illustraflow is the parallel side project). End-to-end: ~3 weeks, ~₹6,000 in fees.
+          Every form, every fee, every document — for a Bangalore family business with <strong>Mom as the legal Sole Proprietor</strong> and son as the operational helper (handling digital ops, packaging, shipping on weekends). Mom owns the recipe, the kitchen, the brand. Son handles tech + delivery in evenings while keeping his IT day-job (and his separate Variolearn sole prop, registered separately under his own PAN).
+        </p>
+        <p class="text-ink/70 max-w-2xl text-sm mt-3">
+          End-to-end: ~3 weeks of evening work (mostly done together — mom signs, son operates the laptop), ~₹6,000 in fees.
         </p>
         <p class="mt-5 text-sm">
           <a href="/plan" class="text-spice underline hover:text-spice-700">← Back to the launch plan</a>
@@ -44,11 +47,22 @@ import Layout from "../layouts/Layout.astro";
       <div class="su-callout">
         <p class="su-callout-label">Working assumptions for this checklist</p>
         <ul class="su-bullets">
-          <li><strong>Owner:</strong> Ricky, as Sole Proprietor in his own name</li>
-          <li><strong>Premises address on all registrations:</strong> Ricky's rented Bangalore flat</li>
-          <li><strong>Manufacturing kitchen:</strong> Mom's home kitchen (declared address can match where production actually happens — for Basic Reg this is acceptable)</li>
+          <li><strong>Sole Proprietor (legal owner):</strong> Mom</li>
+          <li><strong>All registrations use:</strong> Mom's PAN, Mom's Aadhaar, Mom's home address</li>
+          <li><strong>Manufacturing premises (declared address):</strong> Mom's home (where the kitchen actually is)</li>
+          <li><strong>Operational helper:</strong> Son — drives the digital paperwork, runs the website + shipping, handles customer service in evenings. Acts as Mom's authorized representative; not a partner.</li>
           <li><strong>Channel at launch:</strong> D2C only (mothersgoldspice.com + Instagram + WhatsApp) via Shiprocket</li>
-          <li><strong>Time budget:</strong> Evenings + weekends; ~3 weeks total to be fully registered</li>
+          <li><strong>Time budget:</strong> ~3 weeks of evenings — mom signs, son operates the laptop. Once registered, mom cooks during the day; son handles ops on weekends.</li>
+        </ul>
+      </div>
+
+      <div class="su-callout-amber">
+        <p class="su-callout-label">Why Mom and not the son?</p>
+        <p>Three reasons:</p>
+        <ul class="su-bullets" style="margin-top: 6px;">
+          <li><strong>The kitchen + the cook are both at her home.</strong> FSSAI license + GST registration align naturally — the address on paper is where production actually happens.</li>
+          <li><strong>Lower tax bracket.</strong> Mom's slab is likely lower than the son's IT-salary slab → less total tax on combined household income.</li>
+          <li><strong>Zero employer visibility.</strong> Son's IT employer can search his PAN on the GST portal — anything in his name is visible. With MGS in mom's PAN, the son's day-job stays cleanly separated from the food business. (His separate Variolearn sole prop is the only thing tied to his PAN.)</li>
         </ul>
       </div>
     </section>
@@ -60,40 +74,40 @@ import Layout from "../layouts/Layout.astro";
 
       <div class="su-doc-grid">
         <div class="su-doc-card">
-          <p class="su-doc-name">PAN card</p>
-          <p class="su-doc-detail">Your personal PAN. Used as identity proof + business identity in Sole Prop.</p>
+          <p class="su-doc-name">Mom's PAN card</p>
+          <p class="su-doc-detail">Her personal PAN. Sole Proprietorship is in her name, so her PAN is the business's tax ID.</p>
         </div>
         <div class="su-doc-card">
-          <p class="su-doc-name">Aadhaar card</p>
-          <p class="su-doc-detail">Mandatory for OTP verification on every government portal.</p>
+          <p class="su-doc-name">Mom's Aadhaar card</p>
+          <p class="su-doc-detail">Mandatory for OTP verification on every government portal. Must be linked to a mobile number she has access to.</p>
         </div>
         <div class="su-doc-card">
-          <p class="su-doc-name">Passport-size photo</p>
-          <p class="su-doc-detail">JPG, ~50–200 KB. White background. Used on Shops & Est, FSSAI, Trademark.</p>
+          <p class="su-doc-name">Mom's passport-size photo</p>
+          <p class="su-doc-detail">JPG, ~50–200 KB. White background. Used on Shops & Est, FSSAI, Trademark applications.</p>
         </div>
         <div class="su-doc-card">
-          <p class="su-doc-name">Rental agreement</p>
-          <p class="su-doc-detail">In your name (or jointly). Registered with stamp duty preferred.</p>
+          <p class="su-doc-name">Mom's home address proof</p>
+          <p class="su-doc-detail">Property tax receipt (if owned) OR rent agreement (if rented). Whoever's name is on the document — that name needs to match the applicant or have a NOC.</p>
         </div>
         <div class="su-doc-card">
           <p class="su-doc-name">Electricity bill</p>
-          <p class="su-doc-detail">Latest 1–2 months for the flat. Backup address proof.</p>
+          <p class="su-doc-detail">Latest 1–2 months for mom's home. Backup address proof — ideally in mom's name; if in dad's/spouse's name, a one-line affidavit confirms she resides there.</p>
         </div>
         <div class="su-doc-card">
-          <p class="su-doc-name">Landlord NOC</p>
-          <p class="su-doc-detail">One-page letter from landlord saying no objection to "small-scale food prep and packaging." Keep on file even if not asked.</p>
+          <p class="su-doc-name">NOC (if applicable)</p>
+          <p class="su-doc-detail">If mom rents her home: one-page landlord NOC saying no objection to "small-scale food prep and packaging." If she owns it: skip this.</p>
         </div>
         <div class="su-doc-card">
-          <p class="su-doc-name">Email + mobile number</p>
-          <p class="su-doc-detail">Dedicated business email if possible (e.g., ricky@mothersgoldspice.com via Cloudflare email routing — free).</p>
+          <p class="su-doc-name">Mom's mobile + email</p>
+          <p class="su-doc-detail">Aadhaar OTP comes to her registered mobile. Create a business email she can sign into (e.g., <code>moms@mothersgoldspice.com</code> via Cloudflare email routing — free). Forward to your inbox if you're handling day-to-day replies.</p>
         </div>
         <div class="su-doc-card">
           <p class="su-doc-name">Trademark image</p>
-          <p class="su-doc-detail">High-res PNG/JPG of the combined wordmark + leaf + tagline. You already have this from the label design.</p>
+          <p class="su-doc-detail">High-res PNG/JPG of the combined wordmark + leaf + tagline. Already designed — pull from the label-preview SVG.</p>
         </div>
         <div class="su-doc-card">
-          <p class="su-doc-name">Bank cancelled cheque</p>
-          <p class="su-doc-detail">Only after the current account opens — needed for GST + Shiprocket.</p>
+          <p class="su-doc-name">Bank cancelled cheque (mom's)</p>
+          <p class="su-doc-detail">Available after mom's business current account is opened — needed for GST + Shiprocket.</p>
         </div>
       </div>
     </section>
@@ -114,27 +128,27 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>~30 minutes</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (all in mom's name)</h3>
       <ul class="su-bullets">
-        <li>Aadhaar (linked to mobile for OTP)</li>
-        <li>PAN</li>
-        <li>Email + mobile</li>
+        <li>Mom's Aadhaar (linked to her mobile for OTP)</li>
+        <li>Mom's PAN</li>
+        <li>Mom's mobile + email</li>
         <li>Business name: "Mother's Gold Spice"</li>
         <li>Self-declare turnover (₹0 currently → "Micro" category)</li>
       </ul>
 
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Steps</h3>
       <ol class="su-step-list">
-        <li>Go to <a href="https://udyamregistration.gov.in" target="_blank" rel="noopener" class="su-link">udyamregistration.gov.in</a></li>
+        <li>Sit next to mom with her phone (for OTP). Go to <a href="https://udyamregistration.gov.in" target="_blank" rel="noopener" class="su-link">udyamregistration.gov.in</a></li>
         <li>Click "For New Entrepreneurs who are not yet registered as MSME"</li>
-        <li>Enter Aadhaar → verify via OTP</li>
-        <li>Fill PAN → verify</li>
-        <li>Fill business details: name, type (Proprietorship), address (your flat), date of commencement, bank account (you can use personal account temporarily, update to business account later)</li>
+        <li>Enter mom's Aadhaar → verify via OTP sent to her mobile</li>
+        <li>Fill mom's PAN → verify</li>
+        <li>Fill business details: name "Mother's Gold Spice", type (Proprietorship), address (mom's home), date of commencement, bank account (her existing personal savings account is fine temporarily — update to business current account after step 3)</li>
         <li>Self-declare investment + turnover (Micro = up to ₹1 cr investment, up to ₹5 cr turnover)</li>
         <li>Submit → Udyam Registration Number (URN) issued immediately, PDF downloadable</li>
       </ol>
 
-      <div class="su-outcome">Outcome: <strong>Udyam Registration Certificate</strong>. Use this PDF on Trademark application + future tender bids + bank loans.</div>
+      <div class="su-outcome">Outcome: <strong>Udyam Registration Certificate in Mom's name</strong>. Use this PDF on Trademark application + future tender bids + bank loans.</div>
     </section>
 
     <!-- STEP 2: SHOPS & ESTABLISHMENTS -->
@@ -153,26 +167,26 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>2–3 days</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (all in mom's name)</h3>
       <ul class="su-bullets">
-        <li>PAN + Aadhaar</li>
-        <li>Photo of the establishment (a photo of your flat door / flat exterior works)</li>
-        <li>Rental agreement + electricity bill (address proof)</li>
-        <li>Business name + nature of business (food manufacturing + retail)</li>
-        <li>Number of employees (0 currently — just yourself as proprietor)</li>
+        <li>Mom's PAN + Aadhaar</li>
+        <li>Photo of the establishment (a photo of mom's home door / exterior works)</li>
+        <li>Address proof of mom's home: property tax receipt OR rent agreement + electricity bill</li>
+        <li>Business name "Mother's Gold Spice" + nature of business (food manufacturing + retail)</li>
+        <li>Number of employees (0 currently — just mom as proprietor)</li>
       </ul>
 
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Steps</h3>
       <ol class="su-step-list">
         <li>Go to Karnataka e-Karmika portal (search "Karnataka Shops and Establishments online")</li>
-        <li>Register as new applicant → verify mobile + email</li>
-        <li>Fill Form A: business name, address, type, employees, nature of business</li>
-        <li>Upload PAN, Aadhaar, photo, rental agreement</li>
+        <li>Register mom as new applicant → verify her mobile + email</li>
+        <li>Fill Form A: business name (Mother's Gold Spice), address (mom's home), proprietor (mom), employees (0), nature of business (Food manufacturing + retail sale)</li>
+        <li>Upload mom's PAN, Aadhaar, her photo, address proof of her home</li>
         <li>Pay fee online (₹250 for 0 employees)</li>
-        <li>Application submitted → certificate emailed in 2–3 days</li>
+        <li>Application submitted → certificate emailed in 2–3 days, in mom's name</li>
       </ol>
 
-      <div class="su-outcome">Outcome: <strong>Registration of Establishment Certificate</strong>. Renewed every 5 years.</div>
+      <div class="su-outcome">Outcome: <strong>Registration of Establishment Certificate in Mom's name</strong>. Renewed every 5 years.</div>
     </section>
 
     <!-- STEP 3: BANK ACCOUNT -->
@@ -191,14 +205,14 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>3–7 days</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (all in mom's name)</h3>
       <ul class="su-bullets">
-        <li>PAN (personal) + Aadhaar</li>
-        <li>Shops & Establishments certificate (from step 2)</li>
-        <li>Udyam certificate (from step 1)</li>
-        <li>Address proof (rental agreement + electricity bill)</li>
-        <li>Passport photo</li>
-        <li>Initial deposit (₹5k–25k depending on bank)</li>
+        <li>Mom's PAN + Aadhaar</li>
+        <li>Mom's Shops & Establishments certificate (from step 2)</li>
+        <li>Mom's Udyam certificate (from step 1)</li>
+        <li>Address proof of mom's home (electricity bill + property tax receipt)</li>
+        <li>Mom's passport photo</li>
+        <li>Initial deposit (₹5k–25k depending on bank — refundable, becomes working capital)</li>
       </ul>
 
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Recommended banks for a one-person Sole Prop</h3>
@@ -215,8 +229,8 @@ import Layout from "../layouts/Layout.astro";
       </div>
 
       <div class="su-callout">
-        <p class="su-callout-label">Pro tip — avoid the visibility issue</p>
-        <p>For full-time-employed founders running side businesses, the bank account in your name doesn't trigger employer alerts (banks don't share account data with employers). But the GST registration (next step) IS publicly searchable. If your IT employer has a strict anti-moonlighting policy, this is worth knowing.</p>
+        <p class="su-callout-label">Add son as authorized signatory</p>
+        <p>When opening mom's current account, ask the bank to add the son as an <strong>authorized signatory</strong> (free, just one extra signature on the account opening form). This lets the son operate the account day-to-day — issue cheques, transfer money, link Razorpay — without mom physically visiting the bank every time. Mom remains the legal owner; son is just the operator.</p>
       </div>
     </section>
 
@@ -236,28 +250,28 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>3–7 days</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (all in mom's name)</h3>
       <ul class="su-bullets">
-        <li>PAN + Aadhaar (mobile-linked for OTP)</li>
-        <li>Photo</li>
-        <li>Business address proof: rental agreement + electricity bill + landlord NOC</li>
-        <li>Bank account details: name, account number, IFSC, branch (cancelled cheque)</li>
+        <li>Mom's PAN + Aadhaar (mobile-linked for OTP)</li>
+        <li>Mom's photo</li>
+        <li>Business address proof: mom's home — electricity bill + property tax / rent agreement (+ NOC if applicable)</li>
+        <li>Mom's bank account details: name, account number, IFSC, branch (cancelled cheque from step 3)</li>
         <li>HSN codes: <strong>2001</strong> (pickled vegetables) or <strong>2008</strong> (preserved fruits) — pick the one matching your recipe</li>
-        <li>Business name: same as Sole Prop name</li>
+        <li>Business name: "Mother's Gold Spice"</li>
         <li>Constitution: "Proprietorship"</li>
       </ul>
 
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Steps</h3>
       <ol class="su-step-list">
         <li>Go to <a href="https://www.gst.gov.in" target="_blank" rel="noopener" class="su-link">gst.gov.in</a> → "New Registration"</li>
-        <li>Fill PART A: PAN, email, mobile → verify via OTP → receive TRN (Temporary Reference Number)</li>
-        <li>Continue with TRN → fill PART B: business details, address, bank, HSN codes</li>
-        <li>Aadhaar e-KYC verification (recommended path — avoids physical verification)</li>
+        <li>Fill PART A: mom's PAN, her email, her mobile → verify via OTP → receive TRN (Temporary Reference Number)</li>
+        <li>Continue with TRN → fill PART B: business details, mom's home address, mom's bank, HSN codes</li>
+        <li>Aadhaar e-KYC verification using mom's Aadhaar (recommended — avoids physical verification)</li>
         <li>Submit application</li>
-        <li>If Aadhaar-verified: GSTIN issued in 3 working days. If not: officer may visit your premises within 21 days</li>
+        <li>If Aadhaar-verified: GSTIN issued in 3 working days. If not: officer may visit mom's home within 21 days</li>
       </ol>
 
-      <div class="su-outcome">Outcome: <strong>15-digit GSTIN</strong>. Print this on every invoice. Print on the jar label below FSSAI number (optional but cleaner).</div>
+      <div class="su-outcome">Outcome: <strong>15-digit GSTIN in Mom's PAN</strong>. Print on every invoice. Print on the jar label below FSSAI number (optional but cleaner).</div>
     </section>
 
     <!-- STEP 5: FSSAI BASIC -->
@@ -276,11 +290,11 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>3–7 days</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (all in mom's name)</h3>
       <ul class="su-bullets">
-        <li>PAN + Aadhaar</li>
-        <li>Photo (passport size)</li>
-        <li>Address proof of the premises: rental agreement OR electricity bill</li>
+        <li>Mom's PAN + Aadhaar</li>
+        <li>Mom's photo (passport size)</li>
+        <li>Address proof of mom's home — where she actually cooks (electricity bill / property tax receipt / rent agreement)</li>
         <li>Food category: <strong>04.2.2.5 — Pickles, Chutneys, Sauces</strong></li>
         <li>Annual production estimate (declare a conservative number: ~5,000 jars/year for pilot)</li>
       </ul>
@@ -289,22 +303,17 @@ import Layout from "../layouts/Layout.astro";
       <ol class="su-step-list">
         <li>Go to <a href="https://foscos.fssai.gov.in" target="_blank" rel="noopener" class="su-link">foscos.fssai.gov.in</a> → "Apply for License/Registration"</li>
         <li>Select state (Karnataka), then "Petty Food Manufacturer"</li>
-        <li>Fill Form A: business name, address (your flat), nature of food business, food category, annual turnover (declare under ₹12 lakh)</li>
-        <li>Upload PAN, Aadhaar, photo, address proof</li>
+        <li>Fill Form A: business name "Mother's Gold Spice", proprietor (mom), address (mom's home), nature of food business, food category, annual turnover (declare under ₹12 lakh)</li>
+        <li>Upload mom's PAN, Aadhaar, photo, address proof of her home</li>
         <li>Pay ₹100 (1 year) or ₹500 (5 years — recommended, saves renewal hassle)</li>
-        <li>Application submitted → certificate issued in 3–7 days</li>
+        <li>Application submitted → certificate issued in 3–7 days in mom's name</li>
       </ol>
 
-      <div class="su-outcome">Outcome: <strong>14-digit FSSAI Basic Registration Number</strong>. Prefix: <code>1XXXXXXXXX...</code>. Print on every label. Replaces the placeholder in <code>LABEL.md</code>.</div>
+      <div class="su-outcome">Outcome: <strong>14-digit FSSAI Basic Registration Number in Mom's name</strong>. Prefix: <code>1XXXXXXXXX...</code>. Print on every label. Replaces the placeholder in <code>LABEL.md</code>.</div>
 
-      <div class="su-callout-amber">
-        <p class="su-callout-label">Important — the premises declaration</p>
-        <p>The address on your FSSAI license is the legal manufacturing premises. Two valid options:</p>
-        <ul class="su-bullets" style="margin-top: 6px;">
-          <li><strong>Your rental flat</strong> — declare here, but cook in your kitchen (you'll handle production yourself on weekends)</li>
-          <li><strong>Mom's home address</strong> — declare here if she's the primary cook; you'd need her name on the application as a co-proprietor or use her flat as a "branch" location</li>
-        </ul>
-        <p style="margin-top: 8px;">For solo Sole Prop in your name, declaring <strong>your flat</strong> is cleaner — you become the legal manufacturer, mom cooks "as family helper" but production technically happens at your address. Match the address to where you batch on weekends.</p>
+      <div class="su-callout">
+        <p class="su-callout-label">The premises = mom's home (this is the whole point)</p>
+        <p>Because mom is the proprietor and her home IS where the cooking happens, the FSSAI license address matches reality perfectly. No "manufactured at one address but actually cooked at another" awkwardness. This alignment is one of the biggest reasons to keep MGS in mom's name — the paper trail tells the truth.</p>
       </div>
     </section>
 
@@ -324,13 +333,13 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>1 evening to file; 12–24 months to certificate</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (all in mom's name)</h3>
       <ul class="su-bullets">
-        <li>PAN + Aadhaar</li>
-        <li>Passport-size photo</li>
-        <li>Address proof (Aadhaar or utility bill)</li>
-        <li><strong>Udyam certificate</strong> (from step 1) — this is what gets you the ₹4,500 MSME rate</li>
-        <li>Trademark image: combined wordmark + leaf + tagline as a single high-res PNG (you have this from the label design)</li>
+        <li>Mom's PAN + Aadhaar</li>
+        <li>Mom's passport-size photo</li>
+        <li>Address proof of mom's home (Aadhaar or utility bill)</li>
+        <li><strong>Mom's Udyam certificate</strong> (from step 1) — this is what gets the ₹4,500 MSME rate</li>
+        <li>Trademark image: combined wordmark + leaf + tagline as a single high-res PNG (already designed for label-preview)</li>
         <li>Class: <strong>29</strong> (preserved foods, pickles, chutneys)</li>
         <li>Description: "Pickles, chutneys, preserved fruits and vegetables, mango pickle, mixed pickle, condiments included in class 29"</li>
       </ul>
@@ -338,14 +347,14 @@ import Layout from "../layouts/Layout.astro";
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Steps</h3>
       <ol class="su-step-list">
         <li>First: search if "Mother's Gold Spice" is available — <a href="https://ipindiaservices.gov.in/tmrsearch/tmrsearch.htm" target="_blank" rel="noopener" class="su-link">ipindiaservices.gov.in/tmrsearch</a> → Class 29</li>
-        <li>Create applicant account on <a href="https://ipindiaonline.gov.in/eregister" target="_blank" rel="noopener" class="su-link">ipindiaonline.gov.in/eregister</a></li>
-        <li>Select "Individual / MSME" applicant type → upload Udyam certificate</li>
-        <li>File Form TM-A: applicant name, address, mark image, class 29, description</li>
-        <li>Pay ₹4,500 via netbanking/UPI</li>
+        <li>Create applicant account on <a href="https://ipindiaonline.gov.in/eregister" target="_blank" rel="noopener" class="su-link">ipindiaonline.gov.in/eregister</a> in <strong>mom's name</strong></li>
+        <li>Select "Individual / MSME" applicant type → upload mom's Udyam certificate</li>
+        <li>File Form TM-A: applicant = mom, address = mom's home, mark image, class 29, description</li>
+        <li>Pay ₹4,500 via netbanking/UPI (from mom's account)</li>
         <li>Application number received same day → start using <strong>™</strong> on all labels + Instagram + website</li>
       </ol>
 
-      <div class="su-outcome">Outcome: <strong>Trademark application number</strong> immediately; <strong>Certificate of Registration</strong> in 12–24 months. Switch from ™ to ® after the certificate.</div>
+      <div class="su-outcome">Outcome: <strong>Trademark application number in Mom's name</strong> immediately; <strong>Certificate of Registration</strong> in 12–24 months. Switch from ™ to ® after the certificate. Mom permanently owns the brand asset.</div>
     </section>
 
     <!-- STEP 7: SHIPROCKET -->
@@ -364,25 +373,25 @@ import Layout from "../layouts/Layout.astro";
         <div><span class="su-meta-label">Time</span>1–2 days KYC</div>
       </div>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need</h3>
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What you need (account in mom's business name)</h3>
       <ul class="su-bullets">
-        <li>PAN (personal Sole Prop)</li>
-        <li>GST certificate (from step 4)</li>
-        <li>Bank account details (cancelled cheque from step 3)</li>
-        <li>Business address (your flat)</li>
-        <li>Phone + email</li>
-        <li>Pickup address (same as business address — Shiprocket courier picks up here)</li>
+        <li>Mom's PAN</li>
+        <li>Mom's GST certificate (from step 4)</li>
+        <li>Mom's bank account details (cancelled cheque from step 3)</li>
+        <li>Business address (mom's home)</li>
+        <li>Phone + email (use the business email forwarded to son)</li>
+        <li>Pickup address (mom's home — Shiprocket courier picks up here)</li>
       </ul>
 
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Steps</h3>
       <ol class="su-step-list">
-        <li>Sign up at <a href="https://www.shiprocket.in" target="_blank" rel="noopener" class="su-link">shiprocket.in</a> as a new seller</li>
-        <li>Complete KYC: upload PAN, GST cert, cancelled cheque, address proof</li>
-        <li>Add pickup address (your flat)</li>
+        <li>Sign up at <a href="https://www.shiprocket.in" target="_blank" rel="noopener" class="su-link">shiprocket.in</a> as a new seller — applicant = mom</li>
+        <li>Complete KYC: upload mom's PAN, GST cert, cancelled cheque, address proof</li>
+        <li>Add pickup address (mom's home). If the son sometimes packs at his rental flat instead, add that as a secondary pickup address too.</li>
         <li>Configure couriers: select preferred (Delhivery Surface + Air; DTDC; India Post)</li>
-        <li>Add bank account for COD remittance (auto-credit weekly)</li>
-        <li>Integration: install Razorpay → Shiprocket auto-fetches orders, OR add orders manually from your dashboard</li>
-        <li>Set up Pickup Schedule — daily / Tue+Sat / etc.</li>
+        <li>Add mom's bank account for COD remittance (auto-credit weekly)</li>
+        <li>Integration: install Razorpay → Shiprocket auto-fetches orders, OR add orders manually from your dashboard (son operates this day-to-day)</li>
+        <li>Set up Pickup Schedule — Tue + Sat works well for evening / weekend packing rhythm</li>
       </ol>
 
       <h3 class="font-serif text-xl text-ink mt-6 mb-3">Time-saving config (critical for Variolearn-busy schedule)</h3>
@@ -401,18 +410,18 @@ import Layout from "../layouts/Layout.astro";
     <!-- SEQUENCE -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
       <h2 class="font-serif text-3xl text-ink mb-2">Recommended 3-week sequence</h2>
-      <p class="text-sm text-ink/60 mb-6">Some steps unblock others — do them in this order. Designed for evening + weekend work hours.</p>
+      <p class="text-sm text-ink/60 mb-6">All paperwork happens with mom signing (Aadhaar OTP comes to her phone). Son drives the laptop. Designed for evening sessions together.</p>
 
       <div class="su-week">
         <div class="su-week-label">Week 1</div>
         <div class="su-week-content">
-          <p class="su-week-title">Foundational paperwork (~5 hours total)</p>
+          <p class="su-week-title">Foundational paperwork — mom + son together (~5 hours)</p>
           <ul class="su-bullets">
-            <li><strong>Monday evening</strong> — Udyam (30 min) + Shops & Establishments application (45 min)</li>
-            <li><strong>Tuesday evening</strong> — Apply for business current account online (HDFC SmartUp or Kotak Neo Biz)</li>
-            <li><strong>Wednesday evening</strong> — Search trademark availability (10 min); prepare combined mark image</li>
-            <li><strong>Thursday–Saturday</strong> — Bank picks up KYC documents; Shops & Est certificate arrives via email</li>
-            <li><strong>Sunday afternoon</strong> — File FSSAI Basic Reg application (45 min)</li>
+            <li><strong>Monday evening</strong> — Sit with mom at her place. Udyam (30 min, her Aadhaar OTP) + Shops & Establishments application (45 min)</li>
+            <li><strong>Tuesday evening</strong> — Apply for business current account online (HDFC SmartUp or Kotak Neo Biz) <em>in mom's name</em>. Add son as authorized signatory in the application.</li>
+            <li><strong>Wednesday evening</strong> — Search trademark availability for "Mother's Gold Spice" (10 min); prepare combined mark image</li>
+            <li><strong>Thursday–Saturday</strong> — Bank picks up KYC documents from mom's home; Shops & Est certificate arrives via email</li>
+            <li><strong>Sunday afternoon</strong> — File FSSAI Basic Reg application (45 min — mom's PAN, her home as premises)</li>
           </ul>
         </div>
       </div>
@@ -420,14 +429,14 @@ import Layout from "../layouts/Layout.astro";
       <div class="su-week">
         <div class="su-week-label">Week 2</div>
         <div class="su-week-content">
-          <p class="su-week-title">GST + Trademark + Shiprocket (~4 hours total)</p>
+          <p class="su-week-title">GST + Trademark (~4 hours, mostly son driving with mom signing OTPs)</p>
           <ul class="su-bullets">
-            <li><strong>Monday evening</strong> — Business bank account active → request cancelled cheque PDF</li>
-            <li><strong>Tuesday evening</strong> — File GST registration (90 min with the HSN code lookup)</li>
-            <li><strong>Wednesday evening</strong> — File Trademark TM-A (1 hour — use Udyam for MSME rate)</li>
-            <li><strong>Thursday</strong> — FSSAI Basic Reg number arrives via email</li>
+            <li><strong>Monday evening</strong> — Mom's business bank account active → request cancelled cheque PDF</li>
+            <li><strong>Tuesday evening</strong> — File GST registration (90 min — mom's PAN, HSN code lookup, Aadhaar OTP from her phone)</li>
+            <li><strong>Wednesday evening</strong> — File Trademark TM-A in mom's name (1 hour — use her Udyam cert for MSME rate)</li>
+            <li><strong>Thursday</strong> — FSSAI Basic Reg number arrives via email (in mom's name)</li>
             <li><strong>Friday evening</strong> — Update <code>LABEL.md</code> with real FSSAI number; design final label for print</li>
-            <li><strong>Saturday/Sunday</strong> — Update labels on jars on your website + 3D mockups; start adding ™ to brand mentions</li>
+            <li><strong>Saturday/Sunday</strong> — Update labels on the website + 3D mockups; start adding ™ to brand mentions everywhere</li>
           </ul>
         </div>
       </div>
@@ -438,12 +447,12 @@ import Layout from "../layouts/Layout.astro";
           <p class="su-week-title">Ops infrastructure ready to ship (~4 hours total)</p>
           <ul class="su-bullets">
             <li><strong>Monday evening</strong> — GSTIN arrives via email; update website + invoices</li>
-            <li><strong>Tuesday evening</strong> — Apply for Razorpay account (needs PAN + GST + bank — now you have all three)</li>
-            <li><strong>Wednesday evening</strong> — File Shiprocket KYC application</li>
+            <li><strong>Tuesday evening</strong> — Apply for Razorpay account in mom's name (needs her PAN + GST + bank — all three now ready)</li>
+            <li><strong>Wednesday evening</strong> — File Shiprocket KYC application (mom's PAN, her home as pickup address)</li>
             <li><strong>Thursday</strong> — Razorpay KYC approved → integrate JS SDK on mothersgoldspice.com checkout</li>
-            <li><strong>Friday</strong> — Shiprocket KYC approved → set up Tue+Sat pickup schedule + courier selection</li>
-            <li><strong>Saturday</strong> — Cook first 20 jars at mom's place (legal under Basic Reg) → label them with real FSSAI number + ™</li>
-            <li><strong>Sunday</strong> — Send to family + friends + WhatsApp network → <strong>first sales</strong></li>
+            <li><strong>Friday</strong> — Shiprocket KYC approved → set up Tue+Sat pickup schedule at mom's home + courier selection</li>
+            <li><strong>Saturday</strong> — Mom cooks first 20 jars at her home (legal under Basic Reg) → label them with real FSSAI number + ™</li>
+            <li><strong>Sunday</strong> — Send to family + friends + WhatsApp network → <strong>first sales</strong> in mom's bank account</li>
           </ul>
         </div>
       </div>
@@ -451,20 +460,22 @@ import Layout from "../layouts/Layout.astro";
 
     <!-- TIME-SAVING TIPS -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">Time-saving tips for an IT day-job + Variolearn evenings</h2>
-      <p class="text-sm text-ink/60 mb-6">You're juggling three things. Here are the moves that compress the pickle-business setup to the absolute minimum hours.</p>
+      <h2 class="font-serif text-3xl text-ink mb-2">Operational rhythm — mom + son split of work</h2>
+      <p class="text-sm text-ink/60 mb-6">MGS works because both contribute to what they're naturally good at. Here's the realistic split that keeps the son's IT day-job intact AND Variolearn evenings free for tech work.</p>
 
       <ol class="su-step-list">
-        <li><strong>Apply for everything in parallel where possible.</strong> The above sequence is optimised already — but if something unblocks earlier (e.g., bank account opens in 2 days), pull the next step forward.</li>
-        <li><strong>Use Aadhaar e-KYC paths.</strong> GST + FSSAI + Trademark all offer Aadhaar-OTP verification that skips physical document submission. Saves ~5 days per registration.</li>
-        <li><strong>Pay 5 years upfront for FSSAI</strong> (₹500 vs ₹100/year). Saves you four renewal cycles. Same logic for trademark renewal at year 10.</li>
-        <li><strong>Hire a CA for ~₹3,000 to handle Bookkeeping + ITR filing.</strong> Don't try to file your own ITR-3 with two income sources. Your time is more valuable than ₹3k.</li>
+        <li><strong>Mom — daytime: cooking + customer service.</strong> She's home anyway, she has the recipe + the story. She replies to WhatsApp inquiries during the day. Production days are scheduled around her cooking rhythm (1 batch every 2–3 weeks).</li>
+        <li><strong>Son — evenings + weekends: digital ops + shipping.</strong> Website checkout, Razorpay, Shiprocket label printing, packing on Sat afternoon, handing boxes to Shiprocket courier Tue + Sat. Total: ~6 hours/week.</li>
+        <li><strong>Aadhaar OTPs go to mom's phone</strong> — she's the legal owner so she's the one signing. Son drives the keyboard but mom has the final say on every submission.</li>
+        <li><strong>Use Aadhaar e-KYC paths everywhere.</strong> GST + FSSAI + Trademark all offer Aadhaar-OTP verification that skips physical visits. Saves ~5 days per registration.</li>
+        <li><strong>Pay 5 years upfront for FSSAI</strong> (₹500 vs ₹100/year). Saves four renewal cycles.</li>
+        <li><strong>Hire a CA for ~₹5–8k/year to handle mom's ITR + son's ITR-3 (with salary + Variolearn).</strong> Two separate ITRs because two separate PANs. Don't try to DIY this.</li>
         <li><strong>Pre-printed packing slips + thank-you cards.</strong> Bulk-print 200 of each once. Saves ~30 sec/order on every shipment.</li>
-        <li><strong>WhatsApp Business autoresponder</strong> with "We reply by 7 PM daily" — sets customer expectations during your work hours.</li>
-        <li><strong>Mom handles all customer service queries during the day.</strong> She has the time + the story. You handle the digital ops at night.</li>
+        <li><strong>WhatsApp Business autoresponder</strong> — "Mom replies during the day; orders ship Tue + Sat." Sets clear expectations.</li>
         <li><strong>Batch all shipping for Wed evening + Sat afternoon.</strong> Two packing sessions per week handles ~30–50 orders/month.</li>
+        <li><strong>Mom's home = pickup point + manufacturing premises.</strong> No second address to manage. Shiprocket courier picks up at her door.</li>
         <li><strong>Don't bother with offline retail for the first 6 months.</strong> D2C + Amazon (once State License lands) is enough. Retail visits eat weekends.</li>
-        <li><strong>Use Shiprocket Plus (₹999/month) once you cross 100 orders/month.</strong> Gets you 5% off all shipments + priority support — saves more than it costs.</li>
+        <li><strong>Use Shiprocket Plus (₹999/month) once mom crosses 100 orders/month.</strong> Gets her 5% off all shipments + priority support — saves more than it costs.</li>
       </ol>
     </section>
 
@@ -494,121 +505,106 @@ import Layout from "../layouts/Layout.astro";
       <p class="text-sm text-ink/70 mt-4">Plus a refundable ₹10,000 in the bank account (this becomes working capital). Effective registration cost: <strong>~₹8,000 out the door</strong>.</p>
     </section>
 
-    <!-- MULTIPLE BUSINESSES UNDER ONE PAN -->
+    <!-- TWO PANS, TWO BUSINESSES, ZERO OVERLAP -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">Bonus — running Variolearn + Mother's Gold Spice under one PAN</h2>
-      <p class="text-sm text-ink/60 mb-6">Both businesses are Sole Proprietorships in your name. Indian law allows unlimited trade names under one PAN — most registrations from the MGS setup are reused for Variolearn at zero extra cost.</p>
+      <h2 class="font-serif text-3xl text-ink mb-2">Variolearn — son's separate sole prop under his own PAN</h2>
+      <p class="text-sm text-ink/60 mb-6">MGS lives entirely under mom's PAN. Variolearn (the son's IT side project) lives entirely under his own PAN. Two separate legal persons, two separate sole prop trade names, zero overlap. This is the cleanest possible structure.</p>
 
-      <h3 class="font-serif text-xl text-ink mt-2 mb-3">The key insight</h3>
+      <h3 class="font-serif text-xl text-ink mt-2 mb-3">Why two PANs, not one</h3>
       <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.8); line-height: 1.7; margin-bottom: 16px;">
-        A Sole Proprietorship is <strong>not a separate legal entity</strong>. It's you, doing business under a trade name. So "Mother's Gold Spice" and "Variolearn" are both just trade names under the same legal person — you. One PAN. One GSTIN. Two trade names, two bank accounts, two trademarks.
+        Earlier draft of this plan considered running both under the son's PAN. Final decision: <strong>MGS goes in mom's name</strong>. Reasons:
+      </p>
+      <ul class="su-bullets">
+        <li><strong>Employer visibility for the son drops to zero on the food business.</strong> The IT employer cannot find MGS by searching the son's PAN on the GST portal. Anti-moonlighting policies don't apply because the food business legally isn't his.</li>
+        <li><strong>Tax efficiency.</strong> Mom's slab is lower than the son's IT-salary slab → less total household tax.</li>
+        <li><strong>Honest paperwork.</strong> Mom cooks, mom's home = the kitchen, mom's name on the FSSAI license. The license address matches reality.</li>
+        <li><strong>Mom owns the brand asset permanently.</strong> If the son ever leaves the IT job, gets married, moves cities, or pivots to Variolearn full-time — MGS continues under mom uninterrupted.</li>
+      </ul>
+
+      <h3 class="font-serif text-xl text-ink mt-8 mb-3">Side-by-side: MGS (mom's) vs Variolearn (son's)</h3>
+      <div class="su-table-wrap">
+        <table class="su-table">
+          <thead>
+            <tr><th>Item</th><th>Mother's Gold Spice</th><th>Variolearn</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Legal entity</td><td>Mom — Sole Proprietorship</td><td>Son — Sole Proprietorship</td></tr>
+            <tr><td>PAN used</td><td>Mom's</td><td>Son's</td></tr>
+            <tr><td>Aadhaar used</td><td>Mom's</td><td>Son's</td></tr>
+            <tr><td>GSTIN</td><td>One in mom's PAN (Karnataka)</td><td>Separate one in son's PAN (Karnataka)</td></tr>
+            <tr><td>Udyam (MSME)</td><td>In mom's name, listed as "Pickle manufacturing"</td><td>In son's name, listed as "Software / Edtech services"</td></tr>
+            <tr><td>Shops & Establishments</td><td>In mom's name at her home</td><td>In son's name at his rental flat</td></tr>
+            <tr><td>Bank current account</td><td>In mom's name, "a/c Mother's Gold Spice"</td><td>In son's name, "a/c Variolearn"</td></tr>
+            <tr><td>Trademark</td><td>Class 29 (pickles), filed by mom</td><td>Class 9 (software) or 41 (edtech), filed by son</td></tr>
+            <tr><td>Razorpay account</td><td>Mom's — linked to her bank</td><td>Son's — linked to his bank</td></tr>
+            <tr><td>Domain + website</td><td>mothersgoldspice.com (owned by mom)</td><td>variolearn.com (owned by son)</td></tr>
+            <tr><td>FSSAI</td><td>Required, in mom's name, at her home</td><td>Not required (software)</td></tr>
+            <tr><td>Shiprocket</td><td>Required, mom's KYC, picks up at her home</td><td>Not required (digital product)</td></tr>
+            <tr><td>ITR (income tax)</td><td>Mom files her own (ITR-3 or 4)</td><td>Son files his own (ITR-3 with salary + business)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="su-outcome">Outcome: <strong>Zero overlap.</strong> Mom is the legal owner + tax payer of MGS. Son is the legal owner + tax payer of Variolearn. They share an operational rhythm (mom cooks, son ships) but the businesses are legally completely independent.</div>
+
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Son's role in MGS — operational helper, not partner</h3>
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65;">
+        For MGS, the son acts as mom's <strong>authorized representative / signatory on the bank account</strong>, but is NOT a co-proprietor or partner. This distinction matters:
+      </p>
+      <ul class="su-bullets">
+        <li>Son can <strong>operate</strong> the website, Razorpay, Shiprocket, customer service, packing, shipping</li>
+        <li>Son can <strong>sign cheques</strong> and transfer money from mom's business account (as authorized signatory)</li>
+        <li>Son's PAN is <strong>NOT on any MGS registration</strong> — no GST, no FSSAI, no Udyam, no trademark</li>
+        <li>Mom is the <strong>only legal entity</strong> behind MGS</li>
+      </ul>
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-top: 12px;">
+        This is the same structure as a one-person family-owned shop where one family member legally owns the shop and others help run it. Common, simple, completely legal.
       </p>
 
-      <h3 class="font-serif text-xl text-ink mt-6 mb-3">What's shared between MGS and Variolearn</h3>
-      <div class="su-table-wrap">
-        <table class="su-table">
-          <thead>
-            <tr><th>Item</th><th>For MGS</th><th>For Variolearn</th><th>Action needed for Variolearn</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>PAN</td><td>Yours</td><td>Yours</td><td>✓ Reused</td></tr>
-            <tr><td>Aadhaar</td><td>Yours</td><td>Yours</td><td>✓ Reused</td></tr>
-            <tr><td>Udyam (MSME)</td><td>Listed as "Pickle manufacturing"</td><td>Add "Software / Edtech" as additional activity</td><td>Amend Udyam (free, 10 min)</td></tr>
-            <tr><td>Shops & Establishments (Karnataka)</td><td>Listed as "Food manufacturing"</td><td>Add "Software services" to same registration</td><td>Amend Shops & Est (free, 1 day)</td></tr>
-            <tr><td>GST (Karnataka)</td><td>One GSTIN, trade name "Mother's Gold Spice"</td><td>Same GSTIN, add "Variolearn" as additional trade name</td><td>GST amendment (free, 3 days)</td></tr>
-            <tr><td>ITR (income tax)</td><td>Business schedule 1</td><td>Business schedule 2</td><td>One ITR-3 covers both</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 class="font-serif text-xl text-ink mt-10 mb-3">What's separate</h3>
-      <div class="su-table-wrap">
-        <table class="su-table">
-          <thead>
-            <tr><th>Item</th><th>For MGS</th><th>For Variolearn</th><th>Incremental cost</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Bank current account</td><td>"a/c Mother's Gold Spice"</td><td>"a/c Variolearn" — separate account</td><td>₹0–2,000</td></tr>
-            <tr><td>Trademark</td><td>"Mother's Gold Spice" Class 29 (pickles)</td><td>"Variolearn" Class 9 (software) or Class 41 (educational services)</td><td>₹4,500 (MSME rate)</td></tr>
-            <tr><td>Domain + website</td><td>mothersgoldspice.com</td><td>variolearn.com / illustraflow.com</td><td>~₹1,000/year</td></tr>
-            <tr><td>Razorpay sub-account</td><td>Linked to MGS bank account</td><td>Separate Razorpay link pointed at Variolearn bank account</td><td>₹0</td></tr>
-            <tr><td>FSSAI</td><td>Required (food)</td><td>Not required (software)</td><td>₹0</td></tr>
-            <tr><td>Shiprocket</td><td>Required (physical product)</td><td>Not required (digital product)</td><td>₹0</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 class="font-serif text-xl text-ink mt-10 mb-3">How to add Variolearn as a second trade name on the existing GST</h3>
-      <ol class="su-step-list">
-        <li>Log into <a href="https://www.gst.gov.in" target="_blank" rel="noopener" class="su-link">gst.gov.in</a> with your existing GSTIN</li>
-        <li>Navigate to <strong>Services → Registration → Amendment of Registration (Core Fields)</strong></li>
-        <li>Under "Trade Name", add <strong>"Variolearn"</strong> as additional trade name</li>
-        <li>Under "Additional Place of Business" — if Variolearn operates from the same rental flat, no need to add. If it operates from a different address (e.g., a coworking space), add that</li>
-        <li>Update Business Activity to include "Software services / Education services"</li>
-        <li>Submit — updated GST certificate emailed in 3 days listing both trade names</li>
-        <li>From now on, MGS invoices show "Mother's Gold Spice" as trade name; Variolearn invoices show "Variolearn" — but both use the SAME 15-digit GSTIN</li>
-      </ol>
-
-      <div class="su-outcome">Outcome: <strong>Same GSTIN covers both businesses</strong>. No second GST registration needed in Karnataka.</div>
-
-      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Incremental cost to add Variolearn</h3>
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Cost of setting up Variolearn separately</h3>
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-bottom: 12px;">
+        Variolearn's setup is a separate exercise — its own Sole Prop, its own GST, its own bank account, all in the son's PAN. Roughly mirrors MGS's setup steps but without FSSAI or Shiprocket.
+      </p>
       <div class="su-table-wrap">
         <table class="su-table">
           <thead><tr><th>Item</th><th>Cost</th></tr></thead>
           <tbody>
-            <tr><td>GST amendment (add trade name)</td><td>₹0</td></tr>
-            <tr><td>Udyam amendment (add activity)</td><td>₹0</td></tr>
-            <tr><td>Shops & Est amendment</td><td>₹0</td></tr>
-            <tr><td>Second business bank account (Variolearn)</td><td>₹0–2,000</td></tr>
-            <tr><td>Variolearn trademark (Class 9 or 41, MSME rate)</td><td>₹4,500</td></tr>
-            <tr><td>variolearn.com domain (Cloudflare or Namecheap)</td><td>₹1,000/year</td></tr>
-            <tr><td>Optional: separate Razorpay account</td><td>₹0</td></tr>
-            <tr class="su-table-total"><td><strong>Total incremental</strong></td><td><strong>~₹5,500–7,500</strong></td></tr>
+            <tr><td>Udyam (in son's name)</td><td>₹0</td></tr>
+            <tr><td>Shops & Establishments at son's flat</td><td>₹250–1,000</td></tr>
+            <tr><td>Business current account (son's)</td><td>₹0 fee</td></tr>
+            <tr><td>GST registration (son's PAN)</td><td>₹0</td></tr>
+            <tr><td>Trademark (Class 9 or 41, MSME rate)</td><td>₹4,500</td></tr>
+            <tr><td>Domain (variolearn.com via Cloudflare)</td><td>~₹1,000/year</td></tr>
+            <tr class="su-table-total"><td><strong>Total for Variolearn</strong></td><td><strong>~₹5,750–6,500</strong></td></tr>
           </tbody>
         </table>
       </div>
 
-      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.75); line-height: 1.6; margin-top: 16px;">
-        Roughly <strong>half the cost of starting MGS</strong>, because Udyam + Shops & Est + GST are all reused. The bulk is the Variolearn trademark + domain.
+      <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-top: 12px;">
+        <strong>Two completely separate setups, each ~₹6–8k</strong>. Compare to keeping both under one PAN (would have been ~₹13–15k total but with the visibility risk). The two-PAN structure is similar cost, much cleaner separation.
       </p>
 
-      <h3 class="font-serif text-xl text-ink mt-10 mb-3">Operational separation — even with one PAN, keep books clean</h3>
-      <ul class="su-bullets">
-        <li><strong>Two bank accounts</strong> — never co-mingle. Pickle revenue lands in MGS account; software revenue in Variolearn account.</li>
-        <li><strong>Two Razorpay sub-accounts</strong> (or two separate payment links) — pointed at the respective bank accounts</li>
-        <li><strong>Two folders in your accounting tool</strong> (Zoho Books / Tally / spreadsheet) — separate P&L per business</li>
-        <li><strong>Two trademarks</strong> — different classes, different brand identities</li>
-        <li><strong>One CA for both</strong> — they consolidate at ITR time. Tell them upfront you run two businesses; they'll handle ITR-3 with multiple business schedules (~₹5–8k/year fee, slightly higher than one business)</li>
-        <li><strong>One Udyam, one GST, one Shops & Est</strong> — these are about you as a person, not per business</li>
-      </ul>
-
-      <div class="su-callout-amber">
-        <p class="su-callout-label">⚠️ Visibility consideration</p>
-        <p>Both trade names appear under your PAN on the GST portal. If anyone searches your PAN (employer compliance team, for example), they'll see BOTH businesses linked to you.</p>
-        <p style="margin-top: 8px;">If your IT employer has strict anti-moonlighting policies, consider splitting the legal ownership: <strong>Variolearn stays in your name</strong> (you're the technical operator) and <strong>Mother's Gold Spice goes in mom's name</strong> (she's the actual cook). This halves the PAN-level footprint.</p>
-      </div>
-
-      <h3 class="font-serif text-xl text-ink mt-10 mb-3">When to split into separate legal entities</h3>
+      <h3 class="font-serif text-xl text-ink mt-10 mb-3">When to upgrade either to LLP / Pvt Ltd</h3>
       <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-bottom: 8px;">
-        Stay with two Sole Props under one PAN until:
+        Stay with two independent Sole Props until either business crosses one of these triggers:
       </p>
       <ul class="su-bullets">
-        <li>Either business crosses <strong>~₹50 lakh/year revenue</strong> — at that point upgrade THAT one to LLP or Pvt Ltd for tax + liability reasons</li>
-        <li>You're <strong>raising investment</strong> for either — investors need a Pvt Ltd to hold shares</li>
-        <li>You want to <strong>hire formal employees</strong> with PF/ESI — easier under LLP/Pvt Ltd</li>
-        <li>You're <strong>leaving your IT job</strong> and going full-time on one — formal entity gives more credibility for partnerships, bank loans, vendor contracts</li>
+        <li><strong>~₹50 lakh/year revenue</strong> on that business — at that point upgrade THAT one to LLP or Pvt Ltd for tax + liability reasons</li>
+        <li><strong>Raising investment</strong> for either — investors need a Pvt Ltd to hold shares</li>
+        <li><strong>Hiring formal employees</strong> with PF/ESI — easier under LLP/Pvt Ltd</li>
+        <li><strong>Son leaving the IT job</strong> and going full-time on Variolearn — formal entity gives more credibility for partnerships, vendor contracts, B2B contracts</li>
       </ul>
       <p class="su-body" style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin-top: 10px;">
-        Until any of those triggers, two Sole Props under one PAN is the right structure — minimum compliance overhead, full legal separation between businesses, clean ITR.
+        Each business upgrades independently. MGS could stay as mom's Sole Prop indefinitely (lower compliance) while Variolearn upgrades to Pvt Ltd later, or vice versa.
       </p>
     </section>
 
     <!-- CLOSING -->
     <section class="max-w-3xl mx-auto px-6 py-16 text-center">
       <p class="font-serif text-2xl text-ink leading-relaxed mb-4">
-        Three weeks of evenings.<br/>~₹8,000.<br/>Then you legally sell pickle.
+        Three weeks of evenings.<br/>~₹8,000.<br/>Then mom legally sells pickle.
       </p>
-      <p class="text-sm text-ink/60 mb-8">All paperwork in your name as Sole Proprietor. Mom cooks, Shiprocket ships, Razorpay collects. Your only ongoing weekly time: 2 evening sessions for packing + customer service.</p>
+      <p class="text-sm text-ink/60 mb-8">All MGS paperwork in mom's name as Sole Proprietor. Mom cooks, son ships, Shiprocket delivers, Razorpay collects. Son's ongoing time: 2 evening sessions a week for packing + digital ops. Variolearn stays cleanly separate under son's own PAN.</p>
       <div class="flex flex-wrap justify-center gap-3">
         <a href="/plan" class="px-5 py-2.5 bg-spice text-white text-sm rounded-full hover:bg-spice-700 transition">← Back to the plan</a>
         <a href="/trademark" class="px-5 py-2.5 bg-white border border-ink/15 text-ink text-sm rounded-full hover:bg-mango-50 transition">Trademark deep-dive</a>
