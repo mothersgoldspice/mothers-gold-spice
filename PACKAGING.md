@@ -1,6 +1,6 @@
 # Packaging Spec — Mother's Gold Spice (Jar v1)
 
-Spec sheet to send to the Jabalpur, MP factory for a quote. One jar SKU across all pickle types at launch — only labels vary.
+Spec sheet to send to glass-jar factories for a quote. One jar SKU across all pickle types at launch — only labels vary. Target factories: **Firozabad (UP)** — India's dominant glass-jar manufacturing hub — or **Mahalaxmi Industries (Indore, MP)** for a smaller-batch MP option. See [/suppliers](https://mothersgoldspice.com/suppliers) for the full supplier shortlist with contact paths + outreach template.
 
 ---
 
@@ -168,7 +168,7 @@ For each tier, please share:
 
 | Attribute | Spec |
 |-----------|------|
-| **Origin** | Jabalpur, Madhya Pradesh |
+| **Origin** | Glass-jar factory — Firozabad (UP) or Indore (MP) most likely. See [/suppliers](https://mothersgoldspice.com/suppliers) for shortlist. |
 | **Destination** | Bangalore, Karnataka (final pin code TBD) |
 | **Shipping** | Factory to provide quote: by road, palletized |
 | **Packaging for shipping** | Each jar in a corrugated cardboard partition box; outer cartons of 50 or 100 jars; bubble wrap or paper fill between layers |
