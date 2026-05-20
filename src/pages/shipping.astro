@@ -153,9 +153,117 @@ import Layout from "../layouts/Layout.astro";
       </ul>
     </section>
 
-    <!-- SECTION 3: FULL-TIME EMPLOYEE WORKFLOW -->
+    <!-- SECTION 3: ORDER ROUTING -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">3. Operational rhythm for a full-time-employed founder</h2>
+      <h2 class="font-serif text-3xl text-ink mb-2">3. Order routing — website vs direct UPI</h2>
+      <p class="text-sm text-ink/60 mb-6">Where orders come from + how they flow into shipping. The architecture decision that sits upstream of everything else in this page.</p>
+
+      <h3 class="font-serif text-xl text-ink mb-3">The default rule</h3>
+      <p style="font-size: 14px; color: rgba(42,26,16,0.8); line-height: 1.7; margin: 0 0 16px;">
+        <strong>Every new customer purchase routes through the website</strong> (<code style="background: rgba(42,26,16,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12.5px;">mothersgoldspice.com/checkout</code>). All discovery channels (Instagram, Google, WhatsApp Business catalog, social shares, eventually Amazon) funnel here, where Razorpay handles payment + Shiprocket auto-creates the shipment.
+      </p>
+
+      <h3 class="font-serif text-xl text-ink mt-6 mb-3">Why route through website (default)</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead><tr><th>Benefit</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Single dashboard for all orders</strong></td><td>One inventory count, one customer list, one tax report — no reconciliation overhead</td></tr>
+            <tr><td><strong>Auto-invoicing</strong></td><td>Razorpay generates GST invoices automatically — required by law for every sale</td></tr>
+            <tr><td><strong>Auto-Shiprocket sync</strong></td><td>Order from website → label printed → courier picks up. No manual data entry.</td></tr>
+            <tr><td><strong>Customer accounts + reviews</strong></td><td>Email list grows; customers come back for repeat orders; reviews accumulate</td></tr>
+            <tr><td><strong>Coupon codes + analytics</strong></td><td>Apply discounts cleanly across all channels; see what's working</td></tr>
+            <tr><td><strong>Refund handling</strong></td><td>One place to issue refunds, tracked properly with proper paper trail</td></tr>
+            <tr><td><strong>Scales past 100 orders/month</strong></td><td>Manual order entry breaks down fast — automation matters when volume grows</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-8 mb-3">The four exceptions — direct UPI is fine (or better)</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead><tr><th>Scenario</th><th>Why direct UPI works</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Repeat customers asking via WhatsApp</strong> ("I want my usual 2 jars")</td><td>They already trust you. Forcing a website checkout is friction. Send UPI ID, get paid, manually enter into Shiprocket. ~30 seconds saved per repeat customer.</td></tr>
+            <tr><td><strong>Family, friends, neighbours</strong></td><td>Relationships, not transactions. A formal checkout flow feels weird for someone you've known for 20 years. UPI direct + WhatsApp acknowledgement.</td></tr>
+            <tr><td><strong>In-person sales</strong> (Sunday markets, pop-ups, local kirana)</td><td>UPI / cash at the stall. No website involved. Issue manual receipt with FSSAI + batch number.</td></tr>
+            <tr><td><strong>Bulk / corporate orders</strong> (gifting, events, B2B)</td><td>Custom invoice via email, UPI / NEFT transfer, no checkout flow needed. Higher margins, requires GST invoice anyway.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ship-callout">
+        <p class="ship-callout-label">Still required for direct-UPI orders</p>
+        <p>Regardless of how payment is collected, you must <strong>(a) issue a GST invoice</strong> (Zoho Invoice or Refrens — free for under 50 invoices/month), and <strong>(b) manually enter the order into Shiprocket</strong> for the shipping label. Takes 1–2 minutes per direct-UPI order. Fine at low volume; gets painful past ~30 such orders/month.</p>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-8 mb-3">Recommended channel routing</h3>
+      <div class="ship-table-wrap">
+        <table class="ship-table">
+          <thead><tr><th>Channel</th><th>Routes to</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Instagram bio link</td><td>mothersgoldspice.com</td><td>Discovery → discovery funnel</td></tr>
+            <tr><td>Instagram Story / Reel</td><td>"link in bio" → website</td><td>One-tap from creative content</td></tr>
+            <tr><td>Instagram DM ("how do I buy?")</td><td>Send website link</td><td>New customer; build them into the funnel</td></tr>
+            <tr><td>WhatsApp Business profile</td><td>Auto-link to website</td><td>Searchable in WhatsApp; one-tap to shop</td></tr>
+            <tr><td>WhatsApp Business catalog</td><td>Product cards → website pages</td><td>Browsing in WhatsApp; checkout on web</td></tr>
+            <tr><td>Google search / SEO</td><td>mothersgoldspice.com</td><td>Direct conversion</td></tr>
+            <tr><td>Amazon (once State License lands)</td><td>Amazon checkout (their flow)</td><td>Can't route Amazon to your site; accept their 13–17% commission</td></tr>
+            <tr><td>WhatsApp <strong>repeat</strong> customer DM</td><td>UPI direct + manual entry</td><td>Friction-free for known customers</td></tr>
+            <tr><td>Family / friends</td><td>UPI direct</td><td>Personal trust, no formality needed</td></tr>
+            <tr><td>Local markets / kirana</td><td>UPI / cash at the stall</td><td>In-person sale</td></tr>
+            <tr><td>Bulk / corporate</td><td>Custom invoice → UPI / NEFT</td><td>B2B flow, larger order values</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin: 16px 0;">
+        Realistic split at pilot scale: <strong>~65% of orders through website</strong>, <strong>~35% via direct UPI</strong> from the exception channels. That's a healthy mix — most volume automated, high-trust relationships kept frictionless.
+      </p>
+
+      <h3 class="font-serif text-xl text-ink mt-8 mb-3">Implementation — what to set up for each path</h3>
+
+      <h4 style="font-family: 'Fraunces', Georgia, serif; font-size: 16px; color: #2a1a10; font-weight: 600; margin: 16px 0 8px;">For the website checkout path</h4>
+      <ul class="ship-bullets">
+        <li><strong>Razorpay JS Checkout</strong> on mothersgoldspice.com (embed script + one button per product)</li>
+        <li><strong>Razorpay webhook</strong> → auto-creates a Shiprocket order on payment success (one-time integration, ~2 hours)</li>
+        <li><strong>Auto-email to customer</strong> from Razorpay with GST invoice + tracking number</li>
+        <li><strong>Cloudflare D1 database</strong> (per SETUP.md) optionally logs every order for inventory tracking</li>
+      </ul>
+
+      <h4 style="font-family: 'Fraunces', Georgia, serif; font-size: 16px; color: #2a1a10; font-weight: 600; margin: 16px 0 8px;">For the direct-UPI path</h4>
+      <ul class="ship-bullets">
+        <li><strong>Dedicated business UPI ID</strong> (e.g., <code style="background: rgba(42,26,16,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12.5px;">mothersgoldspice@hdfcbank</code>) printed on WhatsApp Business profile + invoice template</li>
+        <li><strong>WhatsApp Business quick-reply</strong> with UPI ID + "Send screenshot of payment, I'll confirm + ship Wed or Sat"</li>
+        <li><strong>Manual order log</strong> — Google Sheet (or just Shiprocket dashboard) with: customer name, address, items, paid amount, batch number</li>
+        <li><strong>Zoho Invoice</strong> (free for &lt;50/month) to generate proper GST invoices for direct-UPI orders</li>
+        <li><strong>Manual Shiprocket entry</strong> for shipping — same flow as web orders from here</li>
+      </ul>
+
+      <h3 class="font-serif text-xl text-ink mt-8 mb-3">When to enforce website-only</h3>
+      <p style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin: 0 0 12px;">
+        At ~200+ orders/month, switch to website-only for all non-relational orders. Reasons:
+      </p>
+      <ul class="ship-bullets">
+        <li>Manual order entry becomes a real cost (5 min × 100 direct orders = 8 hours/month)</li>
+        <li>Accounting reconciliation between Razorpay + manual UPI streams gets messy</li>
+        <li>Inventory desyncs (forgot to deduct from stock when manual order entered)</li>
+        <li>Tax filing complexity increases (multiple revenue streams to reconcile in GSTR-1)</li>
+      </ul>
+      <p style="font-size: 14px; color: rgba(42,26,16,0.78); line-height: 1.65; margin: 12px 0 0;">
+        Until that volume threshold, the <strong>hybrid pattern (~65% website, 35% direct UPI)</strong> is the right tradeoff.
+      </p>
+
+      <div class="ship-callout">
+        <p class="ship-callout-label">The Razorpay fee math</p>
+        <p>Razorpay charges 2% per transaction. On a ₹449 jar that's ₹9. Direct UPI saves this. Over a year of repeat customers buying monthly (12 × ₹9 = ₹108/customer), the savings add up.</p>
+        <p style="margin-top: 8px;">But: the automation + invoicing + reviews you gain via website checkout is worth far more than the 2% you save. Direct UPI is the exception for relationships, not a cost-saving strategy.</p>
+      </div>
+    </section>
+
+    <!-- SECTION 4: FULL-TIME EMPLOYEE WORKFLOW -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">4. Operational rhythm for a full-time-employed founder</h2>
       <p class="text-sm text-ink/60 mb-6">D2C ops fit in ~5–7 hours/week if you batch the work right. Most small Indian D2C brands at pilot scale do this.</p>
 
       <h3 class="font-serif text-xl text-ink mb-3">Realistic week (for ~30–50 orders/month)</h3>
@@ -216,7 +324,7 @@ import Layout from "../layouts/Layout.astro";
 
     <!-- SECTION 4: REAL BRANDS -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">4. Small Indian D2C brands that started exactly this way</h2>
+      <h2 class="font-serif text-3xl text-ink mb-2">5. Small Indian D2C brands that started exactly this way</h2>
       <p class="text-sm text-ink/60 mb-6">All of these are now ₹50 crore+ brands. They all started from a home/garage using Shiprocket.</p>
       <div class="ship-brand-grid">
         <div class="ship-brand">
@@ -249,7 +357,7 @@ import Layout from "../layouts/Layout.astro";
 
     <!-- SECTION 5: WORKING TIPS FOR FT JOB -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">5. Five tricks small D2C founders use to work around a full-time job</h2>
+      <h2 class="font-serif text-3xl text-ink mb-2">6. Five tricks small D2C founders use to work around a full-time job</h2>
       <ol class="ship-tricks">
         <li>
           <p class="ship-trick-title">Run with 2-day handling time</p>
@@ -276,7 +384,7 @@ import Layout from "../layouts/Layout.astro";
 
     <!-- SECTION 6: UNIT ECONOMICS -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">6. Realistic D2C unit economics (with shipping)</h2>
+      <h2 class="font-serif text-3xl text-ink mb-2">7. Realistic D2C unit economics (with shipping)</h2>
       <p class="text-sm text-ink/60 mb-6">For your pricing model (₹449 MRP, "free shipping above ₹999"):</p>
 
       <div class="ship-table-wrap">
