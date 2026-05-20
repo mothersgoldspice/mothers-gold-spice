@@ -7,8 +7,9 @@ const pages = [
   { path: "/label-preview",   title: "Label Preview",   short: "Label",       x: 90,  y: 380, desc: "3D jar mockups · sections 1–5 (flat label, 3D viewer, cap, seal architecture)" },
   { path: "/assembly",        title: "Assembly Sim",    short: "Assembly",    x: 270, y: 380, desc: "Interactive assembly simulation · click parts to fly into place" },
   { path: "/shipping",        title: "Shipping",        short: "Shipping",    x: 450, y: 380, desc: "D2C shipping economics + operations playbook" },
-  { path: "/trademark",       title: "Trademark",       short: "Trademark",   x: 630, y: 380, desc: "Brand protection · ₹4,500 TM-A filing guide" },
-  { path: "/setup",           title: "Setup",           short: "Setup",       x: 810, y: 380, desc: "Sole Proprietorship registration checklist · 3 weeks, ~₹8k" },
+  { path: "/trademark",       title: "Trademark",       short: "Trademark",   x: 630, y: 380, desc: "Brand protection · ₹9,000 TM-A filing guide (Class 29 + 30)" },
+  { path: "/setup",           title: "Setup",           short: "Setup",       x: 810, y: 380, desc: "Sole Proprietorship registration checklist · 3 weeks, ~₹13k" },
+  { path: "/suppliers",       title: "Suppliers",       short: "Suppliers",   x: 670, y: 510, desc: "Bangalore packaging supplier shortlist · jar+cap+foil+label vendors" },
   { path: "/risk-mitigation", title: "Risk Mitigation", short: "Risk",        x: 950, y: 510, desc: "Mom's safety net · LLP upgrade + insurance + food-contamination playbook" },
 ];
 
@@ -21,6 +22,7 @@ const edges = [
   { from: "/plan",          to: "/shipping",        type: "primary" },
   { from: "/plan",          to: "/trademark",       type: "primary" },
   { from: "/plan",          to: "/setup",           type: "primary" },
+  { from: "/plan",          to: "/suppliers",       type: "primary" },
   { from: "/plan",          to: "/risk-mitigation", type: "primary" },
   // Cross-links between deep-dive pages
   { from: "/label-preview", to: "/assembly",        type: "cross" },
@@ -29,6 +31,8 @@ const edges = [
   { from: "/trademark",     to: "/shipping",        type: "cross" },
   { from: "/setup",         to: "/trademark",       type: "cross" },
   { from: "/setup",         to: "/shipping",        type: "cross" },
+  { from: "/setup",         to: "/suppliers",       type: "cross" },
+  { from: "/suppliers",     to: "/setup",           type: "cross" },
   { from: "/setup",         to: "/risk-mitigation", type: "cross" },
   { from: "/risk-mitigation", to: "/setup",         type: "cross" },
 ];
