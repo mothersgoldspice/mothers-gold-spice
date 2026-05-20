@@ -2,31 +2,35 @@
 import Layout from "../layouts/Layout.astro";
 
 const pages = [
-  { path: "/",              title: "Home",          short: "Home",        x: 500, y: 60,  desc: "Brand landing — hero jar, story, contact" },
-  { path: "/plan",          title: "The Plan",      short: "Plan",        x: 500, y: 200, desc: "Idea → first sale in 12 weeks · for the family" },
-  { path: "/label-preview", title: "Label Preview", short: "Label",       x: 90,  y: 380, desc: "3D jar mockups · sections 1–5 (flat label, 3D viewer, cap, seal architecture)" },
-  { path: "/assembly",      title: "Assembly Sim",  short: "Assembly",    x: 280, y: 380, desc: "Interactive assembly simulation · click parts to fly into place" },
-  { path: "/shipping",      title: "Shipping",      short: "Shipping",    x: 500, y: 380, desc: "D2C shipping economics + operations playbook" },
-  { path: "/trademark",     title: "Trademark",     short: "Trademark",   x: 720, y: 380, desc: "Brand protection · ₹4,500 TM-A filing guide" },
-  { path: "/setup",         title: "Setup",         short: "Setup",       x: 910, y: 380, desc: "Sole Proprietorship registration checklist · 3 weeks, ~₹8k" },
+  { path: "/",                title: "Home",            short: "Home",        x: 500, y: 60,  desc: "Brand landing — hero jar, story, contact" },
+  { path: "/plan",            title: "The Plan",        short: "Plan",        x: 500, y: 200, desc: "Idea → first sale in 12 weeks · for the family" },
+  { path: "/label-preview",   title: "Label Preview",   short: "Label",       x: 90,  y: 380, desc: "3D jar mockups · sections 1–5 (flat label, 3D viewer, cap, seal architecture)" },
+  { path: "/assembly",        title: "Assembly Sim",    short: "Assembly",    x: 270, y: 380, desc: "Interactive assembly simulation · click parts to fly into place" },
+  { path: "/shipping",        title: "Shipping",        short: "Shipping",    x: 450, y: 380, desc: "D2C shipping economics + operations playbook" },
+  { path: "/trademark",       title: "Trademark",       short: "Trademark",   x: 630, y: 380, desc: "Brand protection · ₹4,500 TM-A filing guide" },
+  { path: "/setup",           title: "Setup",           short: "Setup",       x: 810, y: 380, desc: "Sole Proprietorship registration checklist · 3 weeks, ~₹8k" },
+  { path: "/risk-mitigation", title: "Risk Mitigation", short: "Risk",        x: 950, y: 510, desc: "Mom's safety net · LLP upgrade + insurance + food-contamination playbook" },
 ];
 
 // Edges between pages: { from, to, type: 'primary' | 'cross' }
 const edges = [
   // Primary hierarchy
-  { from: "/",              to: "/plan",          type: "primary" },
-  { from: "/plan",          to: "/label-preview", type: "primary" },
-  { from: "/plan",          to: "/assembly",      type: "primary" },
-  { from: "/plan",          to: "/shipping",      type: "primary" },
-  { from: "/plan",          to: "/trademark",     type: "primary" },
-  { from: "/plan",          to: "/setup",         type: "primary" },
+  { from: "/",              to: "/plan",            type: "primary" },
+  { from: "/plan",          to: "/label-preview",   type: "primary" },
+  { from: "/plan",          to: "/assembly",        type: "primary" },
+  { from: "/plan",          to: "/shipping",        type: "primary" },
+  { from: "/plan",          to: "/trademark",       type: "primary" },
+  { from: "/plan",          to: "/setup",           type: "primary" },
+  { from: "/plan",          to: "/risk-mitigation", type: "primary" },
   // Cross-links between deep-dive pages
-  { from: "/label-preview", to: "/assembly",      type: "cross" },
-  { from: "/assembly",      to: "/label-preview", type: "cross" },
-  { from: "/shipping",      to: "/trademark",     type: "cross" },
-  { from: "/trademark",     to: "/shipping",      type: "cross" },
-  { from: "/setup",         to: "/trademark",     type: "cross" },
-  { from: "/setup",         to: "/shipping",      type: "cross" },
+  { from: "/label-preview", to: "/assembly",        type: "cross" },
+  { from: "/assembly",      to: "/label-preview",   type: "cross" },
+  { from: "/shipping",      to: "/trademark",       type: "cross" },
+  { from: "/trademark",     to: "/shipping",        type: "cross" },
+  { from: "/setup",         to: "/trademark",       type: "cross" },
+  { from: "/setup",         to: "/shipping",        type: "cross" },
+  { from: "/setup",         to: "/risk-mitigation", type: "cross" },
+  { from: "/risk-mitigation", to: "/setup",         type: "cross" },
 ];
 
 const PROD_BASE = "https://mothersgoldspice.com";
@@ -80,7 +84,7 @@ function edgePath(from: { x: number; y: number }, to: { x: number; y: number }, 
       <p class="text-sm text-ink/60 mb-6">Solid lines = primary navigation. Dashed lines = cross-references between pages.</p>
 
       <div class="sm-svg-wrap">
-        <svg viewBox="0 0 1000 480" preserveAspectRatio="xMidYMid meet" class="sm-svg">
+        <svg viewBox="0 0 1050 580" preserveAspectRatio="xMidYMid meet" class="sm-svg">
           <defs>
             <marker id="sm-arrow-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a1f10"/>
