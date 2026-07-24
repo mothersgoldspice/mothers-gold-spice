@@ -1,0 +1,400 @@
+---
+/**
+ * The saved address book.
+ *
+ * Every action is a form post handled here, so the whole page works with no
+ * JavaScript — the address book is what makes checkout one tap on a phone, and
+ * it would be a poor joke if it needed a working bundle to fill in.
+ *
+ * The form is always on the page rather than behind a toggle: one state fewer to
+ * be wrong about, and on a phone "add an address" is the reason most people
+ * opened this page.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import { badRequest, isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log } from '../../lib/log';
+import {
+  deleteAddress,
+  getAddress,
+  listAddresses,
+  saveAddress,
+  setDefaultAddress,
+} from '../../lib/services/accounts';
+import { addressSchema, parseOrThrow } from '../../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+if (!ctx.user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+const user = ctx.user;
+
+/** Per-field messages parseOrThrow attaches, so each input carries its own. */
+function fieldErrorsOf(err: unknown): Record<string, string> {
+  if (!isAppError(err) || !err.expose) return {};
+  const details = err.details;
+  if (details && typeof details === 'object' && 'fields' in details) {
+    const fields = (details as { fields?: unknown }).fields;
+    if (fields && typeof fields === 'object') return fields as Record<string, string>;
+  }
+  return {};
+}
+
+type Values = {
+  label: string;
+  full_name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  landmark: string;
+  city: string;
+  state: string;
+  pincode: string;
+};
+
+const blank = (): Values => ({
+  label: 'Home',
+  full_name: user.name,
+  phone: '',
+  line1: '',
+  line2: '',
+  landmark: '',
+  city: '',
+  state: '',
+  pincode: '',
+});
+
+let values = blank();
+let editingId = Astro.url.searchParams.get('edit')?.trim() ?? '';
+let makeDefault = false;
+let error = '';
+let fieldErrors: Record<string, string> = {};
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? '');
+  const addressId = String(form.get('address_id') ?? '').trim();
+
+  try {
+    if (action === 'delete') {
+      // Scoped to the session's user inside the service, so an id from
+      // somebody else's account is a 404 rather than a deletion.
+      await deleteAddress(ctx.db, user.id, addressId);
+      log.info('account.address_deleted', { userId: user.id });
+      return Astro.redirect('/account/addresses?deleted=1', 303);
+    }
+
+    if (action === 'default') {
+      // Ownership is proved before the write: setDefaultAddress scopes its
+      // UPDATE by user id but says nothing when the id belongs elsewhere.
+      await getAddress(ctx.db, user.id, addressId);
+      await setDefaultAddress(ctx.db, user.id, addressId);
+      return Astro.redirect('/account/addresses?default=1', 303);
+    }
+
+    if (action !== 'save') throw badRequest('That action is not available here.');
+
+    editingId = addressId;
+    makeDefault = form.get('make_default') !== null;
+    values = {
+      label: String(form.get('label') ?? '').trim(),
+      full_name: String(form.get('full_name') ?? '').trim(),
+      phone: String(form.get('phone') ?? '').trim(),
+      line1: String(form.get('line1') ?? '').trim(),
+      line2: String(form.get('line2') ?? '').trim(),
+      landmark: String(form.get('landmark') ?? '').trim(),
+      city: String(form.get('city') ?? '').trim(),
+      state: String(form.get('state') ?? '').trim(),
+      pincode: String(form.get('pincode') ?? '').trim(),
+    };
+
+    const input = parseOrThrow(addressSchema, {
+      // An empty optional field is absent, not empty — the schema's defaults
+      // and nullable branches only apply to a key that is not there.
+      ...(values.label ? { label: values.label } : {}),
+      full_name: values.full_name,
+      phone: values.phone,
+      line1: values.line1,
+      line2: values.line2 || null,
+      landmark: values.landmark || null,
+      city: values.city,
+      state: values.state,
+      pincode: values.pincode,
+      country: 'IN',
+    });
+
+    await saveAddress(ctx.db, user.id, input, {
+      ...(editingId ? { addressId: editingId } : {}),
+      makeDefault,
+    });
+    log.info('account.address_saved', { userId: user.id, updated: Boolean(editingId) });
+
+    return Astro.redirect(`/account/addresses?${editingId ? 'updated' : 'saved'}=1`, 303);
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.addresses_page_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+    fieldErrors = fieldErrorsOf(err);
+  }
+}
+
+const addresses = await listAddresses(ctx.db, user.id);
+
+// On a plain ?edit= visit the form is filled from the stored row; after a failed
+// save it keeps what was typed, which is the version worth correcting.
+if (Astro.request.method === 'GET' && editingId) {
+  const editing = addresses.find((address) => address.id === editingId);
+  if (editing) {
+    values = {
+      label: editing.label,
+      full_name: editing.full_name,
+      phone: editing.phone,
+      line1: editing.line1,
+      line2: editing.line2 ?? '',
+      landmark: editing.landmark ?? '',
+      city: editing.city,
+      state: editing.state,
+      pincode: editing.pincode,
+    };
+    makeDefault = editing.is_default_shipping === 1;
+  } else {
+    editingId = '';
+  }
+}
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+
+const flash = ['saved', 'updated', 'deleted', 'default'].find(
+  (key) => Astro.url.searchParams.get(key) === '1',
+);
+const FLASH_MESSAGE: Record<string, string> = {
+  saved: 'Address saved.',
+  updated: 'Address updated.',
+  deleted: 'Address removed. Past orders keep the address they were sent to.',
+  default: 'That is now the address we will use at checkout.',
+};
+
+const CARD = 'rounded-3xl border border-mango-100 bg-white/60 p-5';
+const CHECKBOX = 'mt-0.5 size-5 shrink-0 rounded border-ink/25 text-spice-500 focus:ring-2 focus:ring-spice-500/30';
+---
+
+<ShopLayout title="Saved addresses" user={user} cartCount={cartCount}>
+  <p class="text-sm">
+    <a href="/account" class="text-ink/65 no-underline transition hover:text-spice-500">← Your account</a>
+  </p>
+
+  <h1 class="mt-3 font-serif text-3xl font-semibold text-ink sm:text-4xl">Saved addresses</h1>
+  <p class="mt-2 text-sm text-ink/65">
+    Checkout uses your default address unless you pick another. You can save up to 20.
+  </p>
+
+  {flash && <Alert kind="success" class="mt-6">{FLASH_MESSAGE[flash]}</Alert>}
+  {error && <Alert kind="error" title="We could not save that" class="mt-6">{error}</Alert>}
+
+  {
+    addresses.length > 0 && (
+      <ul class="mt-8 space-y-4">
+        {addresses.map((address) => (
+          <li class={CARD}>
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <p class="flex flex-wrap items-center gap-2">
+                <span class="font-medium text-ink">{address.label}</span>
+                {address.is_default_shipping === 1 && (
+                  <span class="rounded-full bg-mango-100 px-2 py-0.5 text-xs font-semibold text-mango-700">
+                    Default
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <address class="mt-2 text-sm leading-relaxed text-ink/80 not-italic">
+              <span class="font-medium text-ink">{address.full_name}</span>
+              <br />
+              {address.line1}
+              {address.line2 && (
+                <>
+                  <br />
+                  {address.line2}
+                </>
+              )}
+              {address.landmark && (
+                <>
+                  <br />
+                  {address.landmark}
+                </>
+              )}
+              <br />
+              {address.city}, {address.state} {address.pincode}
+              <br />
+              {address.phone}
+            </address>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <Button href={`/account/addresses?edit=${address.id}#address-form`} variant="secondary" size="sm">
+                Edit
+              </Button>
+
+              {address.is_default_shipping !== 1 && (
+                <form method="post">
+                  <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+                  <input type="hidden" name="_action" value="default" />
+                  <input type="hidden" name="address_id" value={address.id} />
+                  <Button type="submit" variant="ghost" size="sm">
+                    Make default
+                  </Button>
+                </form>
+              )}
+
+              <form method="post">
+                <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+                <input type="hidden" name="_action" value="delete" />
+                <input type="hidden" name="address_id" value={address.id} />
+                {/* The danger variant rather than a red class on a ghost button:
+                    two utilities setting the same colour would fight, and which
+                    one wins is decided by stylesheet order rather than by us. */}
+                <Button type="submit" variant="danger" size="sm">
+                  Remove
+                </Button>
+              </form>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  <section id="address-form" class="mt-10 scroll-mt-20" aria-labelledby="address-form-heading">
+    <h2 id="address-form-heading" class="font-serif text-xl font-semibold text-ink sm:text-2xl">
+      {editingId ? 'Edit this address' : 'Add an address'}
+    </h2>
+
+    <form method="post" class="mt-5 space-y-5">
+      <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+      <input type="hidden" name="_action" value="save" />
+      <input type="hidden" name="address_id" value={editingId} />
+
+      <Field
+        label="Name this address"
+        name="label"
+        value={values.label}
+        maxlength={40}
+        placeholder="Home"
+        hint="Home, Amma's place, office — whatever you will recognise."
+        error={fieldErrors.label}
+      />
+
+      <Field
+        label="Full name of the person receiving it"
+        name="full_name"
+        value={values.full_name}
+        required
+        autocomplete="name"
+        maxlength={120}
+        error={fieldErrors.full_name}
+      />
+
+      <Field
+        label="Mobile number"
+        name="phone"
+        type="tel"
+        value={values.phone}
+        required
+        autocomplete="tel"
+        inputmode="tel"
+        placeholder="98765 43210"
+        hint="The courier calls this number on delivery day."
+        error={fieldErrors.phone}
+      />
+
+      <Field
+        label="Flat, house number and street"
+        name="line1"
+        value={values.line1}
+        required
+        autocomplete="address-line1"
+        maxlength={200}
+        error={fieldErrors.line1}
+      />
+
+      <Field
+        label="Area, colony or apartment name"
+        name="line2"
+        value={values.line2}
+        autocomplete="address-line2"
+        maxlength={200}
+        error={fieldErrors.line2}
+      />
+
+      <Field
+        label="Landmark"
+        name="landmark"
+        value={values.landmark}
+        maxlength={120}
+        placeholder="Near the temple"
+        hint="Optional, but it saves the delivery person a phone call."
+        error={fieldErrors.landmark}
+      />
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <Field
+          label="City"
+          name="city"
+          value={values.city}
+          required
+          autocomplete="address-level2"
+          maxlength={80}
+          error={fieldErrors.city}
+        />
+
+        <Field
+          label="State"
+          name="state"
+          value={values.state}
+          required
+          autocomplete="address-level1"
+          maxlength={80}
+          error={fieldErrors.state}
+        />
+      </div>
+
+      <Field
+        label="PIN code"
+        name="pincode"
+        value={values.pincode}
+        required
+        autocomplete="postal-code"
+        inputmode="numeric"
+        maxlength={6}
+        class="sm:max-w-40"
+        error={fieldErrors.pincode}
+      />
+
+      <label class="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-ink/75">
+        <input type="checkbox" name="make_default" checked={makeDefault} class={CHECKBOX} />
+        <span>Use this address by default at checkout.</span>
+      </label>
+
+      <div class="flex flex-wrap gap-3">
+        <Button type="submit" size="lg">{editingId ? 'Save changes' : 'Save this address'}</Button>
+        {
+          editingId && (
+            <Button href="/account/addresses" variant="secondary" size="lg">
+              Cancel
+            </Button>
+          )
+        }
+      </div>
+    </form>
+  </section>
+</ShopLayout>

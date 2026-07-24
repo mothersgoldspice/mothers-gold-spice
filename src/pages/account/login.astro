@@ -1,0 +1,169 @@
+---
+/**
+ * Sign in.
+ *
+ * The POST is handled by the page itself rather than by a fetch to
+ * /api/auth/login, because this form is the front door of the account area and
+ * has to work on a phone whose JavaScript never arrived. It calls the same
+ * services the API route calls, so there is still only one implementation of
+ * what signing in means.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { rateKey, requireCtx } from '../../lib/api';
+import { CART_COOKIE, CART_TTL_MS, setCookie } from '../../lib/auth/cookies';
+import { startSession } from '../../lib/auth/session';
+import { isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log, maskEmail } from '../../lib/log';
+import { RATE_LIMITS, enforceRateLimit } from '../../lib/rate-limit';
+import { authenticate } from '../../lib/services/accounts';
+import { mergeCarts } from '../../lib/services/cart';
+import { loginSchema, parseOrThrow } from '../../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+/**
+ * Where to send the browser after a successful sign-in.
+ *
+ * `?next=` is attacker-controlled by definition — anyone can post a link to our
+ * own sign-in page — so an unchecked value here is an open redirect, which is
+ * the last hop a phishing kit needs: the customer really did sign in on our
+ * domain and is then handed to a lookalike asking them to "confirm" the
+ * password. Only a path on this site survives. `//host` and `/\host` are
+ * rejected because a browser reads both as protocol-relative URLs, and control
+ * characters are rejected because they have no business in a Location header.
+ */
+function safeNext(raw: string | null): string {
+  const fallback = '/account';
+  if (!raw || !raw.startsWith('/')) return fallback;
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return fallback;
+  // Control characters have no business in a path and are how header
+  // injection is attempted; a browser would not produce one here.
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return fallback;
+  return raw;
+}
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+const signedOut = Astro.url.searchParams.get('signedout') === '1';
+
+// Nothing to do here if the session is already good.
+if (ctx.user && Astro.request.method === 'GET') return Astro.redirect(next, 303);
+
+let error = '';
+let email = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '').trim();
+
+  try {
+    const input = parseOrThrow(loginSchema, { email, password: String(form.get('password') ?? '') });
+
+    // Two buckets, as in /api/auth/login: one attacker must not be able to work
+    // through many accounts from one address, nor many addresses at one account.
+    await enforceRateLimit(ctx.db, rateKey(ctx, 'login'), RATE_LIMITS.login);
+    await enforceRateLimit(ctx.db, `login:acct:${input.email}`, RATE_LIMITS.login);
+
+    const { user } = await authenticate(ctx.db, input.email, input.password);
+
+    await startSession(ctx.db, Astro.cookies, ctx.env, {
+      userId: user.id,
+      ip: ctx.clientIp,
+      userAgent: Astro.request.headers.get('user-agent') ?? '',
+    });
+
+    // The jar they added before signing in comes with them.
+    if (ctx.cartId) {
+      const settings = await ctx.settings();
+      const merged = await mergeCarts(ctx.db, ctx.cartId, user.id, settings);
+      if (merged !== ctx.cartId) setCookie(Astro.cookies, ctx.env, CART_COOKIE, merged, CART_TTL_MS);
+    }
+
+    log.info('auth.login', { userId: user.id, email: maskEmail(user.email) });
+    // 303 so the browser follows with a GET and a refresh cannot repost.
+    return Astro.redirect(next, 303);
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.login_page_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+  }
+}
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+
+const nextQuery = next === '/account' ? '' : `?next=${encodeURIComponent(next)}`;
+---
+
+<ShopLayout
+  title="Sign in"
+  description="Sign in to see your orders, saved addresses and delivery updates."
+  user={ctx.user}
+  cartCount={cartCount}
+>
+  <div class="mx-auto max-w-md">
+    <h1 class="font-serif text-3xl font-semibold text-ink">Sign in</h1>
+    <p class="mt-2 text-sm leading-relaxed text-ink/65">
+      Your orders, saved addresses and delivery updates, all in one place.
+    </p>
+
+    {signedOut && <Alert kind="success" class="mt-6">You are signed out. Come back soon.</Alert>}
+    {error && <Alert kind="error" title="We could not sign you in" class="mt-6">{error}</Alert>}
+
+    {/* No action attribute: the browser posts to this same URL, query string and
+        all, which is how ?next= survives the round trip without a hidden field. */}
+    <form method="post" class="mt-8 space-y-5">
+      <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+
+      <Field
+        label="Email address"
+        name="email"
+        type="email"
+        value={email}
+        required
+        autocomplete="email"
+        inputmode="email"
+        placeholder="you@example.com"
+      />
+
+      <Field label="Password" name="password" type="password" required autocomplete="current-password" />
+
+      <Button type="submit" size="lg" class="w-full">Sign in</Button>
+    </form>
+
+    <p class="mt-5 text-center text-sm text-ink/65">
+      <a href="/account/forgot" class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700">
+        Forgotten your password?
+      </a>
+    </p>
+
+    <div class="mt-8 rounded-2xl border border-mango-100 bg-white/60 px-5 py-4 text-center text-sm text-ink/75">
+      <p>New here?</p>
+      <p class="mt-2">
+        <a
+          href={`/account/register${nextQuery}`}
+          class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+        >
+          Create an account
+        </a>
+        {' '}— it takes a minute and saves your address for next time.
+      </p>
+    </div>
+
+    <p class="mt-6 text-center text-sm text-ink/65">
+      Ordered as a guest? Use the tracking link in your confirmation email, or
+      <a href="/track" class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700">
+        track your order
+      </a>.
+    </p>
+  </div>
+</ShopLayout>

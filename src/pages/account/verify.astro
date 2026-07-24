@@ -1,0 +1,231 @@
+---
+/**
+ * Confirm an email address.
+ *
+ * The link in the email is a GET, and this page consumes the token on that GET
+ * rather than asking the customer to press a second button — one tap is the
+ * whole promise of the email. A link consumed by a corporate mail scanner shows
+ * "expired" instead, so the page always offers a fresh one to a signed-in
+ * customer; the same button is what the dashboard banner posts to.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { rateKey, requireCtx } from '../../lib/api';
+import { siteUrl } from '../../lib/env';
+import { isAppError, publicMessage, unauthorized } from '../../lib/errors';
+import { errMessage, log } from '../../lib/log';
+import { storeContext, verifyEmail, welcome } from '../../lib/providers/email/templates';
+import { RATE_LIMITS, enforceRateLimit } from '../../lib/rate-limit';
+import {
+  EMAIL_VERIFY_TTL_MS,
+  consumeToken,
+  findUserById,
+  issueToken,
+  markEmailVerified,
+} from '../../lib/services/accounts';
+import { queueAndSend } from '../../lib/services/notify';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+type State = 'verified' | 'already' | 'expired' | 'sent' | 'idle';
+
+let state: State = 'idle';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  // Resend, from this page or from the banner on the dashboard.
+  try {
+    if (!ctx.user) throw unauthorized('Please sign in first, then ask for a new confirmation email.');
+
+    if (ctx.user.emailVerified) {
+      state = 'already';
+    } else {
+      // Same budget as a password reset: both mail a link that changes what an
+      // account can do.
+      await enforceRateLimit(ctx.db, rateKey(ctx, 'verify_resend'), RATE_LIMITS.passwordReset);
+
+      const token = await issueToken(ctx.db, {
+        userId: ctx.user.id,
+        purpose: 'email_verify',
+        email: ctx.user.email,
+        ttlMs: EMAIL_VERIFY_TTL_MS,
+      });
+      const mail = verifyEmail({
+        store: storeContext(ctx.env),
+        name: ctx.user.name || 'there',
+        verifyUrl: `${siteUrl(ctx.env)}/account/verify?token=${encodeURIComponent(token)}`,
+        expiresAt: Date.now() + EMAIL_VERIFY_TTL_MS,
+      });
+      await queueAndSend(ctx, {
+        to: ctx.user.email,
+        toName: ctx.user.name,
+        subject: mail.subject,
+        template: mail.template,
+        text: mail.text,
+        html: mail.html,
+        userId: ctx.user.id,
+        idempotencyKey: `verify:${ctx.user.id}:${Math.floor(Date.now() / 60000)}`,
+      });
+      state = 'sent';
+    }
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.verify_resend_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+  }
+} else {
+  const token = Astro.url.searchParams.get('token')?.trim() ?? '';
+
+  if (token) {
+    try {
+      const consumed = await consumeToken(ctx.db, token, 'email_verify');
+      if (!consumed.user_id) throw new Error('An email_verify token was stored without a user id');
+
+      await markEmailVerified(ctx.db, consumed.user_id);
+      const user = await findUserById(ctx.db, consumed.user_id);
+
+      if (user) {
+        const mail = welcome({
+          store: storeContext(ctx.env),
+          name: user.name || 'there',
+          shopUrl: `${siteUrl(ctx.env)}/shop`,
+        });
+        await queueAndSend(ctx, {
+          to: user.email,
+          toName: user.name,
+          subject: mail.subject,
+          template: mail.template,
+          text: mail.text,
+          html: mail.html,
+          userId: user.id,
+          // One welcome per account, ever.
+          idempotencyKey: `welcome:${user.id}`,
+        });
+      }
+
+      log.info('auth.email_verified', { userId: consumed.user_id });
+      state = 'verified';
+    } catch (err) {
+      // The commonest cause of a rejected token is the customer refreshing this
+      // page after it already worked, so say the true thing rather than sending
+      // a verified account back for another link.
+      if (ctx.user?.emailVerified) {
+        state = 'already';
+      } else {
+        if (!isAppError(err) || err.status >= 500) {
+          log.error('account.verify_page_error', { error: errMessage(err) });
+        }
+        Astro.response.status = isAppError(err) ? err.status : 500;
+        state = 'expired';
+        error = publicMessage(err);
+      }
+    }
+  } else if (ctx.user?.emailVerified) {
+    state = 'already';
+  }
+}
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+
+const TITLES: Record<State, string> = {
+  verified: 'Email confirmed',
+  already: 'Already confirmed',
+  expired: 'That link has expired',
+  sent: 'New link sent',
+  idle: 'Confirm your email',
+};
+---
+
+<ShopLayout title={TITLES[state]} user={ctx.user} cartCount={cartCount}>
+  <div class="mx-auto max-w-md text-center">
+    <h1 class="font-serif text-3xl font-semibold text-ink">{TITLES[state]}</h1>
+
+    {
+      state === 'verified' && (
+        <p class="mt-3 text-sm leading-relaxed text-ink/70">
+          Thank you — your email address is confirmed. Order updates and receipts will reach you at it.
+        </p>
+      )
+    }
+
+    {
+      state === 'already' && (
+        <p class="mt-3 text-sm leading-relaxed text-ink/70">
+          Your email address is already confirmed. There is nothing left to do.
+        </p>
+      )
+    }
+
+    {
+      state === 'sent' && (
+        <p class="mt-3 text-sm leading-relaxed text-ink/70">
+          Check your inbox — a fresh confirmation link is on its way. It works for 24 hours.
+        </p>
+      )
+    }
+
+    {
+      state === 'expired' && (
+        <p class="mt-3 text-sm leading-relaxed text-ink/70">
+          Confirmation links last 24 hours and work only once. Ask for a new one and we will send it
+          straight away.
+        </p>
+      )
+    }
+
+    {
+      state === 'idle' && (
+        <p class="mt-3 text-sm leading-relaxed text-ink/70">
+          Open the link in the email we sent you. If you cannot find it, ask for another below.
+        </p>
+      )
+    }
+
+    {
+      error && state !== 'expired' && (
+        <Alert kind="error" class="mt-6 text-left">
+          {error}
+        </Alert>
+      )
+    }
+
+    <div class="mt-8 space-y-3">
+      {
+        (state === 'expired' || state === 'idle') &&
+          (ctx.user ? (
+            <form method="post">
+              <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+              <Button type="submit" size="lg" class="w-full">
+                Send me a new link
+              </Button>
+            </form>
+          ) : (
+            <Button href="/account/login?next=%2Faccount" size="lg" class="w-full">
+              Sign in to ask for a new link
+            </Button>
+          ))
+      }
+
+      {
+        (state === 'verified' || state === 'already' || state === 'sent') && (
+          <Button href="/account" size="lg" class="w-full">
+            Go to your account
+          </Button>
+        )
+      }
+
+      <Button href="/shop" variant="secondary" size="lg" class="w-full">
+        Browse the shop
+      </Button>
+    </div>
+  </div>
+</ShopLayout>

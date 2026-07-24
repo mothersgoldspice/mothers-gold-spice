@@ -1,0 +1,522 @@
+---
+/**
+ * One order, in full.
+ *
+ * Laid out like the receipt it is: what was bought, what it cost, where it is
+ * going, how it was paid for, and everything that has happened to it since.
+ *
+ * The customer's own area, so access is the plain thing — the order must belong
+ * to the session's user. A stranger gets "we could not find that order" rather
+ * than "you may not see that order", because the second answer confirms the
+ * order exists. Guests have their own tokenised route at /track.
+ */
+
+import Alert from '../../../components/shop/Alert.astro';
+import Button from '../../../components/shop/Button.astro';
+import Money from '../../../components/shop/Money.astro';
+import ShopLayout from '../../../components/shop/ShopLayout.astro';
+import StatusBadge from '../../../components/shop/StatusBadge.astro';
+import { requireCtx } from '../../../lib/api';
+import { conflict, isAppError, publicMessage } from '../../../lib/errors';
+import { errMessage, log } from '../../../lib/log';
+import { formatPaise } from '../../../lib/money';
+import { onOrderCancelled } from '../../../lib/services/order-notifications';
+import {
+  STATUS_LABEL,
+  cancelOrder,
+  getOrderById,
+  isCustomerCancellable,
+  loadOrderView,
+} from '../../../lib/services/orders';
+import { refundOrder } from '../../../lib/services/payments';
+import { getShipmentForOrder, listShipmentEvents } from '../../../lib/services/shipments';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+if (!ctx.user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+const user = ctx.user;
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+
+const orderId = Astro.params.id ?? '';
+const found = await getOrderById(ctx.db, orderId);
+const order = found && found.user_id === user.id ? found : null;
+
+let error = '';
+
+if (order && Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+
+  try {
+    if (form.get('_action') !== 'cancel') throw conflict('That action is not available on an order.');
+
+    if (!isCustomerCancellable(order.status)) {
+      throw conflict(
+        `That order is already ${STATUS_LABEL[order.status].toLowerCase()} and cannot be cancelled here. Please write to us and we will sort it out.`,
+      );
+    }
+
+    const stated = String(form.get('reason') ?? '').trim().slice(0, 300);
+    const reason = stated || 'Cancelled by the customer.';
+
+    // Cancel first. It is what was asked for, it puts the stock back, and it
+    // must not be held hostage by a slow payment gateway.
+    await cancelOrder(ctx.db, order.id, reason, { type: 'customer', id: user.id });
+
+    let refundPaise = 0;
+    let refundPending = false;
+    // Only money that actually reached us can go back; a COD order was never
+    // charged.
+    if (order.payment_method === 'prepaid' && order.payment_status === 'paid') {
+      try {
+        const refund = await refundOrder(ctx, order.id, {
+          reason: `Order cancelled: ${reason}`,
+          actorId: user.id,
+        });
+        refundPaise = refund.amountPaise;
+      } catch (err) {
+        // The cancellation is durable and cannot be undone because a provider
+        // refused. Raise it for a human to finish rather than telling the
+        // customer their cancellation did not work.
+        refundPending = true;
+        log.alert('account.cancel_refund_failed', {
+          orderId: order.id,
+          amountPaise: order.total_paise - order.refunded_paise,
+          error: errMessage(err),
+        });
+      }
+    }
+
+    await onOrderCancelled(ctx, order.id, refundPaise);
+    log.info('account.order_cancelled', { orderId: order.id, userId: user.id, refundPaise });
+
+    return Astro.redirect(
+      `/account/orders/${order.id}?cancelled=1${refundPending ? '&refund=pending' : ''}`,
+      303,
+    );
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.cancel_page_error', { orderId: order.id, error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+  }
+}
+
+if (!order) Astro.response.status = 404;
+
+// Re-read after a cancellation so the page never renders a stale status.
+const view = order ? await loadOrderView(ctx.db, order.id) : null;
+const current = view?.order ?? null;
+const shipment = current ? await getShipmentForOrder(ctx.db, current.id) : null;
+const shipmentEvents = shipment ? await listShipmentEvents(ctx.db, shipment.id) : [];
+
+const justCancelled = Astro.url.searchParams.get('cancelled') === '1';
+const refundPending = Astro.url.searchParams.get('refund') === 'pending';
+
+const sameAddress =
+  current !== null && current.shipping_address_json === current.billing_address_json;
+
+// An invoice for an order nobody has paid for yet is a document about nothing.
+const showInvoice =
+  current !== null && current.status !== 'pending_payment' && current.status !== 'payment_failed';
+
+const formatDate = (ms: number) =>
+  new Date(ms).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+
+const formatDateTime = (ms: number) =>
+  new Date(ms).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
+  });
+
+const CARD = 'rounded-3xl border border-mango-100 bg-white/60 p-5 sm:p-6';
+const LABEL = 'text-xs tracking-widest uppercase text-ink/55';
+const TOTAL_ROW = 'flex items-baseline justify-between gap-6 py-1.5 text-sm';
+---
+
+<ShopLayout
+  title={current ? `Order ${current.order_number}` : 'Order not found'}
+  user={user}
+  cartCount={cartCount}
+  wide
+>
+  <p class="text-sm">
+    <a href="/account/orders" class="text-ink/65 no-underline transition hover:text-spice-500">← Your orders</a>
+  </p>
+
+  {
+    !current || !view ? (
+      <div class="mt-8">
+        <h1 class="font-serif text-3xl font-semibold text-ink">We could not find that order</h1>
+        <p class="mt-3 text-sm leading-relaxed text-ink/70">
+          It may belong to a different account, or it may have been placed as a guest — in which case the
+          tracking link in your confirmation email is the way in.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button href="/account/orders">Your orders</Button>
+          <Button href="/track" variant="secondary">
+            Track a guest order
+          </Button>
+        </div>
+      </div>
+    ) : (
+      <>
+        <header class="mt-3 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 class="font-serif text-3xl font-semibold text-ink sm:text-4xl">{current.order_number}</h1>
+            <p class="mt-2 text-sm text-ink/65">
+              Placed {formatDate(current.placed_at)}
+              {current.delivered_at && ` · delivered ${formatDate(current.delivered_at)}`}
+            </p>
+          </div>
+          <StatusBadge status={current.status} />
+        </header>
+
+        {justCancelled && (
+          <Alert kind="success" title="Your order is cancelled" class="mt-6">
+            The jars are back on the shelf and nothing further will be charged.
+          </Alert>
+        )}
+
+        {refundPending && (
+          <Alert kind="warning" title="The refund needs a moment" class="mt-4">
+            Your cancellation went through, but the refund did not complete automatically. We have been
+            alerted and will push it through by hand — it will reach your original payment method.
+          </Alert>
+        )}
+
+        {error && (
+          <Alert kind="error" title="We could not do that" class="mt-4">
+            {error}
+          </Alert>
+        )}
+
+        {current.status === 'cancelled' && current.cancel_reason && !justCancelled && (
+          <Alert kind="info" title="This order was cancelled" class="mt-6">
+            {current.cancel_reason}
+          </Alert>
+        )}
+
+        {current.status === 'pending_payment' && (
+          <Alert kind="warning" title="Payment is not complete" class="mt-6">
+            We are holding these jars for a short while. Finish the payment and we will start packing.
+          </Alert>
+        )}
+
+        {/* ── Tracking ─────────────────────────────────────────────────── */}
+        {shipment && (
+          <section class:list={[CARD, 'mt-8']} aria-labelledby="tracking">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="tracking" class="font-serif text-xl font-semibold text-ink">
+                Where your parcel is
+              </h2>
+              <StatusBadge status={shipment.status} kind="shipment" />
+            </div>
+
+            <dl class="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <dt class={LABEL}>Courier</dt>
+                <dd class="mt-1 text-sm text-ink">{shipment.courier_name || 'Being assigned'}</dd>
+              </div>
+              <div>
+                <dt class={LABEL}>Tracking number</dt>
+                <dd class="mt-1 font-mono text-sm break-all text-ink">{shipment.awb_code || '—'}</dd>
+              </div>
+              <div>
+                <dt class={LABEL}>Expected</dt>
+                <dd class="mt-1 text-sm text-ink">
+                  {shipment.estimated_delivery_at ? formatDate(shipment.estimated_delivery_at) : 'To be confirmed'}
+                </dd>
+              </div>
+            </dl>
+
+            {shipment.tracking_url && (
+              /* A plain anchor rather than Button: this one leaves the site, and
+                 target/rel are anchor attributes the shared button does not take. */
+              <p class="mt-5">
+                <a
+                  href={shipment.tracking_url}
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex min-h-11 items-center rounded-full border border-ink/20 px-4 text-sm font-medium text-ink no-underline transition hover:border-ink/40 hover:bg-ink/5"
+                >
+                  Track on the courier's site
+                </a>
+              </p>
+            )}
+
+            {shipmentEvents.length > 0 && (
+              <ol class="mt-6 space-y-4 border-t border-mango-100 pt-5">
+                {shipmentEvents.map((event) => (
+                  <li class="flex gap-3 text-sm">
+                    <span class="mt-1.5 size-2 shrink-0 rounded-full bg-spice-500" aria-hidden="true" />
+                    <span class="min-w-0">
+                      <span class="block text-ink">{event.description || event.status}</span>
+                      <span class="mt-0.5 block text-xs text-ink/55">
+                        {formatDateTime(event.occurred_at)}
+                        {event.location && ` · ${event.location}`}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
+
+        {/* ── Items and totals ─────────────────────────────────────────── */}
+        <section class:list={[CARD, 'mt-6']} aria-labelledby="items">
+          <h2 id="items" class="font-serif text-xl font-semibold text-ink">What you ordered</h2>
+
+          <ul class="mt-4 divide-y divide-mango-100">
+            {view.items.map((item) => (
+              <li class="flex items-start gap-4 py-4">
+                {item.image ? (
+                  <img src={item.image} alt="" loading="lazy" class="size-16 shrink-0 rounded-xl object-cover" />
+                ) : (
+                  <span class="size-16 shrink-0 rounded-xl bg-mango-100" aria-hidden="true" />
+                )}
+
+                <div class="min-w-0 flex-1">
+                  <p class="font-medium text-ink">{item.product_name}</p>
+                  <p class="mt-0.5 text-sm text-ink/65">{item.variant_name}</p>
+                  <p class="mt-1 text-sm text-ink/65">
+                    {item.qty} × <Money paise={item.unit_price_paise} />
+                  </p>
+                </div>
+
+                <Money paise={item.total_paise} class="shrink-0 font-medium text-ink" />
+              </li>
+            ))}
+          </ul>
+
+          <div class="mt-4 border-t border-mango-100 pt-4">
+            <div class={TOTAL_ROW}>
+              <span class="text-ink/70">Items</span>
+              <Money paise={current.subtotal_paise} />
+            </div>
+
+            {current.discount_paise > 0 && (
+              <div class:list={[TOTAL_ROW, 'text-emerald-800']}>
+                <span>Discount{current.coupon_code ? ` (${current.coupon_code})` : ''}</span>
+                <span class="tabular-nums whitespace-nowrap">−{formatPaise(current.discount_paise)}</span>
+              </div>
+            )}
+
+            <div class={TOTAL_ROW}>
+              <span class="text-ink/70">Delivery</span>
+              {current.shipping_paise === 0 ? (
+                <span class="font-medium text-emerald-800">Free</span>
+              ) : (
+                <Money paise={current.shipping_paise} />
+              )}
+            </div>
+
+            {current.cod_fee_paise > 0 && (
+              <div class={TOTAL_ROW}>
+                <span class="text-ink/70">Cash-on-delivery handling</span>
+                <Money paise={current.cod_fee_paise} />
+              </div>
+            )}
+
+            {/* GST on an Indian retail price is contained in it, not added to
+                it. Showing it as a line item that sums into the total would
+                double-count the tax the customer has already paid. */}
+            {current.tax_inclusive === 0 && current.tax_paise > 0 && (
+              <div class={TOTAL_ROW}>
+                <span class="text-ink/70">GST</span>
+                <Money paise={current.tax_paise} />
+              </div>
+            )}
+
+            <div class="mt-2 flex items-baseline justify-between gap-6 border-t border-ink/15 pt-3">
+              <span class="font-medium text-ink">Total</span>
+              <Money paise={current.total_paise} class="text-lg font-semibold text-ink" />
+            </div>
+
+            {current.tax_inclusive === 1 && current.tax_paise > 0 && (
+              <p class="mt-1.5 text-right text-xs text-ink/55">
+                Includes GST of {formatPaise(current.tax_paise)}
+              </p>
+            )}
+
+            {current.refunded_paise > 0 && (
+              <div class:list={[TOTAL_ROW, 'mt-2 text-ink/70']}>
+                <span>Refunded to you</span>
+                <span class="tabular-nums whitespace-nowrap">−{formatPaise(current.refunded_paise)}</span>
+              </div>
+            )}
+          </div>
+
+          {current.customer_note && (
+            <p class="mt-5 rounded-2xl bg-mango-50 px-4 py-3 text-sm leading-relaxed text-ink/75">
+              <span class="font-medium text-ink">Your note:</span> {current.customer_note}
+            </p>
+          )}
+        </section>
+
+        {/* ── Delivery and payment ─────────────────────────────────────── */}
+        <section class="mt-6 grid gap-4 sm:grid-cols-2" aria-label="Delivery and payment">
+          <div class={CARD}>
+            <h2 class={LABEL}>Delivering to</h2>
+            <address class="mt-2 text-sm leading-relaxed text-ink/80 not-italic">
+              <span class="font-medium text-ink">{view.shippingAddress.full_name}</span>
+              <br />
+              {view.shippingAddress.line1}
+              {view.shippingAddress.line2 && (
+                <>
+                  <br />
+                  {view.shippingAddress.line2}
+                </>
+              )}
+              {view.shippingAddress.landmark && (
+                <>
+                  <br />
+                  {view.shippingAddress.landmark}
+                </>
+              )}
+              <br />
+              {view.shippingAddress.city}, {view.shippingAddress.state} {view.shippingAddress.pincode}
+              <br />
+              {view.shippingAddress.phone}
+            </address>
+
+            {!sameAddress && (
+              <>
+                <h3 class:list={[LABEL, 'mt-5']}>Billed to</h3>
+                <address class="mt-2 text-sm leading-relaxed text-ink/80 not-italic">
+                  <span class="font-medium text-ink">{view.billingAddress.full_name}</span>
+                  <br />
+                  {view.billingAddress.line1}
+                  <br />
+                  {view.billingAddress.city}, {view.billingAddress.state} {view.billingAddress.pincode}
+                </address>
+              </>
+            )}
+          </div>
+
+          <div class={CARD}>
+            <h2 class={LABEL}>Payment</h2>
+            <p class="mt-2 text-sm text-ink">
+              {current.payment_method === 'cod' ? 'Cash on delivery' : 'Paid online'}
+            </p>
+            <p class="mt-2">
+              <StatusBadge status={current.payment_status} kind="payment" />
+            </p>
+
+            <h3 class:list={[LABEL, 'mt-5']}>Delivery method</h3>
+            <p class="mt-2 text-sm text-ink capitalize">{current.shipping_method}</p>
+
+            {showInvoice && (
+              <p class="mt-5">
+                <Button href={`/invoice/${current.id}`} variant="secondary" size="sm">
+                  View invoice
+                </Button>
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* ── Timeline ─────────────────────────────────────────────────── */}
+        <section class:list={[CARD, 'mt-6']} aria-labelledby="timeline">
+          <h2 id="timeline" class="font-serif text-xl font-semibold text-ink">What has happened</h2>
+
+          {view.events.length === 0 ? (
+            <p class="mt-3 text-sm text-ink/65">Nothing yet. We will keep this updated.</p>
+          ) : (
+            <ol class="mt-5 space-y-5">
+              {view.events.map((event, index) => (
+                <li class="flex gap-3">
+                  <span class="flex flex-col items-center">
+                    <span
+                      class:list={[
+                        'mt-1.5 size-2.5 shrink-0 rounded-full',
+                        index === 0 ? 'bg-spice-500' : 'bg-ink/25',
+                      ]}
+                      aria-hidden="true"
+                    />
+                    {index < view.events.length - 1 && <span class="mt-1 w-px flex-1 bg-ink/10" aria-hidden="true" />}
+                  </span>
+                  <span class="min-w-0 pb-1">
+                    <span class="block text-sm text-ink">{event.message}</span>
+                    <span class="mt-0.5 block text-xs text-ink/55">{formatDateTime(event.created_at)}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        {/* ── Cancelling ───────────────────────────────────────────────── */}
+        {isCustomerCancellable(current.status) && (
+          <section class="mt-6 rounded-3xl border border-ink/10 p-5 sm:p-6" aria-labelledby="cancel">
+            <h2 id="cancel" class="font-serif text-lg font-semibold text-ink">Changed your mind?</h2>
+            <p class="mt-2 text-sm leading-relaxed text-ink/65">
+              You can cancel while we are still packing. If you paid online, the money goes back to the
+              same card or account — usually within five working days.
+            </p>
+
+            {/* A disclosure rather than a modal: it works with no JavaScript,
+                and it still asks for the second deliberate tap that stops an
+                accidental cancellation. */}
+            <details class="mt-4">
+              <summary class="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-spice-500 underline underline-offset-4">
+                Cancel this order
+              </summary>
+
+              <form method="post" class="mt-4 max-w-md space-y-4">
+                <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+                <input type="hidden" name="_action" value="cancel" />
+
+                <div>
+                  <label for="cancel-reason" class="mb-1.5 block text-sm font-medium text-ink/80">
+                    Why are you cancelling? (optional)
+                  </label>
+                  <textarea
+                    id="cancel-reason"
+                    name="reason"
+                    rows="3"
+                    maxlength="300"
+                    placeholder="It helps us to know."
+                    class="block w-full rounded-2xl border border-ink/15 bg-white px-4 py-2.5 text-base leading-relaxed text-ink placeholder:text-ink/35 focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none"
+                  ></textarea>
+                </div>
+
+                <Button type="submit" variant="danger">
+                  Yes, cancel order {current.order_number}
+                </Button>
+              </form>
+            </details>
+          </section>
+        )}
+
+        <p class="mt-8 text-center text-sm text-ink/65">
+          Anything wrong with this order?{' '}
+          <a
+            href={`mailto:mothersgoldspice@gmail.com?subject=${encodeURIComponent(`Order ${current.order_number}`)}`}
+            class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+          >
+            Write to us
+          </a>{' '}
+          and quote {current.order_number}.
+        </p>
+      </>
+    )
+  }
+</ShopLayout>

@@ -1,0 +1,250 @@
+---
+/**
+ * The morning screen.
+ *
+ * Everything here answers one of four questions an operator has before they have
+ * finished their first cup of tea: is money coming in, is anything stuck waiting
+ * on me, am I about to run out of jars, and did anything break overnight. Nothing
+ * else earns a place — a dashboard that shows twelve numbers is one nobody reads.
+ *
+ * The counts are five small aggregates rather than one clever query. D1 is fast
+ * at COUNT over these tables and a readable query that someone can correct in a
+ * year is worth more than a saved round trip.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import StatusBadge from '../../components/shop/StatusBadge.astro';
+import { requireAdmin, requireCtx } from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+import { lowStockVariants } from '../../lib/services/inventory';
+import { listOrders, orderStats } from '../../lib/services/orders';
+
+export const prerender = false;
+
+// Authorisation before anything is read, let alone rendered. The redirect is for
+// the ordinary case of a signed-out human; `requireAdmin` is the actual guard.
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const [stats, lowStock, recent, failedEmails, failedWebhooks, queuedEmails] = await Promise.all([
+  orderStats(ctx.db),
+  lowStockVariants(ctx.db),
+  listOrders(ctx.db, { limit: 10 }),
+  ctx.db.scalar<number>("SELECT COUNT(*) FROM email_outbox WHERE status = 'failed'"),
+  ctx.db.scalar<number>("SELECT COUNT(*) FROM webhook_events WHERE status = 'failed'"),
+  ctx.db.scalar<number>("SELECT COUNT(*) FROM email_outbox WHERE status = 'queued'"),
+]);
+
+interface Tile {
+  label: string;
+  value: string;
+  note: string;
+  href: string;
+  /** Amber when the number is a queue somebody has to work through. */
+  attention: boolean;
+}
+
+const tiles: Tile[] = [
+  {
+    label: 'Paid today',
+    value: String(stats.todayOrders),
+    note: `${formatPaise(stats.todayRevenuePaise)} in the last 24 hours`,
+    href: '/admin/orders',
+    attention: false,
+  },
+  {
+    label: 'Awaiting payment',
+    value: String(stats.awaitingPayment),
+    note: 'Holding stock until they pay or expire',
+    href: '/admin/orders?status=pending_payment',
+    attention: stats.awaitingPayment > 0,
+  },
+  {
+    label: 'Awaiting fulfilment',
+    value: String(stats.pendingFulfilment),
+    note: 'Paid and waiting to be packed',
+    href: '/admin/orders?status=confirmed',
+    attention: stats.pendingFulfilment > 0,
+  },
+  {
+    label: 'Revenue, 30 days',
+    value: formatPaise(stats.last30RevenuePaise),
+    note: `${stats.lifetimeOrders} orders all time`,
+    href: '/admin/orders',
+    attention: false,
+  },
+];
+
+const health = [
+  { label: 'Emails failed', count: failedEmails ?? 0, href: '/admin/emails?status=failed' },
+  { label: 'Emails queued', count: queuedEmails ?? 0, href: '/admin/emails?status=queued' },
+  { label: 'Webhooks failed', count: failedWebhooks ?? 0, href: '/admin/webhooks?status=failed' },
+];
+
+const stamp = (ms: number) =>
+  new Date(ms).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+
+const CARD = 'rounded-md border border-ink/10 bg-white';
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase';
+const TD = 'px-3 py-2 align-middle';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:decoration-spice-500 hover:text-spice-500';
+---
+
+<AdminLayout title="Dashboard" subtitle={`As of ${stamp(Date.now())} IST`}>
+  <a slot="actions" href="/admin/orders" class="rounded-md bg-spice-500 px-3 py-2 text-sm font-medium text-cream transition hover:bg-spice-700">
+    Open orders
+  </a>
+
+  <section aria-label="Today" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    {
+      tiles.map((tile) => (
+        <a
+          href={tile.href}
+          class:list={[
+            CARD,
+            'block px-4 py-3 transition hover:border-ink/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500',
+            tile.attention && 'border-amber-600/40 bg-amber-50',
+          ]}
+        >
+          <p class="text-[11px] font-semibold tracking-wide text-ink/55 uppercase">{tile.label}</p>
+          <p class="mt-1 font-serif text-2xl font-semibold tabular-nums">{tile.value}</p>
+          <p class="mt-0.5 text-xs text-ink/60">{tile.note}</p>
+        </a>
+      ))
+    }
+  </section>
+
+  <div class="mt-4 grid gap-4 xl:grid-cols-[2fr_1fr]">
+    <section aria-labelledby="recent-heading" class={CARD}>
+      <div class="flex items-baseline justify-between border-b border-ink/10 px-3 py-2">
+        <h2 id="recent-heading" class="font-serif text-sm font-semibold">Latest orders</h2>
+        <a href="/admin/orders" class={`text-xs ${LINK}`}>All orders</a>
+      </div>
+
+      {
+        recent.items.length === 0 ? (
+          <p class="px-3 py-6 text-center text-sm text-ink/55">No orders yet. The first one will appear here.</p>
+        ) : (
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="border-b border-ink/10">
+                <tr>
+                  <th scope="col" class={TH}>
+                    Order
+                  </th>
+                  <th scope="col" class={TH}>
+                    Customer
+                  </th>
+                  <th scope="col" class={TH}>
+                    Placed
+                  </th>
+                  <th scope="col" class={`${TH} text-right`}>
+                    Total
+                  </th>
+                  <th scope="col" class={TH}>
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.items.map(({ order, itemCount }) => (
+                  <tr class="border-b border-ink/8 last:border-0 hover:bg-mango-50">
+                    <td class={TD}>
+                      <a href={`/admin/orders/${order.id}`} class={`font-medium ${LINK}`}>
+                        {order.order_number}
+                      </a>
+                      <span class="ml-1 text-xs text-ink/50">
+                        {itemCount} {itemCount === 1 ? 'jar' : 'jars'}
+                      </span>
+                    </td>
+                    <td class={`${TD} max-w-40 truncate`} title={order.email}>
+                      {order.customer_name}
+                    </td>
+                    <td class={`${TD} text-xs whitespace-nowrap text-ink/60 tabular-nums`}>{stamp(order.placed_at)}</td>
+                    <td class={`${TD} text-right tabular-nums`}>{formatPaise(order.total_paise)}</td>
+                    <td class={TD}>
+                      <StatusBadge status={order.status} kind="order" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </section>
+
+    <div class="space-y-4">
+      <section aria-labelledby="stock-heading" class={CARD}>
+        <div class="flex items-baseline justify-between border-b border-ink/10 px-3 py-2">
+          <h2 id="stock-heading" class="font-serif text-sm font-semibold">Running low</h2>
+          <a href="/admin/inventory" class={`text-xs ${LINK}`}>Stock</a>
+        </div>
+
+        {
+          lowStock.length === 0 ? (
+            <p class="px-3 py-6 text-center text-sm text-ink/55">Every variant is above its reorder level.</p>
+          ) : (
+            <ul class="divide-y divide-ink/8">
+              {lowStock.map((variant) => (
+                <li class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <span class="min-w-0">
+                    <span class="block truncate">
+                      {variant.productName} {variant.name}
+                    </span>
+                    <span class="block font-mono text-[11px] text-ink/50">{variant.sku}</span>
+                  </span>
+                  <span
+                    class:list={[
+                      'shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+                      variant.available === 0 ? 'bg-red-100 text-red-900' : 'bg-amber-100 text-amber-900',
+                    ]}
+                  >
+                    {variant.available} left
+                    <span class="font-normal text-ink/50"> / {variant.reorderLevel}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </section>
+
+      <section aria-labelledby="health-heading" class={CARD}>
+        <h2 id="health-heading" class="border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold">
+          Needs a look
+        </h2>
+        <ul class="divide-y divide-ink/8">
+          {
+            health.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class:list={[
+                    'flex items-center justify-between gap-3 px-3 py-2 text-sm transition hover:bg-mango-50',
+                    item.count > 0 && 'font-medium text-red-800',
+                  ]}
+                >
+                  <span>{item.label}</span>
+                  <span class="tabular-nums">{item.count}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+        <p class="border-t border-ink/8 px-3 py-2 text-xs text-ink/55">
+          A failed email or webhook is retried by the maintenance cron, but a row that keeps failing needs a human.
+        </p>
+      </section>
+    </div>
+  </div>
+</AdminLayout>

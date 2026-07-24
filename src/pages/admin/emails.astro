@@ -1,0 +1,456 @@
+---
+/**
+ * The outbox, read as an inbox.
+ *
+ * Every email is a row before it is a send, which makes this the honest answer
+ * to "did the customer actually get their receipt?" — including the exact body
+ * they were sent. While the shop runs on the mock email provider this screen IS
+ * the customer's inbox, so it has to be genuinely readable rather than a dump of
+ * escaped HTML.
+ *
+ * Two things worth explaining:
+ *
+ *   The body is rendered inside `<iframe srcdoc sandbox>`. The markup is ours,
+ *   but it is email HTML — table soup with inline styles, occasionally pasted
+ *   from somewhere else — and letting it inherit the console's stylesheet or run
+ *   a script would be a poor trade for a preview. A fully closed sandbox means
+ *   no scripts, no forms and no navigation out of the frame.
+ *
+ *   Because that same sandbox stops links inside the frame from opening, the
+ *   links are pulled out of the body and listed underneath as real anchors. An
+ *   operator checking a verification or tracking link is the whole reason to
+ *   open a message here.
+ *
+ * Selecting a message is a URL, not a click handler, so the list, the preview
+ * and the plain-text view all work with scripting off.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import StatusBadge from '../../components/shop/StatusBadge.astro';
+import { readPaging, requireAdmin, requireCtx } from '../../lib/api';
+import type { EmailOutboxRow, OutboxStatus } from '../../lib/db/types';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const STATUSES: OutboxStatus[] = ['queued', 'sending', 'sent', 'failed', 'suppressed', 'cancelled'];
+
+const rawStatus = Astro.url.searchParams.get('status') ?? '';
+const status = STATUSES.find((s) => s === rawStatus) ?? null;
+const template = (Astro.url.searchParams.get('template') ?? '').trim().slice(0, 60);
+const selectedId = (Astro.url.searchParams.get('id') ?? '').trim();
+const view = Astro.url.searchParams.get('view') === 'text' ? 'text' : 'html';
+
+const { limit, offset } = readPaging(Astro.url, 25, 50);
+const page = Math.max(Number.parseInt(Astro.url.searchParams.get('page') ?? '', 10) || 1, 1);
+
+const where: string[] = [];
+const params: (string | number)[] = [];
+if (status) {
+  where.push('status = ?');
+  params.push(status);
+}
+if (template) {
+  where.push('template = ?');
+  params.push(template);
+}
+const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+/** Columns for the list. The bodies are big; only the opened message needs them. */
+const LIST_COLUMNS =
+  'id, to_email, to_name, subject, template, status, attempts, max_attempts, last_error, provider, order_id, ' +
+  'scheduled_at, sent_at, created_at';
+
+type EmailSummary = Pick<
+  EmailOutboxRow,
+  | 'id'
+  | 'to_email'
+  | 'to_name'
+  | 'subject'
+  | 'template'
+  | 'status'
+  | 'attempts'
+  | 'max_attempts'
+  | 'last_error'
+  | 'provider'
+  | 'order_id'
+  | 'scheduled_at'
+  | 'sent_at'
+  | 'created_at'
+>;
+
+const [total, items, templates, selected] = await Promise.all([
+  ctx.db.scalar<number>(`SELECT COUNT(*) FROM email_outbox ${clause}`, params),
+  ctx.db.all<EmailSummary>(
+    `SELECT ${LIST_COLUMNS} FROM email_outbox ${clause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset],
+  ),
+  // Derived from the data, so a new template appears in the filter the first
+  // time one is queued.
+  ctx.db.all<{ template: string; count: number }>(
+    'SELECT template, COUNT(*) AS count FROM email_outbox GROUP BY template ORDER BY count DESC',
+  ),
+  selectedId ? ctx.db.first<EmailOutboxRow>('SELECT * FROM email_outbox WHERE id = ?', [selectedId]) : null,
+]);
+
+const suppression = selected
+  ? await ctx.db.first<{ reason: string; created_at: number }>(
+      'SELECT reason, created_at FROM email_suppressions WHERE email = ?',
+      [selected.to_email],
+    )
+  : null;
+
+/**
+ * Links from the message body, so they can be followed from outside the sandbox.
+ * A regex rather than a parser: there is no DOM in a Worker, and the input is
+ * our own generated markup, not arbitrary web pages.
+ */
+function extractLinks(html: string): string[] {
+  const found = new Set<string>();
+  for (const match of html.matchAll(/href\s*=\s*"([^"]+)"/gi)) {
+    const href = match[1].trim();
+    if (/^(https?:|mailto:)/i.test(href)) found.add(href);
+    if (found.size >= 12) break;
+  }
+  return [...found];
+}
+
+const links = selected ? extractLinks(selected.html_body) : [];
+
+const totalCount = total ?? 0;
+const from = totalCount === 0 ? 0 : offset + 1;
+const to = offset + items.length;
+
+function href(overrides: Record<string, string | null>): string {
+  const query = new URLSearchParams();
+  const base: Record<string, string | null> = {
+    status: status,
+    template: template || null,
+    id: selectedId || null,
+    view: view === 'text' ? 'text' : null,
+    page: page > 1 ? String(page) : null,
+  };
+  for (const [key, value] of Object.entries({ ...base, ...overrides })) {
+    if (value) query.set(key, value);
+  }
+  const q = query.toString();
+  return q ? `/admin/emails?${q}` : '/admin/emails';
+}
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CONTROL =
+  'min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const PAGER =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/15 bg-white px-3 text-sm transition ' +
+  'hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+const TAB =
+  'inline-flex min-h-9 items-center rounded-md px-3 text-sm font-medium transition focus-visible:outline-none ' +
+  'focus-visible:ring-2 focus-visible:ring-spice-500';
+const BTN_QUIET =
+  'min-h-9 rounded-md border border-ink/20 bg-white px-3 text-sm font-medium transition hover:border-ink/40 ' +
+  'hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+---
+
+<AdminLayout
+  title="Emails"
+  subtitle={`${totalCount} in the outbox${status ? ` · ${status}` : ''}${template ? ` · ${template}` : ''}`}
+>
+  <form slot="actions" method="get" action="/admin/emails" class="flex flex-wrap items-center gap-2">
+    <label for="filter-status" class="sr-only">Status</label>
+    <select id="filter-status" name="status" class={CONTROL}>
+      <option value="">All statuses</option>
+      {
+        STATUSES.map((value) => (
+          <option value={value} selected={status === value}>
+            {value}
+          </option>
+        ))
+      }
+    </select>
+
+    <label for="filter-template" class="sr-only">Template</label>
+    <select id="filter-template" name="template" class={CONTROL}>
+      <option value="">All templates</option>
+      {
+        templates.map((row) => (
+          <option value={row.template} selected={template === row.template}>
+            {row.template} ({row.count})
+          </option>
+        ))
+      }
+    </select>
+
+    <button
+      type="submit"
+      class="min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700"
+    >
+      Apply
+    </button>
+  </form>
+
+  <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-start">
+    <section aria-labelledby="outbox-heading" class="rounded-md border border-ink/10 bg-white">
+      <h2 id="outbox-heading" class="sr-only">Outbox</h2>
+
+      {
+        items.length === 0 ? (
+          <p class="px-3 py-10 text-center text-sm text-ink/55">
+            Nothing here. <a href="/admin/emails" class="underline underline-offset-2">Clear the filters</a>.
+          </p>
+        ) : (
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="border-b border-ink/10 bg-cream/60">
+                <tr>
+                  <th scope="col" class={TH}>
+                    Subject
+                  </th>
+                  <th scope="col" class={TH}>
+                    To
+                  </th>
+                  <th scope="col" class={TH}>
+                    When
+                  </th>
+                  <th scope="col" class={TH}>
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row) => (
+                  <tr
+                    class:list={[
+                      'border-b border-ink/8 last:border-0 hover:bg-mango-50',
+                      row.id === selectedId && 'bg-mango-50',
+                      row.status === 'failed' && 'bg-red-50/60',
+                    ]}
+                  >
+                    <td class={`${TD} max-w-72`}>
+                      <a
+                        href={`${href({ id: row.id, view: null })}#message`}
+                        class:list={['block truncate', row.id === selectedId ? 'font-semibold' : 'font-medium', LINK]}
+                      >
+                        {row.subject}
+                      </a>
+                      <span class="block font-mono text-[11px] text-ink/50">{row.template}</span>
+                    </td>
+
+                    <td class={`${TD} max-w-48`}>
+                      <span class="block truncate text-xs">{row.to_email}</span>
+                      {row.to_name && <span class="block truncate text-[11px] text-ink/50">{row.to_name}</span>}
+                    </td>
+
+                    <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>
+                      {stamp(row.sent_at ?? row.created_at)}
+                    </td>
+
+                    <td class={TD}>
+                      <StatusBadge status={row.status} kind="email" />
+                      {row.attempts > 0 && (
+                        <span class="mt-0.5 block text-[11px] text-ink/50 tabular-nums">
+                          {row.attempts}/{row.max_attempts} attempts
+                        </span>
+                      )}
+                      {row.last_error && (
+                        <span class="mt-0.5 block max-w-40 truncate text-[11px] text-red-800" title={row.last_error}>
+                          {row.last_error}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+
+      <nav aria-label="Pagination" class="flex items-center justify-between gap-3 border-t border-ink/10 px-3 py-2 text-sm">
+        <p class="text-ink/60 tabular-nums">{from}–{to} of {totalCount}</p>
+        <div class="flex gap-2">
+          {page > 1 && <a href={href({ page: page === 2 ? null : String(page - 1) })} class={PAGER} rel="prev">← Newer</a>}
+          {offset + items.length < totalCount && (
+            <a href={href({ page: String(page + 1) })} class={PAGER} rel="next">Older →</a>
+          )}
+        </div>
+      </nav>
+    </section>
+
+    <section id="message" aria-labelledby="message-heading" class="rounded-md border border-ink/10 bg-white">
+      <h2 id="message-heading" class="sr-only">Message</h2>
+
+      {
+        !selected ? (
+          <p class="px-3 py-16 text-center text-sm text-ink/55">
+            Pick a message on the left to read exactly what the customer was sent.
+          </p>
+        ) : (
+          <>
+            <div class="border-b border-ink/10 px-3 py-3">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="font-serif text-base font-semibold">{selected.subject}</p>
+                  <p class="mt-0.5 text-xs text-ink/65">
+                    To {selected.to_name ? `${selected.to_name} · ` : ''}
+                    <a href={`mailto:${selected.to_email}`} class={LINK}>
+                      {selected.to_email}
+                    </a>
+                  </p>
+                  <p class="text-xs text-ink/50">
+                    From {selected.from_name} &lt;{selected.from_email}&gt;
+                    {selected.reply_to ? ` · reply to ${selected.reply_to}` : ''}
+                  </p>
+                </div>
+                <StatusBadge status={selected.status} kind="email" />
+              </div>
+
+              <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
+                <div>
+                  <dt class="text-[11px] tracking-wide text-ink/50 uppercase">Template</dt>
+                  <dd class="font-mono break-all">{selected.template}</dd>
+                </div>
+                <div>
+                  <dt class="text-[11px] tracking-wide text-ink/50 uppercase">Queued</dt>
+                  <dd class="tabular-nums">{stamp(selected.created_at)}</dd>
+                </div>
+                <div>
+                  <dt class="text-[11px] tracking-wide text-ink/50 uppercase">Sent</dt>
+                  <dd class="tabular-nums">{stamp(selected.sent_at)}</dd>
+                </div>
+                <div>
+                  <dt class="text-[11px] tracking-wide text-ink/50 uppercase">Attempts</dt>
+                  <dd class="tabular-nums">
+                    {selected.attempts}/{selected.max_attempts}
+                    {selected.provider ? ` · ${selected.provider}` : ''}
+                  </dd>
+                </div>
+              </dl>
+
+              {selected.order_id && (
+                <p class="mt-2 text-xs">
+                  <a href={`/admin/orders/${selected.order_id}`} class={LINK}>
+                    Open the order this belongs to
+                  </a>
+                </p>
+              )}
+
+              {selected.last_error && (
+                <p class="mt-2 rounded border border-red-600/30 bg-red-50 px-2 py-1.5 text-xs text-red-950">
+                  <span class="font-semibold">Last error</span> — {selected.last_error}
+                </p>
+              )}
+
+              {suppression && (
+                <p class="mt-2 rounded border border-amber-600/40 bg-amber-50 px-2 py-1.5 text-xs text-amber-950">
+                  This address is suppressed ({suppression.reason}, {stamp(suppression.created_at)}). Nothing further
+                  will be sent to it until the suppression is removed.
+                </p>
+              )}
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 border-b border-ink/10 px-3 py-2">
+              <a
+                href={href({ view: null })}
+                aria-current={view === 'html' ? 'true' : undefined}
+                class:list={[TAB, view === 'html' ? 'bg-ink text-cream' : 'border border-ink/15 bg-white']}
+              >
+                Rendered
+              </a>
+              <a
+                href={href({ view: 'text' })}
+                aria-current={view === 'text' ? 'true' : undefined}
+                class:list={[TAB, view === 'text' ? 'bg-ink text-cream' : 'border border-ink/15 bg-white']}
+              >
+                Plain text
+              </a>
+
+              <form
+                class="ml-auto"
+                data-api="/api/admin/emails"
+                data-method="POST"
+                data-success-message="Email put back on the queue and dispatched."
+              >
+                <input type="hidden" name="action" value="resend" />
+                <input type="hidden" name="id" value={selected.id} />
+                <button type="submit" class={BTN_QUIET}>
+                  Resend
+                </button>
+              </form>
+
+              <form
+                data-api="/api/admin/emails"
+                data-method="POST"
+                data-confirm="Stop writing to this address? Anything still queued for it is cancelled."
+                data-success-message="Address suppressed."
+              >
+                <input type="hidden" name="action" value="suppress" />
+                <input type="hidden" name="id" value={selected.id} />
+                <input type="hidden" name="reason" value="Suppressed from the staff console." />
+                <button
+                  type="submit"
+                  class="min-h-9 rounded-md border border-red-700/40 bg-white px-3 text-sm font-medium text-red-800 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+                >
+                  Suppress
+                </button>
+              </form>
+            </div>
+
+            {view === 'text' ? (
+              <pre class="max-h-[65vh] overflow-auto px-3 py-3 text-xs leading-relaxed whitespace-pre-wrap">{selected.text_body || 'This message has no plain-text part.'}</pre>
+            ) : (
+              <iframe
+                title={`Rendered email: ${selected.subject}`}
+                srcdoc={selected.html_body}
+                sandbox=""
+                referrerpolicy="no-referrer"
+                class="h-[65vh] w-full border-0 bg-white"
+              />
+            )}
+
+            {view === 'html' && (
+              <div class="border-t border-ink/10 px-3 py-2">
+                <p class="text-[11px] font-semibold tracking-wide text-ink/55 uppercase">Links in this email</p>
+                {links.length === 0 ? (
+                  <p class="mt-1 text-xs text-ink/55">None.</p>
+                ) : (
+                  <ul class="mt-1 space-y-0.5">
+                    {links.map((link) => (
+                      <li>
+                        <a href={link} target="_blank" rel="noopener noreferrer" class={`text-xs break-all ${LINK}`}>
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p class="mt-1.5 text-[11px] text-ink/50">
+                  The preview above is sandboxed, so its links cannot open from inside the frame. These are the same
+                  links, followable from here.
+                </p>
+              </div>
+            )}
+          </>
+        )
+      }
+    </section>
+  </div>
+</AdminLayout>

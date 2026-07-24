@@ -1,0 +1,163 @@
+---
+/**
+ * Ask for a password reset link.
+ *
+ * Every submission ends on the same confirmation, whether or not the address
+ * has an account. Saying "no account with that email" would be friendlier by
+ * one sentence and would also answer, for anybody who asks, which of our
+ * customers shop here.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { rateKey, requireCtx } from '../../lib/api';
+import { siteUrl } from '../../lib/env';
+import { isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log, maskEmail } from '../../lib/log';
+import { passwordReset, storeContext } from '../../lib/providers/email/templates';
+import { RATE_LIMITS, enforceRateLimit } from '../../lib/rate-limit';
+import { PASSWORD_RESET_TTL_MS, findUserByEmail, issueToken } from '../../lib/services/accounts';
+import { queueAndSend } from '../../lib/services/notify';
+import { parseOrThrow, passwordResetRequestSchema } from '../../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const sent = Astro.url.searchParams.get('sent') === '1';
+
+let error = '';
+let email = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '').trim();
+
+  try {
+    const input = parseOrThrow(passwordResetRequestSchema, { email });
+
+    await enforceRateLimit(ctx.db, rateKey(ctx, 'pwreset'), RATE_LIMITS.passwordReset);
+    await enforceRateLimit(ctx.db, `pwreset:acct:${input.email}`, RATE_LIMITS.passwordReset);
+
+    const user = await findUserByEmail(ctx.db, input.email);
+    if (user && user.status === 'active') {
+      const token = await issueToken(ctx.db, {
+        userId: user.id,
+        purpose: 'password_reset',
+        email: user.email,
+        ttlMs: PASSWORD_RESET_TTL_MS,
+      });
+      const mail = passwordReset({
+        store: storeContext(ctx.env),
+        name: user.name || 'there',
+        resetUrl: `${siteUrl(ctx.env)}/account/reset?token=${encodeURIComponent(token)}`,
+        expiresAt: Date.now() + PASSWORD_RESET_TTL_MS,
+      });
+      await queueAndSend(ctx, {
+        to: user.email,
+        toName: user.name,
+        subject: mail.subject,
+        template: mail.template,
+        text: mail.text,
+        html: mail.html,
+        userId: user.id,
+        idempotencyKey: `pwreset:${user.id}:${Math.floor(Date.now() / 60000)}`,
+      });
+    } else {
+      log.info('auth.reset_requested_unknown', { email: maskEmail(input.email) });
+    }
+
+    return Astro.redirect('/account/forgot?sent=1', 303);
+  } catch (err) {
+    // A malformed address and a rate limit are the only things that land here,
+    // and both are about the request rather than about the account.
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.forgot_page_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+  }
+}
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+---
+
+<ShopLayout
+  title="Reset your password"
+  description="Ask for a link to set a new password on your Mother's Gold Spice account."
+  user={ctx.user}
+  cartCount={cartCount}
+>
+  <div class="mx-auto max-w-md">
+    {
+      sent ? (
+        <div class="text-center">
+          <h1 class="font-serif text-3xl font-semibold text-ink">Check your email</h1>
+          <p class="mt-3 text-sm leading-relaxed text-ink/70">
+            If that address has an account with us, a link to set a new password is on its way. It works
+            for one hour and can be used once.
+          </p>
+          <p class="mt-3 text-sm leading-relaxed text-ink/65">
+            Nothing after a few minutes? Look in the spam folder, then try again with the address you
+            used when you ordered.
+          </p>
+
+          <div class="mt-8 space-y-3">
+            <Button href="/account/login" size="lg" class="w-full">
+              Back to sign in
+            </Button>
+            <Button href="/account/forgot" variant="secondary" size="lg" class="w-full">
+              Try another address
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h1 class="font-serif text-3xl font-semibold text-ink">Reset your password</h1>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">
+            Tell us the email address on your account and we will send you a link to set a new password.
+          </p>
+
+          {error && (
+            <Alert kind="error" title="We could not send that" class="mt-6">
+              {error}
+            </Alert>
+          )}
+
+          <form method="post" class="mt-8 space-y-5">
+            <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+
+            <Field
+              label="Email address"
+              name="email"
+              type="email"
+              value={email}
+              required
+              autocomplete="email"
+              inputmode="email"
+              placeholder="you@example.com"
+            />
+
+            <Button type="submit" size="lg" class="w-full">
+              Send me a link
+            </Button>
+          </form>
+
+          <p class="mt-6 text-center text-sm text-ink/65">
+            Remembered it?{' '}
+            <a
+              href="/account/login"
+              class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+            >
+              Sign in
+            </a>
+          </p>
+        </>
+      )
+    }
+  </div>
+</ShopLayout>

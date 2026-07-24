@@ -114,10 +114,12 @@ export const POST: APIRoute = async ({ locals, request }) =>
     const { ctx, user } = requireAdmin(locals);
     const body = await readJson<Record<string, unknown>>(request);
 
-    const isThresholdUpdate = Object.prototype.hasOwnProperty.call(body, 'reorder_level');
-    const variantId = isThresholdUpdate
-      ? parseOrThrow(reorderLevelSchema, body).variant_id
-      : parseOrThrow(adjustSchema, body).variant_id;
+    // Which of the two writes this is, decided by the shape of the body rather
+    // than by a mode flag the caller has to remember to send.
+    const input = Object.prototype.hasOwnProperty.call(body, 'reorder_level')
+      ? parseOrThrow(reorderLevelSchema, body)
+      : parseOrThrow(adjustSchema, body);
+    const variantId = input.variant_id;
 
     // Checked before writing so a mistyped id gives "no such variant" rather
     // than a foreign-key error from the upsert inside `adjustStock`.
@@ -129,8 +131,8 @@ export const POST: APIRoute = async ({ locals, request }) =>
 
     let audit: Record<string, unknown>;
 
-    if (isThresholdUpdate) {
-      const { reorder_level: reorderLevel } = parseOrThrow(reorderLevelSchema, body);
+    if ('reorder_level' in input) {
+      const reorderLevel = input.reorder_level;
       const now = Date.now();
       await ctx.db.run(
         `INSERT INTO inventory (variant_id, on_hand, reserved, reorder_level, track, updated_at)
@@ -140,7 +142,7 @@ export const POST: APIRoute = async ({ locals, request }) =>
       );
       audit = { action: 'reorder_level', variantId, sku: variant.sku, reorderLevel };
     } else {
-      const { delta, reason, note } = parseOrThrow(adjustSchema, body);
+      const { delta, reason, note } = input;
       await adjustStock(ctx.db, variantId, delta, reason, user.id, note ?? undefined);
       audit = { action: 'adjust', variantId, sku: variant.sku, delta, reason, note: note ?? null };
     }
@@ -151,7 +153,7 @@ export const POST: APIRoute = async ({ locals, request }) =>
       [
         newId('aud'),
         user.id,
-        isThresholdUpdate ? 'inventory.reorder_level' : 'inventory.adjust',
+        'reorder_level' in input ? 'inventory.reorder_level' : 'inventory.adjust',
         variantId,
         JSON.stringify(audit),
         ctx.clientIp,

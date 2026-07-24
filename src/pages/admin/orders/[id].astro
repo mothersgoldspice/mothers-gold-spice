@@ -1,0 +1,835 @@
+---
+/**
+ * The fulfilment screen — the one page this console exists for.
+ *
+ * Everything about an order is on it: what was bought, where it is going, what
+ * was charged, what was refunded, which parcel is carrying it, and every event
+ * that has ever happened to it including the internal ones. The alternative is
+ * an operator holding four tabs open while a customer waits on the phone.
+ *
+ * Every action is a real form posting to `/api/admin/*`, never a fetch built by
+ * hand here, because the API is where the state machine, the stock accounting
+ * and the audit trail live. This page decides only which actions are *offerable*
+ * — the legal next statuses come from `canTransition`, so the select cannot
+ * suggest a move the service is going to refuse.
+ */
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import StatusBadge from '../../../components/shop/StatusBadge.astro';
+import { requireAdmin, requireCtx } from '../../../lib/api';
+import { parseJson } from '../../../lib/db/client';
+import type { OrderStatus, PaymentRow, RefundRow, ShipmentEventRow } from '../../../lib/db/types';
+import { publicMessage } from '../../../lib/errors';
+import { formatPaise } from '../../../lib/money';
+import type { CourierQuote } from '../../../lib/providers/shipping/types';
+import { canTransition, loadOrderView, STATUS_LABEL, type OrderView } from '../../../lib/services/orders';
+import { getShipmentForOrder } from '../../../lib/services/shipments';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const orderId = Astro.params.id ?? '';
+
+let view: OrderView | null = null;
+let loadError = '';
+try {
+  view = await loadOrderView(ctx.db, orderId, { adminView: true });
+} catch (err) {
+  Astro.response.status = 404;
+  loadError = publicMessage(err);
+}
+
+const order = view?.order ?? null;
+
+// Assembled in one round of parallel reads rather than sequentially: this page
+// is opened dozens of times a day and each of these is an independent lookup.
+const [payments, refunds, shipment, shipmentEvents] = order
+  ? await Promise.all([
+      ctx.db.all<PaymentRow>('SELECT * FROM payments WHERE order_id = ? ORDER BY created_at DESC', [order.id]),
+      ctx.db.all<RefundRow>('SELECT * FROM refunds WHERE order_id = ? ORDER BY created_at DESC', [order.id]),
+      getShipmentForOrder(ctx.db, order.id),
+      // Scoped by order, not by shipment, so a re-booked parcel still shows the
+      // scans from the booking it replaced.
+      ctx.db.all<ShipmentEventRow>('SELECT * FROM shipment_events WHERE order_id = ? ORDER BY occurred_at DESC', [
+        order.id,
+      ]),
+    ])
+  : [[], [], null, []];
+
+const settings = await ctx.settings();
+
+/** Which adapter is live decides whether the parcel simulator is offered at all. */
+let shippingProvider = 'unavailable';
+try {
+  shippingProvider = ctx.shipping.name;
+} catch {
+  // A provider that refuses to construct must not take the order screen with it.
+}
+
+/**
+ * Courier options for the booking form.
+ *
+ * Asked of the provider directly rather than through the cached serviceability
+ * service: the cache stores the yes/no answer and drops the quotes, and a
+ * courier picker with no couriers in it is not a picker. One call, only for an
+ * order that is actually ready to book, and a failure just falls back to letting
+ * the aggregator choose.
+ */
+let quotes: CourierQuote[] = [];
+const bookable = order !== null && !shipment && ['confirmed', 'processing', 'packed'].includes(order.status);
+if (order && bookable && view) {
+  try {
+    const serviceability = await ctx.shipping.checkServiceability({
+      pickupPincode: settings.originPincode,
+      deliveryPincode: view.shippingAddress.pincode,
+      weightGrams: order.total_weight_grams || settings.packagingWeightGrams,
+      cod: order.payment_method === 'cod' && order.payment_status !== 'paid',
+      declaredValuePaise: order.total_paise,
+    });
+    quotes = serviceability.quotes;
+  } catch {
+    quotes = [];
+  }
+}
+
+/** The statuses the admin API will accept, narrowed to the ones legal from here. */
+const ADVANCEABLE: OrderStatus[] = [
+  'confirmed',
+  'processing',
+  'packed',
+  'shipped',
+  'out_for_delivery',
+  'delivered',
+  'returned',
+];
+const nextStatuses = order ? ADVANCEABLE.filter((s) => s !== order.status && canTransition(order.status, s)) : [];
+const cancellable = order !== null && canTransition(order.status, 'cancelled') && order.status !== 'cancelled';
+
+/**
+ * Timeline rows with their payload parsed once, here rather than in the markup:
+ * a generic call like `parseJson<Record<string, unknown>>(…)` inside the
+ * template reads as a JSX tag to the Astro compiler and fails the build.
+ */
+const timeline = (view?.events ?? []).map((event) => {
+  const data = parseJson<Record<string, unknown>>(event.data_json, {});
+  return { event, detail: Object.keys(data).length > 0 ? JSON.stringify(data) : null };
+});
+
+const refundable = order ? Math.max(0, order.total_paise - order.refunded_paise) : 0;
+const refundableNow =
+  order !== null && (order.payment_status === 'paid' || order.payment_status === 'partially_refunded') && refundable > 0;
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+const ACTOR_LABEL: Record<string, string> = {
+  system: 'System',
+  customer: 'Customer',
+  admin: 'Staff',
+  provider: 'Provider',
+};
+
+const CARD = 'rounded-md border border-ink/10 bg-white';
+const CARD_HEAD = 'border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold';
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const DT = 'text-[11px] font-semibold tracking-wide text-ink/50 uppercase';
+const CONTROL =
+  'block w-full min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const LABEL = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase';
+const BTN =
+  'min-h-9 w-full rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50';
+const BTN_QUIET =
+  'min-h-9 w-full rounded-md border border-ink/20 bg-white px-3 text-sm font-medium transition hover:border-ink/40 ' +
+  'hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const BTN_DANGER =
+  'min-h-9 w-full rounded-md bg-red-700 px-3 text-sm font-medium text-white transition hover:bg-red-800 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+---
+
+<AdminLayout
+  title={order ? `Order ${order.order_number}` : 'Order'}
+  subtitle={order ? `Placed ${stamp(order.placed_at)} IST · ${order.email}` : undefined}
+>
+  <div slot="actions" class="flex flex-wrap gap-2">
+    <a href="/admin/orders" class="min-h-9 rounded-md border border-ink/20 bg-white px-3 py-2 text-sm transition hover:border-ink/40">
+      ← All orders
+    </a>
+    {
+      order && (
+        <a
+          href={`/invoice/${order.id}`}
+          target="_blank"
+          rel="noopener"
+          class="min-h-9 rounded-md border border-ink/20 bg-white px-3 py-2 text-sm transition hover:border-ink/40"
+        >
+          Invoice
+        </a>
+      )
+    }
+  </div>
+
+  {
+    !order && (
+      <div class="rounded-md border border-red-600/30 bg-red-50 px-4 py-3 text-sm text-red-950">
+        <p class="font-semibold">That order is not here.</p>
+        <p class="mt-0.5">{loadError}</p>
+        <p class="mt-2">
+          <a href="/admin/orders" class="font-medium underline">
+            Back to the order list
+          </a>
+        </p>
+      </div>
+    )
+  }
+
+  {
+    order && view && (
+      <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+        {/* ── Left: what happened ───────────────────────────────────────── */}
+        <div class="space-y-4">
+          <section class={CARD} aria-label="Order state">
+            <div class="flex flex-wrap items-center gap-2 border-b border-ink/10 px-3 py-2">
+              <StatusBadge status={order.status} kind="order" />
+              <StatusBadge status={order.payment_status} kind="payment" />
+              <StatusBadge status={order.fulfillment_status} />
+              <span class="ml-auto text-xs text-ink/55">
+                {order.payment_method === 'cod' ? 'Cash on delivery' : 'Prepaid'} · zone {order.shipping_zone ?? '—'} ·{' '}
+                {order.total_weight_grams} g
+              </span>
+            </div>
+
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-2 px-3 py-3 text-sm sm:grid-cols-4">
+              <div>
+                <dt class={DT}>Placed</dt>
+                <dd class="tabular-nums">{stamp(order.placed_at)}</dd>
+              </div>
+              <div>
+                <dt class={DT}>Paid</dt>
+                <dd class="tabular-nums">{stamp(order.paid_at)}</dd>
+              </div>
+              <div>
+                <dt class={DT}>Shipped</dt>
+                <dd class="tabular-nums">{stamp(order.shipped_at)}</dd>
+              </div>
+              <div>
+                <dt class={DT}>Delivered</dt>
+                <dd class="tabular-nums">{stamp(order.delivered_at)}</dd>
+              </div>
+            </dl>
+
+            {order.reserved_until !== null && order.status === 'pending_payment' && (
+              <p class="border-t border-ink/8 px-3 py-2 text-xs text-amber-900">
+                Stock is held until {stamp(order.reserved_until)} IST. After that the order is cancelled automatically
+                and the jars go back on the shelf.
+              </p>
+            )}
+
+            {order.cancel_reason && (
+              <p class="border-t border-ink/8 px-3 py-2 text-xs text-red-900">
+                <span class={DT}>Cancelled because</span> {order.cancel_reason}
+              </p>
+            )}
+          </section>
+
+          <section class={CARD} aria-labelledby="items-heading">
+            <h2 id="items-heading" class={CARD_HEAD}>
+              Items
+            </h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-ink/10 bg-cream/60">
+                  <tr>
+                    <th scope="col" class={TH}>
+                      Product
+                    </th>
+                    <th scope="col" class={TH}>
+                      SKU
+                    </th>
+                    <th scope="col" class={`${TH} text-right`}>
+                      Unit
+                    </th>
+                    <th scope="col" class={`${TH} text-right`}>
+                      Qty
+                    </th>
+                    <th scope="col" class={`${TH} text-right`}>
+                      Line
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {view.items.map((item) => (
+                    <tr class="border-b border-ink/8 last:border-0">
+                      <td class={TD}>
+                        <span class="block">{item.product_name}</span>
+                        <span class="block text-xs text-ink/55">{item.variant_name}</span>
+                      </td>
+                      <td class={`${TD} font-mono text-xs text-ink/60`}>{item.sku}</td>
+                      <td class={`${TD} text-right tabular-nums`}>{formatPaise(item.unit_price_paise)}</td>
+                      <td class={`${TD} text-right tabular-nums`}>{item.qty}</td>
+                      <td class={`${TD} text-right tabular-nums`}>{formatPaise(item.total_paise)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <dl class="ml-auto max-w-xs space-y-1 px-3 py-3 text-sm">
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/65">Subtotal</dt>
+                <dd class="tabular-nums">{formatPaise(order.subtotal_paise)}</dd>
+              </div>
+              {order.discount_paise > 0 && (
+                <div class="flex justify-between gap-4">
+                  <dt class="text-ink/65">Discount {order.coupon_code ? `(${order.coupon_code})` : ''}</dt>
+                  <dd class="tabular-nums">−{formatPaise(order.discount_paise)}</dd>
+                </div>
+              )}
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/65">Delivery</dt>
+                <dd class="tabular-nums">{formatPaise(order.shipping_paise)}</dd>
+              </div>
+              {order.cod_fee_paise > 0 && (
+                <div class="flex justify-between gap-4">
+                  <dt class="text-ink/65">Cash handling</dt>
+                  <dd class="tabular-nums">{formatPaise(order.cod_fee_paise)}</dd>
+                </div>
+              )}
+              <div class="flex justify-between gap-4 border-t border-ink/10 pt-1 font-semibold">
+                <dt>Total</dt>
+                <dd class="tabular-nums">{formatPaise(order.total_paise)}</dd>
+              </div>
+              <div class="flex justify-between gap-4 text-xs text-ink/55">
+                <dt>GST contained in the total</dt>
+                <dd class="tabular-nums">{formatPaise(order.tax_paise)}</dd>
+              </div>
+              {order.refunded_paise > 0 && (
+                <div class="flex justify-between gap-4 text-xs text-red-800">
+                  <dt>Refunded</dt>
+                  <dd class="tabular-nums">−{formatPaise(order.refunded_paise)}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <section class={CARD} aria-labelledby="ship-to-heading">
+              <h2 id="ship-to-heading" class={CARD_HEAD}>
+                Deliver to
+              </h2>
+              <address class="px-3 py-3 text-sm not-italic leading-relaxed">
+                <span class="block font-medium">{view.shippingAddress.full_name}</span>
+                {view.shippingAddress.line1}
+                {view.shippingAddress.line2 && <>, {view.shippingAddress.line2}</>}
+                <br />
+                {view.shippingAddress.landmark && (
+                  <>
+                    <span class="text-ink/60">Near {view.shippingAddress.landmark}</span>
+                    <br />
+                  </>
+                )}
+                {view.shippingAddress.city}, {view.shippingAddress.state} {view.shippingAddress.pincode}
+                <br />
+                <a href={`tel:${view.shippingAddress.phone}`} class={LINK}>
+                  {view.shippingAddress.phone}
+                </a>
+              </address>
+            </section>
+
+            <section class={CARD} aria-labelledby="customer-heading">
+              <h2 id="customer-heading" class={CARD_HEAD}>
+                Customer
+              </h2>
+              <div class="space-y-2 px-3 py-3 text-sm">
+                <p>
+                  <a href={`/admin/customers?search=${encodeURIComponent(order.email)}`} class={LINK}>
+                    {order.customer_name}
+                  </a>
+                  <span class="ml-1 text-xs text-ink/50">{order.is_guest === 1 ? 'guest checkout' : 'has account'}</span>
+                </p>
+                <p class="break-all">
+                  <a href={`mailto:${order.email}`} class={LINK}>
+                    {order.email}
+                  </a>
+                </p>
+                <p>{order.phone}</p>
+
+                {order.customer_note && (
+                  <p class="rounded border border-mango-300/50 bg-mango-50 px-2 py-1.5 text-xs">
+                    <span class={DT}>Note from the customer</span>
+                    <br />
+                    {order.customer_note}
+                  </p>
+                )}
+
+                {order.admin_note && (
+                  <p class="rounded border border-ink/15 bg-ink/5 px-2 py-1.5 text-xs">
+                    <span class={DT}>Internal note</span>
+                    <br />
+                    {order.admin_note}
+                  </p>
+                )}
+
+                <p class="text-xs text-ink/50">
+                  Billing: {view.billingAddress.full_name}, {view.billingAddress.city} {view.billingAddress.pincode}
+                </p>
+              </div>
+            </section>
+          </div>
+
+          <section class={CARD} aria-labelledby="money-heading">
+            <h2 id="money-heading" class={CARD_HEAD}>
+              Payments and refunds
+            </h2>
+
+            {payments.length === 0 && refunds.length === 0 ? (
+              <p class="px-3 py-6 text-center text-sm text-ink/55">
+                No payment has been attempted yet
+                {order.payment_method === 'cod' ? ' — this is a cash-on-delivery order.' : '.'}
+              </p>
+            ) : (
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="border-b border-ink/10 bg-cream/60">
+                    <tr>
+                      <th scope="col" class={TH}>
+                        When
+                      </th>
+                      <th scope="col" class={TH}>
+                        Kind
+                      </th>
+                      <th scope="col" class={TH}>
+                        Provider reference
+                      </th>
+                      <th scope="col" class={`${TH} text-right`}>
+                        Amount
+                      </th>
+                      <th scope="col" class={TH}>
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((payment) => (
+                      <tr class="border-b border-ink/8 last:border-0">
+                        <td class={`${TD} text-xs whitespace-nowrap tabular-nums`}>{stamp(payment.created_at)}</td>
+                        <td class={TD}>
+                          Payment
+                          <span class="block text-xs text-ink/55">
+                            {payment.provider}
+                            {payment.method ? ` · ${payment.method}` : ''}
+                          </span>
+                        </td>
+                        <td class={`${TD} font-mono text-xs break-all text-ink/60`}>
+                          {payment.provider_payment_id ?? payment.provider_checkout_id ?? '—'}
+                          {payment.failure_reason && (
+                            <span class="mt-0.5 block font-sans text-red-800">{payment.failure_reason}</span>
+                          )}
+                        </td>
+                        <td class={`${TD} text-right tabular-nums`}>{formatPaise(payment.amount_paise)}</td>
+                        <td class={TD}>
+                          <StatusBadge status={payment.status} kind="payment" />
+                        </td>
+                      </tr>
+                    ))}
+
+                    {refunds.map((refund) => (
+                      <tr class="border-b border-ink/8 bg-red-50/40 last:border-0">
+                        <td class={`${TD} text-xs whitespace-nowrap tabular-nums`}>{stamp(refund.created_at)}</td>
+                        <td class={TD}>
+                          Refund
+                          <span class="block text-xs text-ink/55">{refund.reason ?? 'No reason recorded'}</span>
+                        </td>
+                        <td class={`${TD} font-mono text-xs break-all text-ink/60`}>{refund.provider_refund_id ?? '—'}</td>
+                        <td class={`${TD} text-right tabular-nums`}>−{formatPaise(refund.amount_paise)}</td>
+                        <td class={TD}>
+                          <StatusBadge status={refund.status} kind="payment" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section class={CARD} aria-labelledby="timeline-heading">
+            <h2 id="timeline-heading" class={CARD_HEAD}>
+              Timeline
+            </h2>
+            <ol class="divide-y divide-ink/8">
+              {timeline.map(({ event, detail }) => (
+                <li class="px-3 py-2 text-sm">
+                  <div class="flex flex-wrap items-baseline gap-x-2">
+                    <span class="font-mono text-[11px] text-ink/50 tabular-nums">{stamp(event.created_at)}</span>
+                    <span class="rounded bg-ink/8 px-1.5 py-0.5 text-[11px] text-ink/70">
+                      {ACTOR_LABEL[event.actor_type] ?? event.actor_type}
+                    </span>
+                    {event.is_customer_visible === 0 && (
+                      <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">
+                        staff only
+                      </span>
+                    )}
+                    <span class="font-mono text-[11px] text-ink/40">{event.type}</span>
+                  </div>
+                  <p class="mt-0.5">{event.message}</p>
+                  {detail && <p class="mt-0.5 font-mono text-[11px] break-all text-ink/45">{detail}</p>}
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
+
+        {/* ── Right: what you can do about it ───────────────────────────── */}
+        <div class="space-y-4">
+          <section class={CARD} aria-labelledby="parcel-heading">
+            <h2 id="parcel-heading" class={CARD_HEAD}>
+              Parcel
+            </h2>
+
+            {shipment ? (
+              <div class="space-y-3 px-3 py-3 text-sm">
+                <div class="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={shipment.status} kind="shipment" />
+                  <span class="text-xs text-ink/55">{shipment.courier_name ?? 'Courier not assigned'}</span>
+                </div>
+
+                <dl class="space-y-1 text-xs">
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-ink/55">AWB</dt>
+                    <dd class="font-mono break-all">{shipment.awb_code ?? '—'}</dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-ink/55">Booked</dt>
+                    <dd class="tabular-nums">{stamp(shipment.created_at)}</dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-ink/55">Expected</dt>
+                    <dd class="tabular-nums">{stamp(shipment.estimated_delivery_at)}</dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-ink/55">Courier charge</dt>
+                    <dd class="tabular-nums">{formatPaise(shipment.charges_paise)}</dd>
+                  </div>
+                </dl>
+
+                <div class="grid gap-2">
+                  <form
+                    data-api={`/api/admin/shipments/${shipment.id}`}
+                    data-method="POST"
+                    data-success-message="Tracking refreshed from the courier."
+                  >
+                    <input type="hidden" name="action" value="refresh" />
+                    <button type="submit" class={BTN_QUIET}>Refresh tracking</button>
+                  </form>
+
+                  <form
+                    data-api={`/api/admin/shipments/${shipment.id}`}
+                    data-method="POST"
+                    data-success-message="Label requested from the courier."
+                  >
+                    <input type="hidden" name="action" value="label" />
+                    <button type="submit" class={BTN_QUIET}>Print label</button>
+                  </form>
+
+                  {shipment.label_url && (
+                    <a
+                      href={shipment.label_url}
+                      target="_blank"
+                      rel="noopener"
+                      class={`${BTN_QUIET} inline-flex items-center justify-center`}
+                    >
+                      Open label{shippingProvider === 'mock' ? ' (simulated)' : ''}
+                    </a>
+                  )}
+
+                  {shipment.tracking_url && (
+                    <a
+                      href={shipment.tracking_url}
+                      target="_blank"
+                      rel="noopener"
+                      class={`${BTN_QUIET} inline-flex items-center justify-center`}
+                    >
+                      Track parcel
+                    </a>
+                  )}
+                </div>
+
+                {shippingProvider === 'mock' && shipment.provider_shipment_id && (
+                  <form
+                    class="space-y-2 rounded border border-amber-600/40 bg-amber-50 px-2.5 py-2"
+                    data-api="/api/mock/advance-shipment"
+                    data-method="POST"
+                    data-success-message="Simulated parcel advanced."
+                  >
+                    <p class="text-[11px] text-amber-900">
+                      The courier is simulated. Advancing fires a real signed webhook through the tracking pipeline, so
+                      the customer emails and status changes are the production ones.
+                    </p>
+                    <input type="hidden" name="provider_shipment_id" value={shipment.provider_shipment_id} />
+                    <div>
+                      <label for="mock-to" class={LABEL}>
+                        Jump to
+                      </label>
+                      <select id="mock-to" name="to" data-json="optional" class={CONTROL}>
+                        <option value="">Next scan</option>
+                        <option value="pickup_scheduled">Pickup scheduled</option>
+                        <option value="picked_up">Picked up</option>
+                        <option value="in_transit">In transit</option>
+                        <option value="out_for_delivery">Out for delivery</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="failed_delivery">Delivery attempt failed</option>
+                        <option value="rto_initiated">Return to origin</option>
+                      </select>
+                    </div>
+                    <button type="submit" class={BTN}>Advance parcel</button>
+                  </form>
+                )}
+
+                {shipmentEvents.length > 0 && (
+                  <ol class="space-y-1.5 border-t border-ink/8 pt-2 text-xs">
+                    {shipmentEvents.map((event) => (
+                      <li>
+                        <span class="font-mono text-[11px] text-ink/45 tabular-nums">{stamp(event.occurred_at)}</span>
+                        <span class="block">{event.description}</span>
+                        {event.location && <span class="block text-ink/50">{event.location}</span>}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            ) : (
+              <div class="space-y-3 px-3 py-3">
+                {bookable ? (
+                  <form
+                    class="space-y-2"
+                    data-api={`/api/admin/orders/${order.id}`}
+                    data-method="PATCH"
+                    data-success-message="Parcel booked with the courier."
+                  >
+                    <input type="hidden" name="action" value="ship" />
+                    <div>
+                      <label for="courier" class={LABEL}>
+                        Courier
+                      </label>
+                      <select id="courier" name="courier_id" data-json="optional" class={CONTROL}>
+                        <option value="">Cheapest available</option>
+                        {quotes.map((quote) => (
+                          <option value={quote.courierId}>
+                            {quote.courierName} · {formatPaise(quote.ratePaise)}{quote.estimatedDays
+                              ? ` · ${quote.estimatedDays}d`
+                              : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {quotes.length === 0 && (
+                        <p class="mt-1 text-xs text-ink/55">
+                          No live quotes came back, so the courier will be chosen by the aggregator.
+                        </p>
+                      )}
+                    </div>
+                    <button type="submit" class={BTN}>Book parcel</button>
+                  </form>
+                ) : (
+                  <p class="text-sm text-ink/55">
+                    {order.status === 'pending_payment'
+                      ? 'Nothing to book until this order is paid for or confirmed by hand.'
+                      : 'This order is not in a state that can be shipped.'}
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section class={CARD} aria-labelledby="status-heading">
+            <h2 id="status-heading" class={CARD_HEAD}>
+              Move this order on
+            </h2>
+            <div class="space-y-3 px-3 py-3">
+              {nextStatuses.length > 0 ? (
+                <form
+                  class="space-y-2"
+                  data-api={`/api/admin/orders/${order.id}`}
+                  data-method="PATCH"
+                  data-success-message="Order status updated."
+                >
+                  <input type="hidden" name="action" value="status" />
+                  <div>
+                    <label for="next-status" class={LABEL}>
+                      New status
+                    </label>
+                    <select id="next-status" name="status" class={CONTROL} required>
+                      {nextStatuses.map((value) => (
+                        <option value={value}>{STATUS_LABEL[value]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label for="status-note" class={LABEL}>
+                      Note for the timeline (optional)
+                    </label>
+                    <input id="status-note" name="note" type="text" maxlength="500" class={CONTROL} />
+                  </div>
+                  <button type="submit" class={BTN}>Update status</button>
+                </form>
+              ) : (
+                <p class="text-sm text-ink/55">
+                  {STATUS_LABEL[order.status]} is the end of the line for this order — nothing further to move it to.
+                </p>
+              )}
+
+              <form
+                data-api={`/api/admin/orders/${order.id}`}
+                data-method="PATCH"
+                data-success-message="Confirmation email re-sent."
+              >
+                <input type="hidden" name="action" value="resend_confirmation" />
+                <button type="submit" class={BTN_QUIET}>Resend confirmation email</button>
+              </form>
+            </div>
+          </section>
+
+          <section class={CARD} aria-labelledby="note-heading">
+            <h2 id="note-heading" class={CARD_HEAD}>
+              Internal note
+            </h2>
+            <form
+              class="space-y-2 px-3 py-3"
+              data-api={`/api/admin/orders/${order.id}`}
+              data-method="PATCH"
+              data-success-message="Internal note saved."
+            >
+              <input type="hidden" name="action" value="note" />
+              <label for="admin-note" class="sr-only">
+                Internal note
+              </label>
+              <textarea
+                id="admin-note"
+                name="note"
+                rows="3"
+                maxlength="2000"
+                class:list={[CONTROL, 'resize-y leading-relaxed']}
+                placeholder="Only staff see this. Saving an empty box clears it."
+              >{order.admin_note ?? ''}</textarea>
+              <button type="submit" class={BTN_QUIET}>Save note</button>
+            </form>
+          </section>
+
+          <section class={CARD} aria-labelledby="refund-heading">
+            <h2 id="refund-heading" class={CARD_HEAD}>
+              Refund
+            </h2>
+            <div class="px-3 py-3">
+              {refundableNow ? (
+                <form
+                  class="space-y-2"
+                  data-api={`/api/admin/orders/${order.id}`}
+                  data-method="PATCH"
+                  data-confirm="Issue this refund? The money leaves the account and it cannot be undone from here."
+                  data-success-message="Refund issued."
+                >
+                  <input type="hidden" name="action" value="refund" />
+                  <div>
+                    <label for="refund-amount" class={LABEL}>
+                      Amount in rupees (₹)
+                    </label>
+                    <input
+                      id="refund-amount"
+                      name="amount_paise"
+                      data-json="paise"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={(refundable / 100).toFixed(2)}
+                      inputmode="decimal"
+                      class={CONTROL}
+                      placeholder={`Leave blank for the full ${formatPaise(refundable)}`}
+                    />
+                    <p class="mt-1 text-xs text-ink/55">
+                      Entered in rupees and converted to paise on submit. {formatPaise(refundable)} is still refundable.
+                    </p>
+                  </div>
+                  <div>
+                    <label for="refund-reason" class={LABEL}>
+                      Reason
+                    </label>
+                    <input
+                      id="refund-reason"
+                      name="reason"
+                      type="text"
+                      maxlength="300"
+                      class={CONTROL}
+                      placeholder="Jar arrived broken"
+                    />
+                  </div>
+                  <button type="submit" class={BTN_DANGER}>Issue refund</button>
+                </form>
+              ) : (
+                <p class="text-sm text-ink/55">
+                  {order.refunded_paise >= order.total_paise && order.total_paise > 0
+                    ? 'This order has already been refunded in full.'
+                    : 'There is no captured payment on this order to refund.'}
+                </p>
+              )}
+            </div>
+          </section>
+
+          {cancellable && (
+            <section class={CARD} aria-labelledby="cancel-heading">
+              <h2 id="cancel-heading" class={CARD_HEAD}>
+                Cancel
+              </h2>
+              <form
+                class="space-y-2 px-3 py-3"
+                data-api={`/api/admin/orders/${order.id}`}
+                data-method="PATCH"
+                data-confirm="Cancel this order? The stock goes back on the shelf and the customer is emailed."
+                data-success-message="Order cancelled."
+              >
+                <input type="hidden" name="action" value="status" />
+                <input type="hidden" name="status" value="cancelled" />
+                <div>
+                  <label for="cancel-reason" class={LABEL}>
+                    Reason (the customer sees this)
+                  </label>
+                  <input
+                    id="cancel-reason"
+                    name="note"
+                    type="text"
+                    maxlength="500"
+                    required
+                    class={CONTROL}
+                    placeholder="Out of stock after the batch went wrong"
+                  />
+                </div>
+                <p class="text-xs text-ink/55">
+                  Cancelling returns the jars to stock. Money already collected is not refunded automatically — issue
+                  the refund above as well.
+                </p>
+                <button type="submit" class={BTN_DANGER}>Cancel order</button>
+              </form>
+            </section>
+          )}
+        </div>
+      </div>
+    )
+  }
+</AdminLayout>

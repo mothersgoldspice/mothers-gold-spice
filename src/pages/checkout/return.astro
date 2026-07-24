@@ -1,0 +1,282 @@
+---
+/**
+ * Where the payment gateway sends the customer back to.
+ *
+ * The URL it returns them to proves nothing — `?success=1` is a string a browser
+ * can edit, and the buyer almost always lands here BEFORE the provider's webhook
+ * arrives. So the page asks our own /api/checkout/status, which asks the
+ * provider, and waits for a real answer.
+ *
+ * With JavaScript switched off it degrades to the status as it stands right now
+ * plus a link to look again, which is the truthful thing to show: the order
+ * exists either way, and the confirmation email is sent by the webhook rather
+ * than by anything on this page.
+ *
+ * A guest's access token is not in the gateway's return URL, so the checkout
+ * page parks it in sessionStorage on the way out and the script below picks it
+ * up on the way back.
+ */
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Money from '../../components/shop/Money.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import StatusBadge from '../../components/shop/StatusBadge.astro';
+import { requireCtx } from '../../lib/api';
+import type { OrderRow } from '../../lib/db/types';
+import { assertOrderAccess, getOrderById } from '../../lib/services/orders';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+const orderId = Astro.url.searchParams.get('order') ?? '';
+const token = Astro.url.searchParams.get('t');
+const cancelledByCustomer = Astro.url.searchParams.get('cancelled') === '1';
+
+let order: OrderRow | null = null;
+let readable = false;
+
+if (orderId) {
+  const found = await getOrderById(ctx.db, orderId);
+  if (found) {
+    order = found;
+    try {
+      await assertOrderAccess(ctx, found, token);
+      readable = true;
+    } catch {
+      // A guest whose token is only in sessionStorage. The page still renders;
+      // the script below supplies the token and polls with it.
+      readable = false;
+    }
+  }
+}
+
+// Nothing more to wait for — send them to the receipt.
+if (readable && order && (order.payment_status === 'paid' || order.status === 'confirmed')) {
+  return Astro.redirect(
+    `/checkout/confirmed?order=${encodeURIComponent(order.id)}${token ? `&t=${encodeURIComponent(token)}` : ''}`,
+  );
+}
+
+type Phase = 'missing' | 'confirming' | 'failed' | 'cancelled';
+
+const phase: Phase = !order
+  ? 'missing'
+  : order.status === 'cancelled'
+    ? 'cancelled'
+    : order.status === 'payment_failed' || order.payment_status === 'failed'
+      ? 'failed'
+      : 'confirming';
+
+const confirmedHref = order
+  ? `/checkout/confirmed?order=${encodeURIComponent(order.id)}${token ? `&t=${encodeURIComponent(token)}` : ''}`
+  : '/shop';
+const retryHref = order ? `/checkout/retry/${order.id}${token ? `?t=${encodeURIComponent(token)}` : ''}` : '/cart';
+---
+
+<ShopLayout title="Confirming your payment" user={ctx.user}>
+  {
+    phase === 'missing' ? (
+      <div class="rounded-3xl border border-mango-100 bg-white/60 px-6 py-14 text-center">
+        <h1 class="font-serif text-2xl text-ink sm:text-3xl">We could not find that order</h1>
+        <p class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink/65">
+          The link may be incomplete. If you have just paid, your receipt is on its way by email and it carries a
+          tracking link.
+        </p>
+        <p class="mt-7">
+          <Button href="/track">Look up an order</Button>
+        </p>
+      </div>
+    ) : (
+      <div
+        data-return
+        data-order-id={order?.id}
+        data-token={token ?? ''}
+        data-phase={phase}
+        data-confirmed-href={confirmedHref}
+        data-retry-href={retryHref}
+      >
+        <div class="rounded-3xl border border-mango-100 bg-white/70 p-6 text-center sm:p-10">
+          {/* The spinner is decorative; the words below it carry the state. */}
+          <span
+            class="mx-auto mb-5 block size-10 animate-spin rounded-full border-3 border-mango-100 border-t-spice-500"
+            data-spinner
+            aria-hidden="true"
+            hidden={phase !== 'confirming'}
+          />
+
+          <h1 class="font-serif text-2xl text-ink sm:text-3xl" data-headline>
+            {phase === 'confirming' && 'Confirming your payment'}
+            {phase === 'failed' && 'That payment did not go through'}
+            {phase === 'cancelled' && 'That order was cancelled'}
+          </h1>
+
+          <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink/70" data-detail>
+            {phase === 'confirming' &&
+              (cancelledByCustomer
+                ? 'It looks like you came back without finishing the payment. We are checking with the gateway just in case it did go through — this takes a few seconds.'
+                : 'Your bank and our gateway are settling this between them. It usually takes a few seconds. Please do not close this page.')}
+            {phase === 'failed' &&
+              'No money has left your account. Your jars are still held for you — you can try the payment again.'}
+            {phase === 'cancelled' &&
+              'Nothing was charged and the stock has gone back on the shelf. You are welcome to order again whenever you like.'}
+          </p>
+
+          {order && (
+            <div class="mx-auto mt-6 max-w-sm rounded-2xl bg-mango-50/70 px-4 py-3 text-sm">
+              <p class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-ink/70">Order</span>
+                <span class="font-semibold text-ink">{order.order_number}</span>
+              </p>
+              {readable && (
+                <>
+                  <p class="mt-1 flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-ink/70">Amount</span>
+                    <Money paise={order.total_paise} class="font-semibold text-ink" />
+                  </p>
+                  <p class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-ink/70">Status</span>
+                    <span data-status-badge>
+                      <StatusBadge status={order.status} />
+                    </span>
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          <div class="mt-7 flex flex-wrap justify-center gap-3" data-actions hidden={phase === 'confirming'}>
+            {phase === 'failed' && <Button href={retryHref}>Try the payment again</Button>}
+            {phase === 'cancelled' && <Button href="/shop">Back to the shop</Button>}
+            <Button href="/track" variant="secondary">Look up my order</Button>
+          </div>
+
+          <p class="mt-6 text-sm text-ink/55" data-slow hidden>
+            This is taking longer than usual. Your order is safe — the moment the payment settles we send the receipt by
+            email.
+          </p>
+
+          <noscript>
+            <p class="mx-auto mt-6 max-w-md rounded-2xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+              This page normally checks the payment for you every couple of seconds. With JavaScript switched off, the
+              status above is as it stands right now —
+              <a href={`/checkout/return?order=${encodeURIComponent(orderId)}${token ? `&t=${encodeURIComponent(token)}` : ''}`} class="font-medium underline">
+                look again
+              </a>
+              in a few seconds, or wait for the email.
+            </p>
+          </noscript>
+        </div>
+      </div>
+    )
+  }
+</ShopLayout>
+
+<script>
+  /**
+   * Poll until the payment settles, for about thirty seconds.
+   *
+   * The provider is the authority, and /api/checkout/status is what asks it —
+   * which is also the belt-and-braces path that confirms an order whose webhook
+   * was lost. Giving up politely is deliberate: the order is durable either way
+   * and the receipt is sent by the webhook, not by this page.
+   */
+  const root = document.querySelector<HTMLElement>('[data-return]');
+
+  if (root && root.dataset.phase === 'confirming') {
+    const orderId = root.dataset.orderId ?? '';
+    const confirmedHref = root.dataset.confirmedHref ?? '/shop';
+    const retryHref = root.dataset.retryHref ?? '/cart';
+
+    // A guest's token lives in sessionStorage because the gateway's return URL
+    // cannot carry it. Put it back in the address bar so a refresh still works.
+    let token = root.dataset.token ?? '';
+    if (!token && orderId) {
+      token = window.sessionStorage.getItem(`mgs:order-token:${orderId}`) ?? '';
+      if (token) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('t', token);
+        window.history.replaceState(null, '', url.toString());
+      }
+    }
+
+    const withToken = (href: string) => {
+      if (!token) return href;
+      const url = new URL(href, window.location.origin);
+      url.searchParams.set('t', token);
+      return `${url.pathname}${url.search}`;
+    };
+
+    const spinner = root.querySelector<HTMLElement>('[data-spinner]');
+    const headline = root.querySelector<HTMLElement>('[data-headline]');
+    const detail = root.querySelector<HTMLElement>('[data-detail]');
+    const actions = root.querySelector<HTMLElement>('[data-actions]');
+    const slow = root.querySelector<HTMLElement>('[data-slow]');
+
+    const stop = () => {
+      if (spinner) spinner.hidden = true;
+      if (actions) actions.hidden = false;
+    };
+
+    const showFailure = () => {
+      stop();
+      if (headline) headline.textContent = 'That payment did not go through';
+      if (detail) {
+        detail.textContent = 'No money has left your account. Your jars are still held for you — try again when ready.';
+      }
+      if (actions && !actions.querySelector('[data-retry-link]')) {
+        const link = document.createElement('a');
+        link.href = withToken(retryHref);
+        link.dataset.retryLink = '';
+        link.className =
+          'inline-flex min-h-11 items-center justify-center rounded-full bg-spice-500 px-6 text-sm font-medium ' +
+          'text-cream no-underline shadow-lg shadow-spice-700/20 transition hover:bg-spice-700';
+        link.textContent = 'Try the payment again';
+        actions.prepend(link);
+      }
+    };
+
+    const MAX_ATTEMPTS = 15;
+    const INTERVAL_MS = 2000;
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const query = new URLSearchParams({ order: orderId });
+        if (token) query.set('t', token);
+        const response = await fetch(`/api/checkout/status?${query.toString()}`, {
+          headers: { Accept: 'application/json' },
+        });
+        const payload = (await response.json()) as
+          | { ok: true; data: { status: string; paymentStatus: string; settled: boolean } }
+          | { ok: false; error: { message: string } };
+
+        if (payload.ok) {
+          const { status, paymentStatus, settled } = payload.data;
+          const paid = paymentStatus === 'paid' || (status !== 'pending_payment' && status !== 'payment_failed');
+
+          if (paid && status !== 'cancelled') {
+            window.location.replace(withToken(confirmedHref));
+            return;
+          }
+          if (settled || status === 'payment_failed' || status === 'cancelled') {
+            showFailure();
+            return;
+          }
+        }
+      } catch {
+        // A dropped request mid-poll is not an answer. Try again.
+      }
+
+      if (attempts >= MAX_ATTEMPTS) {
+        stop();
+        if (slow) slow.hidden = false;
+        return;
+      }
+      window.setTimeout(() => void poll(), INTERVAL_MS);
+    };
+
+    window.setTimeout(() => void poll(), INTERVAL_MS);
+  }
+</script>

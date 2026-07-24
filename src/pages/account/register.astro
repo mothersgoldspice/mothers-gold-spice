@@ -1,0 +1,290 @@
+---
+/**
+ * Create an account.
+ *
+ * Handled in the page so it works with no JavaScript, calling the same services
+ * as /api/auth/register.
+ *
+ * Both outcomes — a new account, or an address that already has one — end on
+ * exactly this URL with exactly this copy. A different destination for "that
+ * email is taken" would turn the form into a list of our customers for anyone
+ * patient enough to feed it addresses, which is the whole reason
+ * `registerUser` reports a collision instead of throwing.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { rateKey, requireCtx } from '../../lib/api';
+import { CART_COOKIE, CART_TTL_MS, setCookie } from '../../lib/auth/cookies';
+import { startSession } from '../../lib/auth/session';
+import { siteUrl } from '../../lib/env';
+import { isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log, maskEmail } from '../../lib/log';
+import { passwordReset, storeContext, verifyEmail } from '../../lib/providers/email/templates';
+import { RATE_LIMITS, enforceRateLimit } from '../../lib/rate-limit';
+import { EMAIL_VERIFY_TTL_MS, PASSWORD_RESET_TTL_MS, issueToken, registerUser } from '../../lib/services/accounts';
+import { mergeCarts } from '../../lib/services/cart';
+import { queueAndSend } from '../../lib/services/notify';
+import { parseOrThrow, registerSchema } from '../../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+/** Same rule as the sign-in page: a relative path on this site, or nothing. */
+function safeNext(raw: string | null): string {
+  const fallback = '/account';
+  if (!raw || !raw.startsWith('/')) return fallback;
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return fallback;
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return fallback;
+  return raw;
+}
+
+/** Per-field messages parseOrThrow attaches, so each input can carry its own. */
+function fieldErrorsOf(err: unknown): Record<string, string> {
+  if (!isAppError(err) || !err.expose) return {};
+  const details = err.details;
+  if (details && typeof details === 'object' && 'fields' in details) {
+    const fields = (details as { fields?: unknown }).fields;
+    if (fields && typeof fields === 'object') return fields as Record<string, string>;
+  }
+  return {};
+}
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+const nextQuery = next === '/account' ? '' : `&next=${encodeURIComponent(next)}`;
+const sent = Astro.url.searchParams.get('sent') === '1';
+
+if (ctx.user && !sent && Astro.request.method === 'GET') return Astro.redirect(next, 303);
+
+let error = '';
+let fieldErrors: Record<string, string> = {};
+const values = { name: '', email: '', phone: '', marketing: false };
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values.name = String(form.get('name') ?? '').trim();
+  values.email = String(form.get('email') ?? '').trim();
+  values.phone = String(form.get('phone') ?? '').trim();
+  values.marketing = form.get('marketing_opt_in') !== null;
+
+  try {
+    await enforceRateLimit(ctx.db, rateKey(ctx, 'register'), RATE_LIMITS.register);
+
+    const input = parseOrThrow(registerSchema, {
+      name: values.name,
+      email: values.email,
+      password: String(form.get('password') ?? ''),
+      // The phone field is optional, and an empty string is not a phone number —
+      // omit the key so the schema's `.optional()` sees it as absent.
+      ...(values.phone ? { phone: values.phone } : {}),
+      marketing_opt_in: values.marketing,
+    });
+
+    const settings = await ctx.settings();
+    const store = storeContext(ctx.env);
+    const outcome = await registerUser(ctx.db, {
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      phone: input.phone,
+      marketingOptIn: input.marketing_opt_in,
+    });
+
+    if (outcome.created) {
+      const mail = verifyEmail({
+        store,
+        name: outcome.user.name || 'there',
+        verifyUrl: `${siteUrl(ctx.env)}/account/verify?token=${encodeURIComponent(outcome.verificationToken)}`,
+        expiresAt: Date.now() + EMAIL_VERIFY_TTL_MS,
+      });
+      await queueAndSend(ctx, {
+        to: outcome.user.email,
+        toName: outcome.user.name,
+        subject: mail.subject,
+        template: mail.template,
+        text: mail.text,
+        html: mail.html,
+        userId: outcome.user.id,
+        idempotencyKey: `verify:${outcome.user.id}:${Math.floor(Date.now() / 60000)}`,
+      });
+
+      // Signed in straight away: verification gates the badge and marketing
+      // consent, not ordering.
+      await startSession(ctx.db, Astro.cookies, ctx.env, {
+        userId: outcome.user.id,
+        ip: ctx.clientIp,
+        userAgent: Astro.request.headers.get('user-agent') ?? '',
+      });
+
+      if (ctx.cartId) {
+        const merged = await mergeCarts(ctx.db, ctx.cartId, outcome.user.id, settings);
+        if (merged !== ctx.cartId) setCookie(Astro.cookies, ctx.env, CART_COOKIE, merged, CART_TTL_MS);
+      }
+    } else {
+      // Tell the real owner, not whoever filled the form in. If it was them,
+      // a reset link is exactly what they need; if it was not, they learn that
+      // somebody tried.
+      const token = await issueToken(ctx.db, {
+        userId: outcome.existingUser.id,
+        purpose: 'password_reset',
+        email: outcome.existingUser.email,
+        ttlMs: PASSWORD_RESET_TTL_MS,
+      });
+      const mail = passwordReset({
+        store,
+        name: outcome.existingUser.name || 'there',
+        resetUrl: `${siteUrl(ctx.env)}/account/reset?token=${encodeURIComponent(token)}`,
+        expiresAt: Date.now() + PASSWORD_RESET_TTL_MS,
+      });
+      await queueAndSend(ctx, {
+        to: outcome.existingUser.email,
+        toName: outcome.existingUser.name,
+        subject: mail.subject,
+        template: mail.template,
+        text: mail.text,
+        html: mail.html,
+        userId: outcome.existingUser.id,
+        idempotencyKey: `signup_collision:${outcome.existingUser.id}:${Math.floor(Date.now() / 3600000)}`,
+      });
+      log.info('auth.register_collision', { email: maskEmail(input.email) });
+    }
+
+    return Astro.redirect(`/account/register?sent=1${nextQuery}`, 303);
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.register_page_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+    fieldErrors = fieldErrorsOf(err);
+  }
+}
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+
+const CHECKBOX =
+  'mt-0.5 size-5 shrink-0 rounded border-ink/25 text-spice-500 focus:ring-2 focus:ring-spice-500/30';
+---
+
+<ShopLayout
+  title={sent ? 'Check your email' : 'Create an account'}
+  description="Create an account to save your address and follow every order from the kitchen to your door."
+  user={ctx.user}
+  cartCount={cartCount}
+>
+  <div class="mx-auto max-w-md">
+    {
+      sent ? (
+        <div class="text-center">
+          <h1 class="font-serif text-3xl font-semibold text-ink">Check your email</h1>
+          <p class="mt-3 text-sm leading-relaxed text-ink/70">
+            We have sent an email to that address. Open the link inside it to finish setting up your
+            account. If nothing arrives in a few minutes, please look in the spam folder.
+          </p>
+
+          <div class="mt-8 space-y-3">
+            {ctx.user ? (
+              <Button href={next} size="lg" class="w-full">
+                Continue to your account
+              </Button>
+            ) : (
+              <Button href="/account/login" size="lg" class="w-full">
+                Sign in
+              </Button>
+            )}
+            <Button href="/shop" variant="secondary" size="lg" class="w-full">
+              Browse the shop
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h1 class="font-serif text-3xl font-semibold text-ink">Create an account</h1>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">
+            Saves your address for next time, and keeps every order in one place.
+          </p>
+
+          {error && (
+            <Alert kind="error" title="Please check the form" class="mt-6">
+              {error}
+            </Alert>
+          )}
+
+          <form method="post" class="mt-8 space-y-5">
+            <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+
+            <Field
+              label="Your name"
+              name="name"
+              value={values.name}
+              required
+              autocomplete="name"
+              maxlength={120}
+              error={fieldErrors.name}
+            />
+
+            <Field
+              label="Email address"
+              name="email"
+              type="email"
+              value={values.email}
+              required
+              autocomplete="email"
+              inputmode="email"
+              placeholder="you@example.com"
+              hint="Order updates and receipts go here."
+              error={fieldErrors.email}
+            />
+
+            <Field
+              label="Password"
+              name="password"
+              type="password"
+              required
+              autocomplete="new-password"
+              hint="At least 10 characters — a short phrase is easier to remember and harder to guess."
+              error={fieldErrors.password}
+            />
+
+            <Field
+              label="Mobile number"
+              name="phone"
+              type="tel"
+              value={values.phone}
+              autocomplete="tel"
+              inputmode="tel"
+              placeholder="98765 43210"
+              hint="Optional. The courier calls this number on delivery day."
+              error={fieldErrors.phone}
+            />
+
+            <label class="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-ink/75">
+              <input type="checkbox" name="marketing_opt_in" checked={values.marketing} class={CHECKBOX} />
+              <span>Tell me when a new batch or a new pickle is ready. No more than once a month.</span>
+            </label>
+
+            <Button type="submit" size="lg" class="w-full">
+              Create my account
+            </Button>
+          </form>
+
+          <p class="mt-6 text-center text-sm text-ink/65">
+            Already have an account?{' '}
+            <a
+              href="/account/login"
+              class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+            >
+              Sign in
+            </a>
+          </p>
+        </>
+      )
+    }
+  </div>
+</ShopLayout>

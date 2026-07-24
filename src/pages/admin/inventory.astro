@@ -1,0 +1,367 @@
+---
+/**
+ * Stock, with the three numbers kept apart.
+ *
+ * On hand is what is on the shelf, reserved is what unpaid orders are holding,
+ * and available is what can still be sold. Showing only one of them is how a jar
+ * gets sold twice, so all three are columns and the arithmetic between them is
+ * never hidden.
+ *
+ * Adjustments post to `/api/admin/inventory`, which writes through `adjustStock`
+ * and leaves a row in `inventory_ledger`. There is deliberately no direct edit of
+ * `on_hand` anywhere on this page: a count that changed with no reason attached
+ * is a count nobody can reconcile at the end of the month. That is also why the
+ * ledger is on the same screen — the correction and its history belong together.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin, requireCtx } from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+interface StockRow {
+  variant_id: string;
+  sku: string;
+  variant_name: string;
+  product_name: string;
+  price_paise: number;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  reorder_level: number;
+  track: number;
+  updated_at: number | null;
+}
+
+interface LedgerRow {
+  id: string;
+  delta: number;
+  reason: string;
+  ref_type: string | null;
+  ref_id: string | null;
+  note: string | null;
+  actor_id: string | null;
+  created_at: number;
+  sku: string;
+  variant_name: string;
+  product_name: string;
+  actor_name: string | null;
+}
+
+const [stock, ledger] = await Promise.all([
+  // LEFT JOIN, not JOIN: a variant that has never been counted has no inventory
+  // row, and leaving it off this list is exactly how it stays uncounted.
+  ctx.db.all<StockRow>(
+    `SELECT v.id AS variant_id, v.sku, v.name AS variant_name, v.price_paise,
+            p.name AS product_name,
+            COALESCE(i.on_hand, 0) AS on_hand,
+            COALESCE(i.reserved, 0) AS reserved,
+            COALESCE(i.on_hand, 0) - COALESCE(i.reserved, 0) AS available,
+            COALESCE(i.reorder_level, 0) AS reorder_level,
+            COALESCE(i.track, 1) AS track,
+            i.updated_at
+       FROM product_variants v
+       JOIN products p ON p.id = v.product_id
+       LEFT JOIN inventory i ON i.variant_id = v.id
+      WHERE v.status = 'active' AND p.status <> 'archived'
+      ORDER BY p.sort_order, p.name, v.sort_order, v.weight_grams`,
+  ),
+  ctx.db.all<LedgerRow>(
+    `SELECT l.id, l.delta, l.reason, l.ref_type, l.ref_id, l.note, l.actor_id, l.created_at,
+            v.sku, v.name AS variant_name, p.name AS product_name, u.name AS actor_name
+       FROM inventory_ledger l
+       JOIN product_variants v ON v.id = l.variant_id
+       JOIN products p ON p.id = v.product_id
+       LEFT JOIN users u ON u.id = l.actor_id
+      ORDER BY l.created_at DESC
+      LIMIT 60`,
+  ),
+]);
+
+const REASONS = [
+  { value: 'restock', label: 'Restock — new batch' },
+  { value: 'correction', label: 'Correction — recount' },
+  { value: 'spoilage', label: 'Spoilage — jar lost' },
+  { value: 'return', label: 'Return — came back saleable' },
+];
+
+const totalOnHand = stock.reduce((sum, row) => sum + row.on_hand, 0);
+
+/**
+ * At or below the reorder threshold — time to cook another batch.
+ *
+ * Lives here rather than inline in the table because a `<=` written inside a
+ * template expression is parsed by Astro as the beginning of a JSX tag, and the
+ * build then fails somewhere else entirely with a message about Fragment
+ * shorthand. Comparisons in this file belong in the frontmatter.
+ */
+const isLow = (row: { track: number; available: number; reorder_level: number }): boolean =>
+  row.track === 1 && row.available <= row.reorder_level;
+
+const lowCount = stock.filter(isLow).length;
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CONTROL =
+  'min-h-9 w-full rounded-md border border-ink/15 bg-white px-2 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const BTN =
+  'min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium whitespace-nowrap text-cream transition ' +
+  'hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2';
+const BTN_QUIET =
+  'min-h-9 rounded-md border border-ink/20 bg-white px-2.5 text-sm font-medium whitespace-nowrap transition ' +
+  'hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+---
+
+<AdminLayout
+  title="Inventory"
+  subtitle={`${stock.length} active variants · ${totalOnHand} jars on hand · ${lowCount} at or below reorder level`}
+>
+  <section class="rounded-md border border-ink/10 bg-white" aria-labelledby="stock-heading">
+    <h2 id="stock-heading" class="border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold">Stock on hand</h2>
+
+    {
+      stock.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          No active variants. Seed the catalogue before anything can be stocked.
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Variant
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  On hand
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Reserved
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Available
+                </th>
+                <th scope="col" class={TH}>
+                  Reorder at
+                </th>
+                <th scope="col" class={TH}>
+                  Adjust
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {stock.map((row) => {
+                // `isLow` is computed in the frontmatter rather than here: a `<=`
+                // inside a template expression is read by the Astro parser as the
+                // start of a JSX tag, and the build fails with a bewildering
+                // "Unable to assign attributes when using <> Fragment shorthand".
+                const low = isLow(row);
+                return (
+                  <tr class:list={['border-b border-ink/8 last:border-0', low && 'bg-amber-50']}>
+                    <td class={TD}>
+                      <span class="block">
+                        {row.product_name} <span class="text-ink/70">{row.variant_name}</span>
+                      </span>
+                      <span class="block font-mono text-[11px] text-ink/50">{row.sku}</span>
+                      <span class="block text-[11px] text-ink/45">
+                        {formatPaise(row.price_paise)}
+                        {row.track === 0 ? ' · not stock-tracked' : ''}
+                        {row.updated_at !== null ? ` · counted ${stamp(row.updated_at)}` : ''}
+                      </span>
+                    </td>
+
+                    <td class={`${TD} text-right tabular-nums`}>{row.on_hand}</td>
+                    <td class={`${TD} text-right text-ink/60 tabular-nums`}>{row.reserved}</td>
+                    <td class:list={[TD, 'text-right font-semibold tabular-nums', low && 'text-amber-900']}>
+                      {Math.max(0, row.available)}
+                    </td>
+
+                    <td class={TD}>
+                      <form
+                        class="flex items-start gap-1"
+                        data-api="/api/admin/inventory"
+                        data-method="POST"
+                        data-success-message="Reorder level saved."
+                      >
+                        <input type="hidden" name="variant_id" value={row.variant_id} />
+                        <label class="sr-only" for={`reorder-${row.variant_id}`}>
+                          Reorder level for {row.sku}
+                        </label>
+                        <input
+                          id={`reorder-${row.variant_id}`}
+                          name="reorder_level"
+                          type="number"
+                          min="0"
+                          max="100000"
+                          step="1"
+                          inputmode="numeric"
+                          value={row.reorder_level}
+                          required
+                          class:list={[CONTROL, 'w-20 text-right tabular-nums']}
+                        />
+                        <button type="submit" class={BTN_QUIET}>
+                          Set
+                        </button>
+                      </form>
+                    </td>
+
+                    <td class={TD}>
+                      <form
+                        class="flex flex-wrap items-start gap-1"
+                        data-api="/api/admin/inventory"
+                        data-method="POST"
+                        data-success-message="Stock adjusted and written to the ledger."
+                      >
+                        <input type="hidden" name="variant_id" value={row.variant_id} />
+
+                        <label class="sr-only" for={`delta-${row.variant_id}`}>
+                          Change in jars for {row.sku}
+                        </label>
+                        <input
+                          id={`delta-${row.variant_id}`}
+                          name="delta"
+                          type="number"
+                          step="1"
+                          inputmode="numeric"
+                          required
+                          placeholder="+12"
+                          class:list={[CONTROL, 'w-20 text-right tabular-nums']}
+                        />
+
+                        <label class="sr-only" for={`reason-${row.variant_id}`}>
+                          Reason for {row.sku}
+                        </label>
+                        <select id={`reason-${row.variant_id}`} name="reason" class:list={[CONTROL, 'w-36']}>
+                          {REASONS.map((reason) => (
+                            <option value={reason.value}>{reason.label}</option>
+                          ))}
+                        </select>
+
+                        <label class="sr-only" for={`note-${row.variant_id}`}>
+                          Note for {row.sku}
+                        </label>
+                        <input
+                          id={`note-${row.variant_id}`}
+                          name="note"
+                          type="text"
+                          maxlength="300"
+                          placeholder="Note (optional)"
+                          class:list={[CONTROL, 'w-40']}
+                        />
+
+                        <button type="submit" class={BTN}>
+                          Apply
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <p class="border-t border-ink/8 px-3 py-2 text-xs text-ink/55">
+      A negative number removes jars. Sales and cancellations are written by the order path and are never typed in here.
+    </p>
+  </section>
+
+  <section class="mt-4 rounded-md border border-ink/10 bg-white" aria-labelledby="ledger-heading">
+    <h2 id="ledger-heading" class="border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold">
+      Recent movements
+    </h2>
+
+    {
+      ledger.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">Nothing has moved yet.</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  When
+                </th>
+                <th scope="col" class={TH}>
+                  Variant
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Change
+                </th>
+                <th scope="col" class={TH}>
+                  Reason
+                </th>
+                <th scope="col" class={TH}>
+                  Reference
+                </th>
+                <th scope="col" class={TH}>
+                  By
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ledger.map((row) => (
+                <tr class="border-b border-ink/8 last:border-0">
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>{stamp(row.created_at)}</td>
+                  <td class={TD}>
+                    <span class="block text-xs">
+                      {row.product_name} {row.variant_name}
+                    </span>
+                    <span class="block font-mono text-[11px] text-ink/50">{row.sku}</span>
+                  </td>
+                  <td
+                    class:list={[
+                      TD,
+                      'text-right font-semibold tabular-nums',
+                      row.delta < 0 ? 'text-red-800' : 'text-emerald-800',
+                    ]}
+                  >
+                    {row.delta > 0 ? `+${row.delta}` : row.delta}
+                  </td>
+                  <td class={`${TD} text-xs`}>
+                    {row.reason}
+                    {row.note && <span class="block text-[11px] text-ink/55">{row.note}</span>}
+                  </td>
+                  <td class={`${TD} text-xs`}>
+                    {row.ref_type === 'order' && row.ref_id ? (
+                      <a
+                        href={`/admin/orders/${row.ref_id}`}
+                        class="underline decoration-ink/25 underline-offset-2 hover:text-spice-500"
+                      >
+                        order
+                      </a>
+                    ) : (
+                      <span class="text-ink/45">{row.ref_type ?? 'manual'}</span>
+                    )}
+                  </td>
+                  <td class={`${TD} text-xs text-ink/60`}>{row.actor_name ?? row.actor_id ?? 'system'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </section>
+</AdminLayout>

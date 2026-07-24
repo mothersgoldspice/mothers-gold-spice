@@ -97,7 +97,10 @@ function makeClient() {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-      redirect: 'manual',
+      // Redirects are followed because Astro answers `/shipping` with a 307 to
+      // `/shipping/`, and a smoke test that reported that as a failure would be
+      // testing trailing slashes rather than the shop.
+      redirect: 'follow',
     });
     absorb(res);
 
@@ -264,13 +267,60 @@ async function main() {
     const payPage = await customer.get(`/checkout/pay/${txnId}`);
     check('mock gateway page renders', payPage.status === 200, `got ${payPage.status}`);
 
-    const pay = await customer.post('/api/mock/pay', { transaction_id: txnId, outcome: 'success', method: 'upi' });
+    // Ask the simulator to PREPARE the signed webhook rather than deliver it,
+    // then post it from here. A Worker cannot make a subrequest to its own
+    // hostname (Cloudflare error 1042), so this is the only way the deployed
+    // webhook route gets exercised over genuine HTTP — routing, the middleware
+    // CSRF exemption and signature verification all included.
+    const pay = await customer.post('/api/mock/pay', {
+      transaction_id: txnId,
+      outcome: 'success',
+      method: 'upi',
+      deliver: false,
+    });
     check('POST /api/mock/pay succeeds', pay.status === 200, `got ${pay.status}: ${pay.text.slice(0, 250)}`);
-    check(
-      'the signed webhook was delivered over real HTTP',
-      pay.json?.data?.webhookDeliveredOverHttp === true,
-      'fell back to an in-process call — check PUBLIC_SITE_URL',
-    );
+
+    const webhook = pay.json?.data?.webhook;
+    check('the simulator returned a signed webhook', Boolean(webhook?.body && webhook?.signatureHeader));
+
+    if (webhook) {
+      const delivered = await fetch(`${BASE}${webhook.url}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [webhook.headerName]: webhook.signatureHeader },
+        body: webhook.body,
+      });
+      const deliveredBody = await delivered.text();
+      check(
+        'the webhook route accepts a correctly signed event',
+        delivered.status === 200,
+        `got ${delivered.status}: ${deliveredBody.slice(0, 200)}`,
+      );
+
+      // The same body with a corrupted signature must be refused outright.
+      const tamperedSignature = webhook.signatureHeader.replace(/h1=([0-9a-f])/, (_m, c) =>
+        `h1=${c === 'a' ? 'b' : 'a'}`,
+      );
+      const rejected = await fetch(`${BASE}${webhook.url}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [webhook.headerName]: tamperedSignature },
+        body: webhook.body,
+      });
+      check('a tampered signature is rejected with 401', rejected.status === 401, `got ${rejected.status}`);
+
+      // And a replay of the genuine event must be recognised as a duplicate
+      // rather than confirming the order (or decrementing stock) a second time.
+      const replayed = await fetch(`${BASE}${webhook.url}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', [webhook.headerName]: webhook.signatureHeader },
+        body: webhook.body,
+      });
+      const replayBody = await replayed.text();
+      check(
+        'a replayed webhook is reported as a duplicate',
+        replayed.status === 200 && replayBody.includes('duplicate'),
+        `got ${replayed.status}: ${replayBody.slice(0, 200)}`,
+      );
+    }
   }
 
   // ── 9. Order state after payment ─────────────────────────────────────────

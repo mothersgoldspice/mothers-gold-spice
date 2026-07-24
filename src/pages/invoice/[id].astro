@@ -1,0 +1,341 @@
+---
+/**
+ * Printable GST tax invoice for one order.
+ *
+ * A registered Indian business must issue a tax invoice against every taxable
+ * sale, and it has a legally prescribed shape — supplier GSTIN, recipient
+ * details, HSN per line, taxable value, and the tax split. So this is generated
+ * from the order snapshot rather than being a prettier receipt.
+ *
+ * The split is the part that is easy to get wrong: a sale within Karnataka is
+ * CGST + SGST at half the rate each, and a sale to any other state is IGST at
+ * the full rate. Same total either way, different rows on the invoice and
+ * different boxes on the return.
+ *
+ * Prices are tax-INCLUSIVE (Indian MRP), so the taxable value is backed out of
+ * the line total rather than added to it.
+ */
+import { requireCtx } from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+import { assertOrderAccess, getOrderById, loadOrderView } from '../../lib/services/orders';
+import { publicMessage } from '../../lib/errors';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const settings = await ctx.settings();
+
+const orderId = Astro.params.id ?? '';
+let view: Awaited<ReturnType<typeof loadOrderView>> | null = null;
+let error = '';
+
+try {
+  const order = await getOrderById(ctx.db, orderId);
+  if (!order) {
+    Astro.response.status = 404;
+    error = 'We could not find that order.';
+  } else {
+    await assertOrderAccess(ctx, order, Astro.url.searchParams.get('t'));
+    view = await loadOrderView(ctx.db, orderId);
+  }
+} catch (err) {
+  Astro.response.status = 403;
+  error = publicMessage(err);
+}
+
+/** Place of supply decides CGST+SGST versus IGST. */
+const buyerState = (view?.shippingAddress.state ?? '').trim().toLowerCase();
+const isIntraState = buyerState === settings.originState.trim().toLowerCase();
+
+interface InvoiceLine {
+  description: string;
+  hsn: string;
+  qty: number;
+  /** Tax-inclusive per-unit price as sold. */
+  grossUnitPaise: number;
+  grossTotalPaise: number;
+  taxablePaise: number;
+  rateBps: number;
+  taxPaise: number;
+}
+
+const lines: InvoiceLine[] = (view?.items ?? []).map((item) => {
+  const gross = item.total_paise;
+  return {
+    description: `${item.product_name} — ${item.variant_name}`,
+    hsn: item.hsn_code ?? '',
+    qty: item.qty,
+    grossUnitPaise: item.unit_price_paise,
+    grossTotalPaise: gross,
+    taxablePaise: gross - item.tax_paise,
+    rateBps: item.tax_rate_bps,
+    taxPaise: item.tax_paise,
+  };
+});
+
+// Freight and COD handling are a taxable supply of services in their own right,
+// at 18% rather than the food rate, so they get their own invoice line.
+const order = view?.order;
+const serviceGross = (order?.shipping_paise ?? 0) + (order?.cod_fee_paise ?? 0);
+const productTax = lines.reduce((sum, l) => sum + l.taxPaise, 0);
+const serviceTax = Math.max(0, (order?.tax_paise ?? 0) - productTax);
+
+if (serviceGross > 0) {
+  lines.push({
+    description: order && order.cod_fee_paise > 0 ? 'Delivery and cash-handling charges' : 'Delivery charges',
+    hsn: '996812',
+    qty: 1,
+    grossUnitPaise: serviceGross,
+    grossTotalPaise: serviceGross,
+    taxablePaise: serviceGross - serviceTax,
+    rateBps: 1800,
+    taxPaise: serviceTax,
+  });
+}
+
+const totalTaxable = lines.reduce((sum, l) => sum + l.taxablePaise, 0);
+const totalTax = lines.reduce((sum, l) => sum + l.taxPaise, 0);
+
+const invoiceDate = order
+  ? new Date(order.paid_at ?? order.placed_at).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata',
+    })
+  : '';
+
+const half = (n: number) => Math.round(n / 2);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{order ? `Invoice ${order.order_number}` : 'Invoice'} — {settings.legalEntityName}</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f4f1ea;
+        color: #2a1a10;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .sheet {
+        max-width: 820px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 40px;
+        border: 1px solid rgba(42, 26, 16, 0.12);
+      }
+      h1 { font-family: Georgia, serif; font-size: 22px; margin: 0 0 2px; letter-spacing: -0.01em; }
+      .muted { color: rgba(42, 26, 16, 0.6); }
+      .row { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+      .head { border-bottom: 2px solid #2a1a10; padding-bottom: 16px; margin-bottom: 24px; }
+      .title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #b8341d; font-weight: 600; }
+      .party { margin-bottom: 24px; min-width: 240px; }
+      .party h2 { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(42,26,16,.55); margin: 0 0 6px; font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+      th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid rgba(42,26,16,.12); vertical-align: top; }
+      th { font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(42,26,16,.6); border-bottom: 1px solid rgba(42,26,16,.35); }
+      td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      tfoot td { border-bottom: none; padding: 4px 6px; }
+      tfoot tr.grand td { border-top: 2px solid #2a1a10; font-weight: 700; font-size: 15px; padding-top: 10px; }
+      .totals { margin-left: auto; width: 320px; }
+      .split { width: 300px; }
+      .split tfoot td { color: rgba(42,26,16,.75); }
+      .note { margin-top: 28px; padding-top: 16px; border-top: 1px solid rgba(42,26,16,.12); font-size: 11px; color: rgba(42,26,16,.6); }
+      .actions { max-width: 820px; margin: 0 auto 16px; display: flex; gap: 8px; justify-content: flex-end; }
+      button {
+        font: inherit; padding: 8px 16px; border-radius: 6px; cursor: pointer;
+        background: #b8341d; color: #fbf6ec; border: none; min-height: 40px;
+      }
+      .warn { background: #fff4e5; border: 1px solid #e0a01280; padding: 10px 12px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; }
+      .error { max-width: 820px; margin: 40px auto; background: #fff; padding: 32px; border: 1px solid rgba(42,26,16,.12); }
+      @media print {
+        body { background: #fff; padding: 0; font-size: 11.5px; }
+        .sheet { border: none; padding: 0; max-width: none; }
+        .actions, .warn { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    {error && (
+      <div class="error">
+        <h1>Invoice unavailable</h1>
+        <p class="muted">{error}</p>
+      </div>
+    )}
+
+    {order && view && (
+      <>
+        <div class="actions">
+          <button type="button" id="print">Print or save as PDF</button>
+        </div>
+
+        <div class="sheet">
+          {!settings.gstin && (
+            <p class="warn">
+              No GSTIN is configured, so this is a <strong>bill of supply</strong> rather than a tax invoice.
+              Add the GSTIN under Settings once registration comes through and reprint.
+            </p>
+          )}
+
+          <div class="head row">
+            <div>
+              <p class="title">{settings.gstin ? 'Tax invoice' : 'Bill of supply'}</p>
+              <h1>{settings.legalEntityName}</h1>
+              <p class="muted" style="margin:4px 0 0">{settings.registeredAddress}</p>
+              {settings.gstin && <p class="muted" style="margin:2px 0 0">GSTIN: {settings.gstin}</p>}
+              {settings.fssaiLicence && <p class="muted" style="margin:2px 0 0">FSSAI: {settings.fssaiLicence}</p>}
+            </div>
+            <div style="text-align:right">
+              <p class="muted" style="margin:0">Invoice number</p>
+              <p style="margin:0 0 8px;font-weight:600;font-size:15px">{order.order_number}</p>
+              <p class="muted" style="margin:0">Date</p>
+              <p style="margin:0 0 8px">{invoiceDate}</p>
+              <p class="muted" style="margin:0">Place of supply</p>
+              <p style="margin:0">{view.shippingAddress.state || '—'}</p>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="party">
+              <h2>Billed to</h2>
+              <p style="margin:0;font-weight:600">{view.billingAddress.full_name || order.customer_name}</p>
+              <p class="muted" style="margin:2px 0 0">
+                {view.billingAddress.line1}{view.billingAddress.line2 ? `, ${view.billingAddress.line2}` : ''}<br />
+                {view.billingAddress.city}, {view.billingAddress.state} {view.billingAddress.pincode}<br />
+                {order.phone}
+              </p>
+            </div>
+            <div class="party">
+              <h2>Shipped to</h2>
+              <p style="margin:0;font-weight:600">{view.shippingAddress.full_name}</p>
+              <p class="muted" style="margin:2px 0 0">
+                {view.shippingAddress.line1}{view.shippingAddress.line2 ? `, ${view.shippingAddress.line2}` : ''}<br />
+                {view.shippingAddress.city}, {view.shippingAddress.state} {view.shippingAddress.pincode}<br />
+                {view.shippingAddress.phone}
+              </p>
+            </div>
+            <div class="party">
+              <h2>Payment</h2>
+              <p style="margin:0">{order.payment_method === 'cod' ? 'Cash on delivery' : 'Paid online'}</p>
+              <p class="muted" style="margin:2px 0 0">
+                {order.payment_status === 'paid' ? 'Received in full' : 'Due on delivery'}
+              </p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36%">Description</th>
+                <th>HSN/SAC</th>
+                <th class="num">Qty</th>
+                <th class="num">Rate</th>
+                <th class="num">Taxable</th>
+                <th class="num">{isIntraState ? 'CGST + SGST' : 'IGST'}</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line) => (
+                <tr>
+                  <td>{line.description}</td>
+                  <td class="muted">{line.hsn}</td>
+                  <td class="num">{line.qty}</td>
+                  <td class="num">{formatPaise(line.grossUnitPaise)}</td>
+                  <td class="num">{formatPaise(line.taxablePaise)}</td>
+                  <td class="num">
+                    {isIntraState ? (
+                      <>
+                        {formatPaise(half(line.taxPaise))} + {formatPaise(line.taxPaise - half(line.taxPaise))}
+                        <br /><span class="muted">@ {line.rateBps / 200}% each</span>
+                      </>
+                    ) : (
+                      <>
+                        {formatPaise(line.taxPaise)}
+                        <br /><span class="muted">@ {line.rateBps / 100}%</span>
+                      </>
+                    )}
+                  </td>
+                  <td class="num">{formatPaise(line.grossTotalPaise)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/*
+            Two blocks rather than one column, because they answer different
+            questions and mixing them produces a column that does not add up.
+            The left is the arithmetic the customer paid; the right is the tax
+            split that arithmetic already contains, which is what the invoice is
+            legally for.
+          */}
+          <div class="row" style="align-items:flex-start">
+            <table class="split">
+              <tfoot>
+                <tr><td>Taxable value</td><td class="num">{formatPaise(totalTaxable)}</td></tr>
+                {isIntraState ? (
+                  <>
+                    <tr><td>CGST</td><td class="num">{formatPaise(half(totalTax))}</td></tr>
+                    <tr><td>SGST</td><td class="num">{formatPaise(totalTax - half(totalTax))}</td></tr>
+                  </>
+                ) : (
+                  <tr><td>IGST</td><td class="num">{formatPaise(totalTax)}</td></tr>
+                )}
+                <tr>
+                  <td class="muted">Contained in the total</td>
+                  <td class="num muted">{formatPaise(totalTaxable + totalTax)}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <table class="totals">
+              <tfoot>
+                <tr>
+                  <td>Items and delivery</td>
+                  <td class="num">{formatPaise(lines.reduce((sum, l) => sum + l.grossTotalPaise, 0) + order.discount_paise)}</td>
+                </tr>
+                {order.discount_paise > 0 && (
+                  <tr>
+                    <td>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</td>
+                    <td class="num">−{formatPaise(order.discount_paise)}</td>
+                  </tr>
+                )}
+                <tr class="grand">
+                  <td>Total payable</td>
+                  <td class="num">{formatPaise(order.total_paise)}</td>
+                </tr>
+                {order.refunded_paise > 0 && (
+                  <tr><td class="muted">Refunded</td><td class="num muted">−{formatPaise(order.refunded_paise)}</td></tr>
+                )}
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="note">
+            <p style="margin:0 0 4px">
+              All prices are inclusive of GST. Tax shown above is the portion contained in the total, not an
+              addition to it.
+            </p>
+            <p style="margin:0">
+              This is a computer-generated document and does not require a signature.
+              Questions about this invoice: {settings.supportPhone || ''} {settings.supportPhone ? '·' : ''} mothersgoldspice@gmail.com
+            </p>
+          </div>
+        </div>
+
+        <script>
+          document.getElementById('print')?.addEventListener('click', () => window.print());
+        </script>
+      </>
+    )}
+  </body>
+</html>

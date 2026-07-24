@@ -1,0 +1,189 @@
+---
+/**
+ * The mock gateway's hosted page.
+ *
+ * This is where `MockPaymentProvider.createCheckout` sends the customer, and it
+ * stands in for Paddle's or Razorpay's hosted checkout. Pressing a button here
+ * makes the provider emit a genuinely signed webhook to /api/webhooks/payment,
+ * so the confirmation path proven in testing is the one a real gateway drives.
+ *
+ * It is dressed to be unmistakable. A page that looked like a real card form
+ * would eventually be shown to somebody who would type a real card number into
+ * it, so the framing, the wording and the buttons all say simulator.
+ *
+ * When the configured payment provider is not the mock, this route does not
+ * exist — a live storefront must not carry a "mark this order paid" button.
+ */
+import Button from '../../../components/shop/Button.astro';
+import Money from '../../../components/shop/Money.astro';
+import ShopLayout from '../../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../../lib/api';
+import { MockPaymentProvider } from '../../../lib/providers/payment/mock';
+import type { MockTransaction } from '../../../lib/providers/payment/mock';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const provider = ctx.payment;
+
+let transaction: MockTransaction | null = null;
+
+if (provider instanceof MockPaymentProvider) {
+  transaction = await provider.loadTransaction(Astro.params.id ?? '');
+}
+
+if (!transaction) Astro.response.status = 404;
+
+const settled = transaction !== null && transaction.status !== 'pending';
+---
+
+<ShopLayout
+  title={transaction ? `Payment simulator — ${transaction.orderNumber}` : 'Not found'}
+  description="Simulated payment gateway used before real credentials are in place."
+  user={ctx.user}
+>
+  {
+    !transaction ? (
+      <div class="rounded-3xl border border-mango-100 bg-white/60 px-6 py-14 text-center">
+        <h1 class="font-serif text-2xl text-ink sm:text-3xl">There is nothing to pay here</h1>
+        <p class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink/65">
+          This payment session does not exist, or the store is running on a real gateway. If you were part-way through
+          an order, your basket is still where you left it.
+        </p>
+        <p class="mt-7">
+          <Button href="/cart">Back to the basket</Button>
+        </p>
+      </div>
+    ) : (
+      <div data-simulator data-transaction-id={transaction.id}>
+        {/* Loud on purpose. See the note at the top of this file. */}
+        <div class="rounded-t-3xl border-2 border-b-0 border-dashed border-amber-600 bg-amber-100 px-5 py-4">
+          <p class="text-xs font-bold tracking-widest text-amber-900 uppercase">Test gateway · not a real payment</p>
+          <p class="mt-1 text-sm leading-relaxed text-amber-950">
+            This is Mother's Gold Spice's own payment simulator, standing in for the real gateway until the merchant
+            account is live. <strong>No money moves and no card details are asked for.</strong> Pick an outcome below and
+            the order will behave exactly as it would in production.
+          </p>
+        </div>
+
+        <div class="rounded-b-3xl border-2 border-t-0 border-dashed border-amber-600 bg-white/80 p-5">
+          <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <p class="text-xs tracking-widest text-ink/55 uppercase">Order</p>
+              <p class="font-serif text-xl font-semibold text-ink">{transaction.orderNumber}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs tracking-widest text-ink/55 uppercase">Amount</p>
+              <p class="font-serif text-2xl font-semibold text-ink">
+                <Money paise={transaction.amountPaise} />
+              </p>
+            </div>
+          </div>
+
+          <ul class="mt-5 list-none space-y-2 border-t border-ink/10 pt-4 p-0 text-sm">
+            {transaction.items.map((item) => (
+              <li class="flex justify-between gap-3">
+                <span class="text-ink/80">
+                  {item.name}
+                  <span class="text-ink/55"> × {item.quantity}</span>
+                </span>
+                <Money paise={item.unitAmountPaise * item.quantity} class="text-ink" />
+              </li>
+            ))}
+          </ul>
+
+          <p class="mt-4 border-t border-ink/10 pt-4 text-sm text-ink/65">
+            Paying as <span class="font-medium text-ink">{transaction.customerEmail}</span>
+          </p>
+
+          {settled ? (
+            <div class="mt-5 rounded-2xl bg-ink/5 px-4 py-3 text-sm text-ink/75">
+              <p>
+                This simulated transaction has already been settled as{' '}
+                <strong class="text-ink">{transaction.status}</strong>. Pick up the order from the return page.
+              </p>
+              <p class="mt-3">
+                <Button href={`/checkout/return?order=${encodeURIComponent(transaction.orderId)}`} variant="secondary">
+                  Go to my order
+                </Button>
+              </p>
+            </div>
+          ) : (
+            <div class="mt-6 space-y-3">
+              <Button type="button" size="lg" class="w-full" data-outcome="success">
+                Pay <Money paise={transaction.amountPaise} /> (simulate success)
+              </Button>
+              <div class="flex flex-wrap gap-3">
+                <Button type="button" variant="secondary" class="flex-1" data-outcome="failure">
+                  Simulate failure
+                </Button>
+                <Button type="button" variant="ghost" class="flex-1" data-outcome="cancel">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <p class="mt-4 text-sm font-medium" data-simulator-message role="status" aria-live="polite" hidden></p>
+
+          <noscript>
+            <p class="mt-4 rounded-2xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+              The simulator needs JavaScript to send the outcome. With it switched off, an operator can advance this
+              order from the admin instead.
+            </p>
+          </noscript>
+
+          <p class="mt-5 border-t border-ink/10 pt-4 text-xs leading-relaxed text-ink/50">
+            Transaction {transaction.id}. Choosing an outcome delivers a signed webhook to our own
+            /api/webhooks/payment, exactly as the live gateway will.
+          </p>
+        </div>
+      </div>
+    )
+  }
+</ShopLayout>
+
+<script>
+  /** Hands the chosen outcome to /api/mock/pay and follows where it sends us. */
+  const root = document.querySelector<HTMLElement>('[data-simulator]');
+
+  if (root) {
+    const csrf = document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.content ?? '';
+    const transactionId = root.dataset.transactionId ?? '';
+    const message = root.querySelector<HTMLElement>('[data-simulator-message]');
+
+    root.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-outcome]');
+      if (!button) return;
+
+      const buttons = root.querySelectorAll<HTMLButtonElement>('[data-outcome]');
+      for (const other of buttons) other.disabled = true;
+      if (message) {
+        message.textContent = 'Talking to the simulated gateway…';
+        message.className = 'mt-4 text-sm font-medium text-ink/70';
+        message.hidden = false;
+      }
+
+      void (async () => {
+        try {
+          const response = await fetch('/api/mock/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+            body: JSON.stringify({ transaction_id: transactionId, outcome: button.dataset.outcome }),
+          });
+          const payload = (await response.json()) as
+            | { ok: true; data: { redirectUrl: string } }
+            | { ok: false; error: { message: string } };
+          if (!payload.ok) throw new Error(payload.error.message);
+          window.location.assign(payload.data.redirectUrl);
+        } catch (err) {
+          if (message) {
+            message.textContent = err instanceof Error ? err.message : 'The simulator could not complete that.';
+            message.className = 'mt-4 text-sm font-medium text-red-700';
+          }
+          for (const other of buttons) other.disabled = false;
+        }
+      })();
+    });
+  }
+</script>

@@ -1,0 +1,400 @@
+---
+/**
+ * Shell for the staff console.
+ *
+ * Deliberately not ShopLayout: the storefront is a wide, airy, serif-led page
+ * that sells a jar of pickle, and this is a tool somebody uses standing in a
+ * kitchen with sticky hands trying to answer "where is order 0042". So it is
+ * dense, dark-railed, information first, and it loads no webfont — Inter falls
+ * back to the system stack, which costs nothing on a slow connection and is the
+ * right trade for a screen nobody needs to be seduced by.
+ *
+ * Two things this shell is responsible for that no page should repeat:
+ *
+ *   1. Saying which provider is actually wired in. A console that looks
+ *      identical whether emails are really going out or landing in a mock
+ *      outbox is how a shop ends up sending nothing for a week.
+ *   2. Turning every `data-api` form on the page into a JSON call. The admin API
+ *      is a command API — PATCH with a JSON body — which is not something an
+ *      HTML form can express, so the forms below are real, keyboard-navigable
+ *      forms that a small shared script serialises and posts. Reading the
+ *      console works with JavaScript off; acting on it does not, which is an
+ *      acceptable trade for an internal screen and never for the checkout.
+ *
+ * The guard lives in each page rather than here: a redirect issued from inside a
+ * layout races the HTML that has already begun streaming.
+ */
+
+import '../styles/global.css';
+import { requireCtx } from '../lib/api';
+
+interface Props {
+  title: string;
+  /** One line of context under the title — counts, active filters, what this screen is for. */
+  subtitle?: string;
+}
+
+const { title, subtitle } = Astro.props;
+
+const ctx = requireCtx(Astro.locals);
+const staff = ctx.user;
+const csrfToken = Astro.locals.csrfToken ?? '';
+
+interface ProviderStatus {
+  label: string;
+  name: string;
+  live: boolean;
+}
+
+/**
+ * Read a provider's adapter name without letting a misconfiguration take the
+ * console down. The factories throw on purpose when a mock is requested on a
+ * deployed environment — and this is precisely the screen an operator would open
+ * to find that out, so it has to survive the throw and report it.
+ */
+function probe(label: string, read: () => string): ProviderStatus {
+  try {
+    const name = read();
+    return { label, name, live: name !== 'mock' };
+  } catch {
+    return { label, name: 'unavailable', live: false };
+  }
+}
+
+const providers: ProviderStatus[] = [
+  probe('Email', () => ctx.email.name),
+  probe('Payments', () => ctx.payment.name),
+  probe('Shipping', () => ctx.shipping.name),
+];
+const simulated = providers.filter((p) => !p.live);
+
+const NAV = [
+  { href: '/admin', label: 'Dashboard' },
+  { href: '/admin/orders', label: 'Orders' },
+  { href: '/admin/shipments', label: 'Shipments' },
+  { href: '/admin/inventory', label: 'Inventory' },
+  { href: '/admin/customers', label: 'Customers' },
+  { href: '/admin/emails', label: 'Emails' },
+  { href: '/admin/webhooks', label: 'Webhooks' },
+  { href: '/admin/settings', label: 'Settings' },
+];
+
+const path = Astro.url.pathname;
+// Exact match for the dashboard, prefix match for everything else — otherwise
+// /admin stays lit on every screen and the nav stops telling you where you are.
+const isCurrent = (href: string) =>
+  href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`);
+
+const SKIP =
+  'fixed -top-20 left-3 z-50 inline-flex min-h-11 items-center rounded-md bg-mango-300 px-4 text-sm ' +
+  'font-medium text-ink transition-all focus:top-3';
+
+const NAV_LINK =
+  'block rounded-md px-3 py-2 text-sm whitespace-nowrap transition focus-visible:outline-none ' +
+  'focus-visible:ring-2 focus-visible:ring-mango-300 focus-visible:ring-inset';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="csrf-token" content={csrfToken} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} — Staff console</title>
+  </head>
+
+  <body class="min-h-screen bg-cream text-ink antialiased">
+    <a href="#main" class={SKIP}>Skip to content</a>
+
+    <div class="lg:flex lg:items-start">
+      <aside
+        class="bg-ink text-cream lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-y-auto"
+      >
+        <div class="flex items-baseline justify-between gap-3 px-4 pt-3 pb-1 lg:block">
+          <a
+            href="/admin"
+            class="font-serif text-base font-semibold text-mango-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango-300"
+          >
+            Mother's Gold Spice
+          </a>
+          <p class="text-[11px] tracking-widest text-cream/45 uppercase lg:mt-0.5">Staff console</p>
+        </div>
+
+        <nav aria-label="Staff console" class="px-2 py-2 lg:flex-1">
+          <ul class="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0.5 lg:overflow-visible">
+            {
+              NAV.map((item) => (
+                <li>
+                  <a
+                    href={item.href}
+                    aria-current={isCurrent(item.href) ? 'page' : undefined}
+                    class:list={[
+                      NAV_LINK,
+                      isCurrent(item.href)
+                        ? 'bg-mango-300 font-semibold text-ink'
+                        : 'text-cream/75 hover:bg-cream/10 hover:text-cream',
+                    ]}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+
+        <div class="border-t border-cream/10 px-4 py-3 text-xs lg:mt-auto">
+          <p class="mb-2 text-[11px] tracking-widest text-cream/45 uppercase">Providers</p>
+          <ul class="mb-3 space-y-1">
+            {
+              providers.map((provider) => (
+                <li class="flex items-center justify-between gap-2">
+                  <span class="text-cream/60">{provider.label}</span>
+                  <span
+                    class:list={[
+                      'rounded px-1.5 py-0.5 font-medium',
+                      provider.live ? 'bg-emerald-400/15 text-emerald-200' : 'bg-amber-400/20 text-amber-200',
+                    ]}
+                  >
+                    {provider.name}
+                  </span>
+                </li>
+              ))
+            }
+          </ul>
+
+          <p class="truncate text-cream/70" title={staff?.email ?? ''}>{staff?.name ?? 'Signed in'}</p>
+          <p class="truncate text-cream/45">{staff?.email ?? ''}</p>
+
+          <form data-api="/api/auth/logout" data-method="POST" data-success-redirect="/" class="mt-2">
+            <button
+              type="submit"
+              class="rounded px-2 py-1 -ml-2 text-cream/60 underline underline-offset-2 transition hover:text-mango-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango-300"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <div class="min-w-0 flex-1">
+        <header class="sticky top-0 z-20 border-b border-ink/10 bg-cream/95 px-4 py-3 backdrop-blur sm:px-6">
+          <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div class="min-w-0">
+              <h1 class="truncate font-serif text-lg font-semibold sm:text-xl">{title}</h1>
+              {subtitle && <p class="mt-0.5 text-xs text-ink/60">{subtitle}</p>}
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <slot name="actions" />
+            </div>
+          </div>
+        </header>
+
+        <main id="main" class="px-4 py-4 sm:px-6 sm:py-5">
+          {/*
+            Filled by the shared action script. It starts empty and hidden rather
+            than absent so `aria-live` is already being watched when the first
+            message arrives — a region added to the DOM at the same moment as its
+            text is frequently not announced at all.
+          */}
+          <div id="admin-flash" role="status" aria-live="polite" class="hidden"></div>
+
+          {
+            simulated.length > 0 && (
+              <div class="mb-4 flex gap-3 rounded-md border border-amber-600/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                <svg class="mt-0.5 size-5 shrink-0 text-amber-700" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M8.7 2.6a1.5 1.5 0 0 1 2.6 0l7 12.15a1.5 1.5 0 0 1-1.3 2.25H3a1.5 1.5 0 0 1-1.3-2.25L8.7 2.6ZM9.25 7.5a.75.75 0 0 1 1.5 0v4a.75.75 0 0 1-1.5 0v-4ZM10 13.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
+                  />
+                </svg>
+                <div>
+                  <p class="font-semibold">
+                    {simulated.map((p) => p.label).join(', ')} {simulated.length === 1 ? 'is' : 'are'} simulated.
+                  </p>
+                  <p class="mt-0.5 text-amber-900">
+                    Nothing here reaches a customer, a courier or a bank. Emails land in the outbox at
+                    <a href="/admin/emails" class="font-medium underline"> /admin/emails</a>, parcels are advanced by
+                    hand from the order screen, and no money moves. Set the real provider env vars and
+                    <code class="rounded bg-amber-100 px-1">ALLOW_MOCK_PROVIDERS=false</code> before opening the shop.
+                  </p>
+                </div>
+              </div>
+            )
+          }
+
+          <slot />
+        </main>
+      </div>
+    </div>
+
+    <noscript>
+      <p class="fixed inset-x-0 bottom-0 z-40 bg-ink px-4 py-2 text-center text-xs text-cream">
+        Every screen reads fine without JavaScript, but the action buttons need it switched on.
+      </p>
+    </noscript>
+
+    <script>
+      /*
+       * One submit handler for every action in the console.
+       *
+       * A form opts in with `data-api`; anything without it (the GET filter
+       * forms) is left to the browser, which is what makes search and pagination
+       * work with scripting off. Fields declare their wire type with `data-json`
+       * because the admin settings schema refuses coerced strings on purpose —
+       * "4900abc" quietly becoming 4900 is exactly how a wrong price ships.
+       */
+
+      interface FlashPayload {
+        kind: 'success' | 'error';
+        message: string;
+      }
+
+      const FLASH_KEY = 'mgs-admin-flash';
+
+      const flashClasses: Record<FlashPayload['kind'], string> = {
+        success: 'mb-4 rounded-md border border-emerald-600/30 bg-emerald-50 px-4 py-3 text-sm text-emerald-950',
+        error: 'mb-4 rounded-md border border-red-600/30 bg-red-50 px-4 py-3 text-sm text-red-950',
+      };
+
+      function showFlash(kind: FlashPayload['kind'], message: string): void {
+        const region = document.getElementById('admin-flash');
+        if (!region) return;
+        region.className = flashClasses[kind];
+        region.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+        region.textContent = message;
+        region.scrollIntoView({ block: 'nearest' });
+      }
+
+      // A success message has to outlive the reload that follows it.
+      const carried = sessionStorage.getItem(FLASH_KEY);
+      if (carried) {
+        sessionStorage.removeItem(FLASH_KEY);
+        try {
+          const parsed = JSON.parse(carried) as FlashPayload;
+          showFlash(parsed.kind, parsed.message);
+        } catch {
+          /* A corrupt flash is not worth a broken page. */
+        }
+      }
+
+      /** `shippingRates.A.first500g` → nested objects, so one flat form can send a nested patch. */
+      function assignPath(target: Record<string, unknown>, path: string, value: unknown): void {
+        const parts = path.split('.');
+        let node = target;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const key = parts[i];
+          const next = node[key];
+          if (typeof next !== 'object' || next === null) node[key] = {};
+          node = node[key] as Record<string, unknown>;
+        }
+        node[parts[parts.length - 1]] = value;
+      }
+
+      function serialise(form: HTMLFormElement): Record<string, unknown> {
+        const body: Record<string, unknown> = {};
+
+        for (const element of Array.from(form.elements)) {
+          if (
+            !(element instanceof HTMLInputElement) &&
+            !(element instanceof HTMLSelectElement) &&
+            !(element instanceof HTMLTextAreaElement)
+          ) {
+            continue;
+          }
+          if (!element.name || element.disabled) continue;
+          if (element instanceof HTMLInputElement && (element.type === 'submit' || element.type === 'button')) continue;
+          if (element instanceof HTMLInputElement && element.type === 'radio' && !element.checked) continue;
+
+          const kind = element.dataset.json ?? 'string';
+          let value: unknown;
+
+          if (element instanceof HTMLInputElement && element.type === 'checkbox') {
+            // An unchecked box sends nothing at all in a normal form post, which
+            // is useless for a boolean setting — "off" has to be transmitted.
+            if (kind === 'boolean') value = element.checked;
+            else if (element.checked) value = element.value;
+            else continue;
+          } else if (kind === 'paise') {
+            // Money is typed in RUPEES everywhere in this console and stored as
+            // integer paise. This one line is the whole conversion.
+            if (element.value.trim() === '') continue;
+            value = Math.round(Number(element.value) * 100);
+          } else if (kind === 'number') {
+            if (element.value.trim() === '') continue;
+            value = Number(element.value);
+          } else if (kind === 'optional') {
+            // Left out entirely when blank. "No preference" has to be the
+            // absence of the field, not an empty string a `min(1)` will reject.
+            if (element.value.trim() === '') continue;
+            value = element.value;
+          } else {
+            // Left as a string, empty included: clearing an internal note is a
+            // real edit and must reach the server as "".
+            value = element.value;
+          }
+
+          assignPath(body, element.name, value);
+        }
+
+        return body;
+      }
+
+      document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+
+        const endpoint = form.dataset.api;
+        if (!endpoint) return;
+
+        event.preventDefault();
+
+        const confirmation = form.dataset.confirm;
+        if (confirmation && !window.confirm(confirmation)) return;
+
+        const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+        const originalLabel = button?.textContent ?? '';
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Working…';
+        }
+
+        const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+
+        void (async () => {
+          try {
+            const response = await fetch(endpoint, {
+              method: form.dataset.method ?? 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+              body: JSON.stringify(serialise(form)),
+            });
+            const payload = (await response.json().catch(() => null)) as
+              | { ok: boolean; error?: { message?: string } }
+              | null;
+
+            if (response.ok && payload?.ok) {
+              const message = form.dataset.successMessage ?? 'Done.';
+              sessionStorage.setItem(FLASH_KEY, JSON.stringify({ kind: 'success', message } satisfies FlashPayload));
+              const redirect = form.dataset.successRedirect;
+              if (redirect) window.location.assign(redirect);
+              else window.location.reload();
+              return;
+            }
+
+            showFlash('error', payload?.error?.message ?? `That did not go through (${response.status}).`);
+          } catch {
+            showFlash('error', 'Could not reach the server. Check the connection and try again.');
+          }
+
+          if (button) {
+            button.disabled = false;
+            button.textContent = originalLabel;
+          }
+        })();
+      });
+    </script>
+  </body>
+</html>

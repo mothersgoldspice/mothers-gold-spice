@@ -1,0 +1,511 @@
+---
+/**
+ * One product.
+ *
+ * The page is built so that everything a customer needs to decide is in the
+ * HTML the server sent: every size, every price, the ingredients, the allergens
+ * and the reviews. JavaScript only ever hides what is not currently selected and
+ * posts to the cart — with it switched off the page still reads correctly, which
+ * matters because most of our traffic is a phone on a patchy connection.
+ *
+ * A missing product returns a real 404 with a page that offers a way back.
+ * Redirecting to /shop instead would tell search engines the URL is fine and
+ * leave the customer wondering what happened to the link they followed.
+ */
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Money from '../../components/shop/Money.astro';
+import Price from '../../components/shop/Price.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import type { ReviewRow } from '../../lib/db/types';
+import { getCart } from '../../lib/services/cart';
+import { getProductBySlug } from '../../lib/services/catalog';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const settings = await ctx.settings();
+
+const slug = Astro.params.slug ?? '';
+const product = await getProductBySlug(ctx.db, slug);
+const cart = await getCart(ctx.db, ctx.cartId, settings, { userId: ctx.user?.id ?? null });
+
+if (!product) Astro.response.status = 404;
+
+/*
+ * Reviews are read here rather than through a service because there is no review
+ * service yet and this is the only view that reads them — one query, shaped by
+ * the thing that renders it. When reviews grow a write path it should move.
+ * Only approved reviews are ever exposed: `pending` is the moderation queue.
+ */
+const reviews = product
+  ? await ctx.db.all<ReviewRow>(
+      `SELECT * FROM product_reviews WHERE product_id = ? AND status = 'approved'
+        ORDER BY created_at DESC LIMIT 20`,
+      [product.id],
+    )
+  : [];
+
+const averageRating =
+  reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : null;
+
+/** Filled and hollow stars, so a rating survives being read aloud or printed. */
+const stars = (rating: number) => '★★★★★'.slice(0, rating) + '☆☆☆☆☆'.slice(0, 5 - rating);
+
+// The size chosen when the page loads: the first one we can actually sell, so
+// the default state of the page is a working Add to basket rather than a
+// sold-out notice a customer has to click past.
+const variants = product?.variants ?? [];
+const defaultVariant = variants.find((v) => v.inStock) ?? variants[0] ?? null;
+const canSellSomething = settings.storeOpen && variants.some((v) => v.inStock);
+
+const reviewDate = (at: number) =>
+  new Date(at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+
+const FACTS: { term: string; detail: string }[] = product
+  ? [
+      { term: 'Ingredients', detail: product.ingredients },
+      { term: 'Allergens', detail: product.allergens || 'None declared.' },
+      {
+        term: 'Shelf life',
+        detail: product.shelfLifeMonths
+          ? `${product.shelfLifeMonths} months from the date of packing, unopened.`
+          : 'Marked on the jar.',
+      },
+      { term: 'Storage', detail: product.storageNote },
+    ]
+  : [];
+---
+
+<ShopLayout
+  title={product ? product.name : 'Product not found'}
+  description={product ? `${product.name} — ${product.subtitle}` : 'That product is no longer on the shelf.'}
+  user={ctx.user}
+  cartCount={cart.itemCount}
+>
+  {
+    !product ? (
+      <div class="rounded-3xl border border-mango-100 bg-white/60 px-6 py-14 text-center">
+        <p class="mb-2 text-xs font-medium tracking-widest text-spice-500 uppercase">404</p>
+        <h1 class="font-serif text-2xl text-ink sm:text-3xl">We could not find that jar</h1>
+        <p class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink/65">
+          The link may be old, or the product may have gone off sale. Everything we make today is on the shop page.
+        </p>
+        <p class="mt-7">
+          <Button href="/shop">See what is on the shelf</Button>
+        </p>
+      </div>
+    ) : (
+      <article data-product>
+        <nav class="mb-6 text-sm text-ink/60" aria-label="Breadcrumb">
+          <a href="/shop" class="transition hover:text-spice-500">
+            Shop
+          </a>
+          <span class="mx-2" aria-hidden="true">
+            /
+          </span>
+          <span class="text-ink/80">{product.name}</span>
+        </nav>
+
+        <div class="grid gap-8 sm:grid-cols-2 sm:gap-10">
+          {/* ── Images ─────────────────────────────────────────────────── */}
+          <div>
+            <div class="overflow-hidden rounded-3xl border border-mango-100 bg-mango-50">
+              {product.heroImage ? (
+                <img
+                  src={product.heroImage}
+                  alt={product.name}
+                  width="800"
+                  height="800"
+                  fetchpriority="high"
+                  decoding="async"
+                  class="aspect-square size-full object-cover"
+                />
+              ) : (
+                <div class="flex aspect-square items-center justify-center font-serif text-6xl text-mango-300">
+                  {product.name.slice(0, 1)}
+                </div>
+              )}
+            </div>
+
+            {product.images.filter((src) => src !== product.heroImage).length > 0 && (
+              <ul class="mt-3 flex list-none gap-3 overflow-x-auto p-0">
+                {product.images
+                  .filter((src) => src !== product.heroImage)
+                  .map((src) => (
+                    <li class="shrink-0">
+                      <img
+                        src={src}
+                        alt=""
+                        width="160"
+                        height="160"
+                        loading="lazy"
+                        decoding="async"
+                        class="size-20 rounded-2xl border border-mango-100 bg-mango-50 object-cover"
+                      />
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+
+          {/* ── Buy ────────────────────────────────────────────────────── */}
+          <div>
+            <h1 class="font-serif text-3xl text-ink sm:text-4xl">{product.name}</h1>
+            <p class="mt-2 text-sm text-ink/65">{product.subtitle}</p>
+
+            {averageRating !== null && (
+              <p class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span class="text-mango-500" aria-hidden="true">
+                  {stars(Math.round(averageRating))}
+                </span>
+                <span class="font-medium text-ink">{averageRating.toFixed(1)} out of 5</span>
+                <a href="#reviews" class="text-ink/60 underline underline-offset-4 transition hover:text-spice-500">
+                  {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+                </a>
+              </p>
+            )}
+
+            {/* Every size's price is in the HTML; only the selected one is shown.
+                With no JavaScript the default size's price stands, and the list
+                below still carries a price against every option. */}
+            <div class="mt-5">
+              {variants.map((variant) => (
+                <p data-price-for={variant.id} hidden={variant.id !== defaultVariant?.id}>
+                  <Price paise={variant.pricePaise} compareAtPaise={variant.compareAtPricePaise} class="text-2xl" />
+                </p>
+              ))}
+              <p class="mt-1 text-xs text-ink/55">Inclusive of GST. Delivery calculated at checkout.</p>
+            </div>
+
+            <p class="mt-5 text-sm leading-relaxed text-ink/75">{product.description}</p>
+
+            {!settings.storeOpen && (
+              <Alert kind="info" title="We are between batches" class="mt-6">
+                {settings.storeClosedMessage}
+              </Alert>
+            )}
+
+            {variants.length === 0 ? (
+              <Alert kind="info" class="mt-6">
+                This one is not on sale at the moment.
+              </Alert>
+            ) : (
+              <form
+                class="mt-6"
+                data-buy-form
+                data-max-qty={settings.maxQtyPerVariant}
+                data-can-sell={canSellSomething ? '1' : '0'}
+              >
+                <fieldset class="border-0 p-0">
+                  <legend class="mb-2 text-sm font-medium text-ink/80">Choose a size</legend>
+                  <div class="flex flex-wrap gap-2">
+                    {variants.map((variant) => (
+                      <label
+                        class="relative inline-flex cursor-pointer items-baseline gap-2 rounded-2xl border border-ink/15 bg-white px-4 py-3 text-sm transition has-[:checked]:border-spice-500 has-[:checked]:ring-2 has-[:checked]:ring-spice-500/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-spice-500"
+                        data-variant-option
+                      >
+                        <input
+                          type="radio"
+                          name="variant_id"
+                          value={variant.id}
+                          checked={variant.id === defaultVariant?.id}
+                          data-in-stock={variant.inStock ? '1' : '0'}
+                          data-variant-name={variant.name}
+                          class="absolute size-0 opacity-0"
+                        />
+                        <span class="font-medium text-ink">{variant.name}</span>
+                        <span class="tabular-nums text-ink/70">
+                          <Money paise={variant.pricePaise} />
+                        </span>
+                        {!variant.inStock && <span class="text-xs font-medium text-ink/55">· sold out</span>}
+                        {variant.inStock && variant.lowStock && (
+                          <span class="text-xs font-medium text-amber-700">· few left</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+
+                {/* ── In stock: add to basket ─────────────────────────── */}
+                <div
+                  class="mt-5 flex flex-wrap items-center gap-3"
+                  data-add-panel
+                  hidden={!(canSellSomething && defaultVariant?.inStock)}
+                >
+                  <label class="sr-only" for="buy-qty">
+                    Quantity
+                  </label>
+                  <input
+                    id="buy-qty"
+                    name="qty"
+                    type="number"
+                    inputmode="numeric"
+                    value="1"
+                    min="1"
+                    max={settings.maxQtyPerVariant}
+                    step="1"
+                    class="h-12 w-20 rounded-2xl border border-ink/15 bg-white text-center text-base font-medium tabular-nums text-ink focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none"
+                  />
+                  <Button type="submit" size="lg" data-add-button>Add to basket</Button>
+                </div>
+
+                {/* ── Out of stock: tell me when it is back ───────────── */}
+                <div
+                  class="mt-5 rounded-2xl border border-mango-100 bg-mango-50/70 p-4"
+                  data-alert-panel
+                  hidden={canSellSomething && defaultVariant?.inStock}
+                >
+                  <p class="text-sm font-medium text-ink">
+                    <span data-alert-heading>
+                      {defaultVariant && !defaultVariant.inStock
+                        ? `${defaultVariant.name} is sold out.`
+                        : 'This size is sold out.'}
+                    </span>{' '}
+                    Shall we write to you when the next batch lands?
+                  </p>
+                  <div class="mt-3 flex flex-wrap items-end gap-2">
+                    <div class="min-w-52 flex-1">
+                      <label class="sr-only" for="alert-email">
+                        Your email address
+                      </label>
+                      <input
+                        id="alert-email"
+                        type="email"
+                        name="alert_email"
+                        autocomplete="email"
+                        required
+                        placeholder="you@example.com"
+                        class="block h-12 w-full rounded-2xl border border-ink/15 bg-white px-4 text-base text-ink placeholder:text-ink/35 focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none"
+                      />
+                    </div>
+                    <Button type="button" variant="secondary" size="lg" data-alert-button>Tell me when it is back</Button>
+                  </div>
+                  <p class="mt-2 text-xs leading-relaxed text-ink/60">
+                    One email when it is back on the shelf. Nothing else, ever.
+                  </p>
+                </div>
+
+                <p
+                  class="mt-3 text-sm font-medium"
+                  data-buy-message
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                >
+                </p>
+
+                <noscript>
+                  <p class="mt-3 rounded-2xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    Adding to the basket needs JavaScript. If it is switched off, write to
+                    <a href="mailto:mothersgoldspice@gmail.com" class="font-medium underline">
+                      mothersgoldspice@gmail.com
+                    </a>
+                    with the size and quantity and we will take the order by email.
+                  </p>
+                </noscript>
+              </form>
+            )}
+
+            {/* ── Trust ──────────────────────────────────────────────── */}
+            <div class="mt-7 rounded-2xl border border-mango-100 bg-white/60 p-4">
+              <p class="text-sm font-semibold text-ink">Made in Bengaluru</p>
+              <ul class="mt-2 list-none space-y-1.5 p-0 text-sm leading-relaxed text-ink/70">
+                <li>Cooked, filled and capped by hand in a home kitchen in Bengaluru — not bought in and relabelled.</li>
+                <li>Small batches. What you order this week was made this month.</li>
+                <li>No preservatives, no colour, no thickener. Mustard oil and salt do the keeping.</li>
+                {settings.fssaiLicence && <li>FSSAI licence {settings.fssaiLicence}.</li>}
+                <li>
+                  Packed and dispatched from {settings.originCity}, {settings.originState}. Free delivery above{' '}
+                  <Money paise={settings.freeShippingThresholdPaise} />.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* ── The label, in words ──────────────────────────────────────── */}
+        <section class="mt-12" aria-labelledby="details-heading">
+          <h2 id="details-heading" class="font-serif text-2xl text-ink">
+            What is in the jar
+          </h2>
+          <dl class="mt-4 grid gap-4 sm:grid-cols-2">
+            {FACTS.map((fact) => (
+              <div class="rounded-2xl border border-mango-100 bg-white/60 p-4">
+                <dt class="text-xs font-semibold tracking-widest text-ink/55 uppercase">{fact.term}</dt>
+                <dd class="mt-1.5 text-sm leading-relaxed text-ink/80">{fact.detail}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {/* ── Reviews ──────────────────────────────────────────────────── */}
+        <section class="mt-12" id="reviews" aria-labelledby="reviews-heading">
+          <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id="reviews-heading" class="font-serif text-2xl text-ink">
+              What people say
+            </h2>
+            {averageRating !== null && (
+              <p class="text-sm text-ink/70">
+                <span class="text-mango-500" aria-hidden="true">
+                  {stars(Math.round(averageRating))}
+                </span>{' '}
+                <span class="font-medium text-ink">{averageRating.toFixed(1)}</span> from {reviews.length}{' '}
+                {reviews.length === 1 ? 'review' : 'reviews'}
+              </p>
+            )}
+          </div>
+
+          {reviews.length === 0 ? (
+            <p class="mt-4 rounded-2xl border border-mango-100 bg-white/60 px-4 py-6 text-sm leading-relaxed text-ink/65">
+              No reviews yet. If you have had a jar, we would love to hear what you thought — the invitation arrives by
+              email a week after your order is delivered.
+            </p>
+          ) : (
+            <ul class="mt-4 list-none space-y-4 p-0">
+              {reviews.map((review) => (
+                <li class="rounded-2xl border border-mango-100 bg-white/60 p-4">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <p class="text-sm font-semibold text-ink">{review.author_name}</p>
+                    <p class="text-xs text-ink/55">{reviewDate(review.created_at)}</p>
+                  </div>
+                  <p class="mt-1 text-sm">
+                    <span class="text-mango-500" aria-hidden="true">
+                      {stars(review.rating)}
+                    </span>
+                    <span class="sr-only">{review.rating} out of 5</span>
+                  </p>
+                  {review.title && <p class="mt-2 text-sm font-medium text-ink">{review.title}</p>}
+                  {review.body && <p class="mt-1 text-sm leading-relaxed text-ink/75">{review.body}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </article>
+    )
+  }
+</ShopLayout>
+
+<script>
+  /**
+   * Size selection, add-to-basket and the back-in-stock sign-up.
+   *
+   * Everything below only reveals or posts what the server already rendered —
+   * no price is computed here, and the cart is the server's answer, not ours.
+   */
+  const form = document.querySelector<HTMLFormElement>('[data-buy-form]');
+
+  if (form) {
+    const csrf = document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.content ?? '';
+    const addPanel = form.querySelector<HTMLElement>('[data-add-panel]');
+    const alertPanel = form.querySelector<HTMLElement>('[data-alert-panel]');
+    const alertHeading = form.querySelector<HTMLElement>('[data-alert-heading]');
+    const message = form.querySelector<HTMLElement>('[data-buy-message]');
+    const addButton = form.querySelector<HTMLButtonElement>('[data-add-button]');
+    const alertButton = form.querySelector<HTMLButtonElement>('[data-alert-button]');
+    const qtyInput = form.querySelector<HTMLInputElement>('input[name="qty"]');
+    const emailInput = form.querySelector<HTMLInputElement>('input[name="alert_email"]');
+    const canSell = form.dataset.canSell === '1';
+
+    const selected = () => form.querySelector<HTMLInputElement>('input[name="variant_id"]:checked');
+
+    const say = (text: string, tone: 'ok' | 'bad') => {
+      if (!message) return;
+      message.textContent = text;
+      message.className = `mt-3 text-sm font-medium ${tone === 'ok' ? 'text-emerald-800' : 'text-red-700'}`;
+      message.hidden = false;
+    };
+
+    const syncSelection = () => {
+      const choice = selected();
+      if (!choice) return;
+
+      for (const block of form.querySelectorAll<HTMLElement>('[data-price-for]')) {
+        block.hidden = block.dataset.priceFor !== choice.value;
+      }
+
+      const inStock = choice.dataset.inStock === '1' && canSell;
+      if (addPanel) addPanel.hidden = !inStock;
+      if (alertPanel) alertPanel.hidden = inStock;
+      if (alertHeading) alertHeading.textContent = `${choice.dataset.variantName ?? 'This size'} is sold out.`;
+      if (message) message.hidden = true;
+    };
+
+    for (const radio of form.querySelectorAll<HTMLInputElement>('input[name="variant_id"]')) {
+      radio.addEventListener('change', syncSelection);
+    }
+    syncSelection();
+
+    /** Keep the header count honest without a full reload. */
+    const bumpCartCount = (count: number) => {
+      const link = document.querySelector<HTMLAnchorElement>('a[href="/cart"]');
+      if (!link) return;
+      let badge = link.querySelector<HTMLElement>('span:not(.sr-only)');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className =
+          'inline-flex min-w-5 items-center justify-center rounded-full bg-spice-500 px-1.5 py-0.5 text-xs font-semibold text-cream tabular-nums';
+        link.append(badge);
+      }
+      badge.textContent = String(count);
+      badge.hidden = count <= 0;
+    };
+
+    const post = async (url: string, body: Record<string, unknown>) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify(body),
+      });
+      const payload = (await response.json()) as
+        | { ok: true; data: { itemCount?: number } }
+        | { ok: false; error: { message: string } };
+      if (!payload.ok) throw new Error(payload.error.message);
+      return payload.data;
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const choice = selected();
+      if (!choice || !addButton) return;
+
+      addButton.disabled = true;
+      try {
+        const data = await post('/api/cart', {
+          variant_id: choice.value,
+          qty: Number.parseInt(qtyInput?.value ?? '1', 10) || 1,
+        });
+        if (typeof data.itemCount === 'number') bumpCartCount(data.itemCount);
+        say('Added to your basket. Go to the basket when you are ready.', 'ok');
+      } catch (err) {
+        say(err instanceof Error ? err.message : 'We could not add that just now. Please try again.', 'bad');
+      } finally {
+        addButton.disabled = false;
+      }
+    });
+
+    alertButton?.addEventListener('click', async () => {
+      const choice = selected();
+      const email = emailInput?.value.trim() ?? '';
+      if (!choice) return;
+      if (!email) {
+        emailInput?.focus();
+        say('Enter your email address and we will write to you.', 'bad');
+        return;
+      }
+
+      alertButton.disabled = true;
+      try {
+        await post('/api/stock-alerts', { variant_id: choice.value, email });
+        say('Noted. We will write to you the day it is back.', 'ok');
+        if (emailInput) emailInput.value = '';
+      } catch (err) {
+        say(err instanceof Error ? err.message : 'We could not save that just now. Please try again.', 'bad');
+      } finally {
+        alertButton.disabled = false;
+      }
+    });
+  }
+</script>

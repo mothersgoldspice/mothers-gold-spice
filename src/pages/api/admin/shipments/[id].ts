@@ -59,7 +59,7 @@ export const POST: APIRoute = async ({ locals, params, request }) =>
           throw conflict('The courier has not given this parcel an id yet, so there is no label to print.');
         }
 
-        let label;
+        let label: Awaited<ReturnType<typeof ctx.shipping.generateLabel>>;
         try {
           label = await ctx.shipping.generateLabel(shipment.provider_shipment_id);
         } catch (err) {

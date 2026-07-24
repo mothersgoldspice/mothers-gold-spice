@@ -47,7 +47,12 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['confirmed', 'payment_failed', 'cancelled'],
   // A failed payment is retryable — the customer may pay on a second attempt.
   payment_failed: ['pending_payment', 'confirmed', 'cancelled'],
-  confirmed: ['processing', 'packed', 'cancelled', 'refunded'],
+  // `processing` and `packed` are optional refinements, not gates. A two-person
+  // kitchen packs a jar and hands it to the courier in one motion, so booking a
+  // parcel against a freshly confirmed order has to be legal — requiring the
+  // intermediate hops made "Book shipment" fail with "an order that is confirmed
+  // cannot become shipped" for the most ordinary case there is.
+  confirmed: ['processing', 'packed', 'shipped', 'cancelled', 'refunded'],
   processing: ['packed', 'shipped', 'cancelled'],
   packed: ['shipped', 'cancelled'],
   shipped: ['out_for_delivery', 'delivered', 'returned'],

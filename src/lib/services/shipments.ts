@@ -144,7 +144,25 @@ export async function createShipmentForOrder(
   if (!order) throw notFound('We could not find that order.');
 
   const existing = await getShipmentForOrder(ctx.db, orderId);
-  if (existing) return existing;
+  if (existing) {
+    // A parcel is already booked, so do NOT mint a second AWB — two AWBs for one
+    // order means one is a ghost the courier still tries to collect. But the
+    // order may have been left behind if the earlier attempt failed after the
+    // insert, so reconcile its status before returning.
+    if (existing.awb_code && order.status !== 'shipped') {
+      await transitionOrder(ctx.db, {
+        orderId,
+        to: 'shipped',
+        message: `Shipped with ${existing.courier_name ?? 'our delivery partner'}.`,
+        data: { awb: existing.awb_code },
+        actorType: 'system',
+        actorId: opts.actorId,
+      }).catch(() => {
+        // Already past `shipped` (delivered, returned). Nothing to reconcile.
+      });
+    }
+    return existing;
+  }
 
   if (!['confirmed', 'processing', 'packed'].includes(order.status)) {
     throw conflict(`An order that is ${order.status.replace('_', ' ')} cannot be shipped.`);

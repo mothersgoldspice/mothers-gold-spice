@@ -219,7 +219,7 @@ Rates, thresholds and COD rules live in the `settings` table and are editable at
 
 | Concern | Approach |
 |---|---|
-| Passwords | PBKDF2-HMAC-SHA256, 210k iterations, per-user salt. Workers have no bcrypt/argon2 binding; this is the strongest KDF the runtime offers natively. The stored format is self-describing, so raising the iteration count later transparently upgrades hashes on next login. |
+| Passwords | PBKDF2-HMAC-SHA256, **100,000 iterations** (the Workers platform maximum — see §9), per-user salt. Workers have no bcrypt/argon2 binding; this is the strongest KDF the runtime offers natively. The stored format is self-describing, so raising the count later transparently upgrades hashes on next login. |
 | Sessions | 256-bit random token in an HttpOnly cookie; only its SHA-256 is stored. A database dump contains nothing replayable. Rotated on sign-in; all sessions revoked on password reset. |
 | CSRF | Signed double-submit token (HttpOnly cookie + form field / `x-csrf-token` header) plus an Origin check. Webhook and cron routes are exempt — a gateway has no cookie — and prove themselves with a provider signature instead, which is stronger. |
 | Webhooks | Signature verified in the adapter before anything is read. A bad signature is a 401 and a `log.alert`. The raw body is hashed byte-for-byte; re-serialising parsed JSON would never match. |
@@ -289,6 +289,21 @@ npm test
 
 ## 9. Known limits, honestly
 
+- **PBKDF2 is capped at 100,000 iterations by the runtime**, not by choice:
+
+  ```
+  NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not
+  supported (requested 210000).
+  ```
+
+  OWASP asks for 210,000. This was found the expensive way — the cap is *not*
+  enforced in local development, so the original 210,000 passed every test and
+  then 500'd on every sign-up and sign-in in production. `verifyPassword` now
+  treats a stored hash above the cap as a failed verification rather than
+  throwing, so a legacy hash sends the customer to password reset instead of an
+  error page. Going higher needs either a WASM argon2 build or a server-side
+  pepper in a Worker secret; both are additive, since the hash format records
+  its own parameters.
 - **D1 has no interactive transactions.** Multi-row invariants are expressed as
   atomic `batch()` calls, and stock reservation uses a conditional UPDATE with
   explicit compensation when a line loses the race. This is correct but it is

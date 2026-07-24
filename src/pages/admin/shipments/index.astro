@@ -1,0 +1,296 @@
+---
+/**
+ * Every parcel, newest first.
+ *
+ * The order screen answers "where is this one"; this screen answers "is anything
+ * stuck". So the columns are chosen for scanning a column at a time — an age
+ * next to a last scan makes a parcel that has not moved in four days obvious
+ * without opening anything.
+ *
+ * The last scan comes from a single correlated lookup rather than a second query
+ * per row: at fifty parcels a per-row read is fifty round trips to D1 inside one
+ * request, which is how an admin page that worked last month stops loading.
+ */
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import StatusBadge from '../../../components/shop/StatusBadge.astro';
+import { readPaging, requireAdmin, requireCtx } from '../../../lib/api';
+import type { ShipmentStatus } from '../../../lib/db/types';
+import { formatPaise } from '../../../lib/money';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const STATUSES: ShipmentStatus[] = [
+  'created',
+  'pickup_scheduled',
+  'picked_up',
+  'in_transit',
+  'out_for_delivery',
+  'delivered',
+  'failed_delivery',
+  'rto_initiated',
+  'rto_delivered',
+  'cancelled',
+];
+
+const rawStatus = Astro.url.searchParams.get('status') ?? '';
+const status = STATUSES.find((s) => s === rawStatus) ?? null;
+
+const { limit, offset } = readPaging(Astro.url, 25, 100);
+const page = Math.max(Number.parseInt(Astro.url.searchParams.get('page') ?? '', 10) || 1, 1);
+
+interface ShipmentListRow {
+  id: string;
+  order_id: string;
+  provider: string;
+  provider_shipment_id: string | null;
+  awb_code: string | null;
+  courier_name: string | null;
+  status: ShipmentStatus;
+  tracking_url: string | null;
+  charges_paise: number;
+  weight_grams: number;
+  created_at: number;
+  estimated_delivery_at: number | null;
+  order_number: string;
+  customer_name: string;
+  destination_city: string | null;
+  last_scan: string | null;
+  last_scan_at: number | null;
+  last_scan_location: string | null;
+}
+
+const where = status ? 'WHERE s.status = ?' : '';
+const params: (string | number)[] = status ? [status] : [];
+
+const total = (await ctx.db.scalar<number>(`SELECT COUNT(*) FROM shipments s ${where}`, params)) ?? 0;
+
+const rows = await ctx.db.all<ShipmentListRow>(
+  `SELECT s.id, s.order_id, s.provider, s.provider_shipment_id, s.awb_code, s.courier_name, s.status,
+          s.tracking_url, s.charges_paise, s.weight_grams, s.created_at, s.estimated_delivery_at,
+          o.order_number, o.customer_name,
+          json_extract(o.shipping_address_json, '$.city') AS destination_city,
+          e.description AS last_scan, e.occurred_at AS last_scan_at, e.location AS last_scan_location
+     FROM shipments s
+     JOIN orders o ON o.id = s.order_id
+     LEFT JOIN shipment_events e ON e.id = (
+       SELECT e2.id FROM shipment_events e2
+        WHERE e2.shipment_id = s.id
+        ORDER BY e2.occurred_at DESC, e2.created_at DESC
+        LIMIT 1
+     )
+     ${where}
+    ORDER BY s.created_at DESC
+    LIMIT ? OFFSET ?`,
+  [...params, limit, offset],
+);
+
+const from = total === 0 ? 0 : offset + 1;
+const to = offset + rows.length;
+
+function pageHref(target: number): string {
+  const query = new URLSearchParams();
+  if (status) query.set('status', status);
+  if (target > 1) query.set('page', String(target));
+  const search = query.toString();
+  return search ? `/admin/shipments?${search}` : '/admin/shipments';
+}
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+function age(ms: number): string {
+  const minutes = Math.floor((Date.now() - ms) / 60000);
+  if (minutes < 60) return `${Math.max(minutes, 1)}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+/** A parcel in flight that has not been scanned for two days wants chasing. */
+const STALE_MS = 2 * 24 * 60 * 60 * 1000;
+const isStale = (row: ShipmentListRow) =>
+  row.status !== 'delivered' &&
+  row.status !== 'cancelled' &&
+  row.status !== 'rto_delivered' &&
+  Date.now() - (row.last_scan_at ?? row.created_at) > STALE_MS;
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CONTROL =
+  'min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const PAGER =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/15 bg-white px-3 text-sm transition ' +
+  'hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+---
+
+<AdminLayout
+  title="Shipments"
+  subtitle={`${total} ${total === 1 ? 'parcel' : 'parcels'}${status ? ` · ${status.replace(/_/g, ' ')}` : ''}`}
+>
+  <form slot="actions" method="get" action="/admin/shipments" class="flex items-center gap-2">
+    <label for="filter-status" class="text-[11px] font-semibold tracking-wide text-ink/55 uppercase">Status</label>
+    <select id="filter-status" name="status" class={CONTROL}>
+      <option value="">All parcels</option>
+      {
+        STATUSES.map((value) => (
+          <option value={value} selected={status === value}>
+            {value.replace(/_/g, ' ')}
+          </option>
+        ))
+      }
+    </select>
+    <button
+      type="submit"
+      class="min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700"
+    >
+      Apply
+    </button>
+  </form>
+
+  <div class="rounded-md border border-ink/10 bg-white">
+    {
+      rows.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          No parcels here yet. One appears the moment an order is booked with the courier.
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  AWB
+                </th>
+                <th scope="col" class={TH}>
+                  Courier
+                </th>
+                <th scope="col" class={TH}>
+                  Order
+                </th>
+                <th scope="col" class={TH}>
+                  Booked
+                </th>
+                <th scope="col" class={TH}>
+                  Status
+                </th>
+                <th scope="col" class={TH}>
+                  Last scan
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Charge
+                </th>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr class:list={['border-b border-ink/8 last:border-0 hover:bg-mango-50', isStale(row) && 'bg-amber-50']}>
+                  <td class={TD}>
+                    <span class="font-mono text-xs break-all">{row.awb_code ?? 'not assigned'}</span>
+                    {row.tracking_url && (
+                      <a href={row.tracking_url} target="_blank" rel="noopener" class={`block text-[11px] ${LINK}`}>
+                        Track
+                      </a>
+                    )}
+                  </td>
+
+                  <td class={TD}>
+                    <span class="block">{row.courier_name ?? '—'}</span>
+                    <span class="block text-[11px] text-ink/45">
+                      {row.provider} · {row.weight_grams} g
+                    </span>
+                  </td>
+
+                  <td class={TD}>
+                    <a href={`/admin/orders/${row.order_id}`} class={`font-medium ${LINK}`}>
+                      {row.order_number}
+                    </a>
+                    <span class="block max-w-40 truncate text-[11px] text-ink/55">
+                      {row.customer_name}
+                      {row.destination_city ? ` · ${row.destination_city}` : ''}
+                    </span>
+                  </td>
+
+                  <td class={`${TD} whitespace-nowrap`}>
+                    <span class="text-xs text-ink/70 tabular-nums">{stamp(row.created_at)}</span>
+                    <span class="ml-1 text-[11px] text-ink/45 tabular-nums">{age(row.created_at)}</span>
+                    <span class="block text-[11px] text-ink/45">ETA {stamp(row.estimated_delivery_at)}</span>
+                  </td>
+
+                  <td class={TD}>
+                    <StatusBadge status={row.status} kind="shipment" />
+                  </td>
+
+                  <td class={`${TD} max-w-56`}>
+                    {row.last_scan ? (
+                      <>
+                        <span class="block text-xs">{row.last_scan}</span>
+                        <span class="block text-[11px] text-ink/45 tabular-nums">
+                          {stamp(row.last_scan_at)}
+                          {row.last_scan_location ? ` · ${row.last_scan_location}` : ''}
+                          {row.last_scan_at !== null && ` · ${age(row.last_scan_at)} ago`}
+                        </span>
+                      </>
+                    ) : (
+                      <span class="text-xs text-ink/45">No scans yet</span>
+                    )}
+                  </td>
+
+                  <td class={`${TD} text-right whitespace-nowrap tabular-nums`}>{formatPaise(row.charges_paise)}</td>
+
+                  <td class={TD}>
+                    <form
+                      data-api={`/api/admin/shipments/${row.id}`}
+                      data-method="POST"
+                      data-success-message="Tracking refreshed from the courier."
+                    >
+                      <input type="hidden" name="action" value="refresh" />
+                      <button
+                        type="submit"
+                        class="min-h-9 rounded-md border border-ink/20 bg-white px-2.5 text-xs font-medium whitespace-nowrap transition hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                      >
+                        Refresh
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </div>
+
+  <nav aria-label="Pagination" class="mt-3 flex items-center justify-between gap-3 text-sm">
+    <p class="text-ink/60 tabular-nums">{from}–{to} of {total}</p>
+    <div class="flex gap-2">
+      {page > 1 && <a href={pageHref(page - 1)} class={PAGER} rel="prev">← Newer</a>}
+      {offset + rows.length < total && <a href={pageHref(page + 1)} class={PAGER} rel="next">Older →</a>}
+    </div>
+  </nav>
+
+  <p class="mt-3 text-xs text-ink/55">
+    A shaded row has not been scanned in two days. Refresh pulls the whole history again from the courier — duplicate
+    scans are absorbed, so it is always safe to press.
+  </p>
+</AdminLayout>

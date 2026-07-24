@@ -1,0 +1,346 @@
+---
+/**
+ * Guest order tracking.
+ *
+ * Reached with the derived access token in `?t=` — the link in the confirmation
+ * email, and what /api/track hands back after an order number and email are
+ * matched. Without a valid token (or a session that owns the order) this page
+ * shows nothing, because order ids are k-sortable and a bare id would otherwise
+ * be walkable to the previous customer's address.
+ *
+ * The timeline merges two sources on purpose. `order_events` is what WE did —
+ * placed, confirmed, packed — and `shipment_events` is what the COURIER did.
+ * Read separately they each look like half a story.
+ */
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Money from '../../components/shop/Money.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import StatusBadge from '../../components/shop/StatusBadge.astro';
+import { requireCtx } from '../../lib/api';
+import { publicMessage } from '../../lib/errors';
+import { STATUS_LABEL, assertOrderAccess, getOrderById, loadOrderView } from '../../lib/services/orders';
+import { getShipmentForOrder, listShipmentEvents } from '../../lib/services/shipments';
+import { ZONE_ETD_DAYS, zoneForPincode } from '../../lib/shipping-zones';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+const orderId = Astro.params.id ?? '';
+const token = Astro.url.searchParams.get('t');
+
+let view: Awaited<ReturnType<typeof loadOrderView>> | null = null;
+let problem = '';
+
+const found = orderId ? await getOrderById(ctx.db, orderId) : null;
+
+if (!found) {
+  Astro.response.status = 404;
+  problem = 'We could not find that order.';
+} else {
+  try {
+    await assertOrderAccess(ctx, found, token);
+    view = await loadOrderView(ctx.db, found.id);
+  } catch (err) {
+    Astro.response.status = 403;
+    problem = publicMessage(err);
+  }
+}
+
+const order = view?.order ?? null;
+const shipment = order ? await getShipmentForOrder(ctx.db, order.id) : null;
+const shipmentEvents = shipment ? await listShipmentEvents(ctx.db, shipment.id) : [];
+
+interface TimelineEntry {
+  at: number;
+  title: string;
+  location: string | null;
+  source: 'us' | 'courier';
+}
+
+// Newest first: the answer to "where is it?" is the top line, not the bottom.
+const timeline: TimelineEntry[] = [
+  ...(view?.events ?? []).map((event) => ({
+    at: event.created_at,
+    title: event.message,
+    location: null,
+    source: 'us' as const,
+  })),
+  ...shipmentEvents.map((event) => ({
+    at: event.occurred_at,
+    title: event.description,
+    location: event.location,
+    source: 'courier' as const,
+  })),
+].sort((a, b) => b.at - a.at);
+
+const zone = view ? zoneForPincode(view.shippingAddress.pincode) : null;
+const PACKING_DAYS = 1;
+const etaAt =
+  shipment?.estimated_delivery_at ??
+  (order && zone && !order.delivered_at
+    ? order.placed_at + (ZONE_ETD_DAYS[zone] + PACKING_DAYS) * 24 * 60 * 60 * 1000
+    : null);
+
+const stamp = (at: number) =>
+  new Date(at).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Kolkata',
+  });
+
+const shortDate = (at: number) =>
+  new Date(at).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+
+const tokenQuery = token ? `?t=${encodeURIComponent(token)}` : '';
+const isCod = order?.payment_method === 'cod';
+const needsPayment = order?.status === 'pending_payment' || order?.status === 'payment_failed';
+---
+
+<ShopLayout title={order ? `Order ${order.order_number}` : 'Order'} description="Track your order." user={ctx.user}>
+  {
+    !order || !view ? (
+      <div class="rounded-3xl border border-mango-100 bg-white/60 px-6 py-14 text-center">
+        <h1 class="font-serif text-2xl text-ink sm:text-3xl">We cannot show that order</h1>
+        <p class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink/65">
+          {problem} Tracking links carry a code that proves the order is yours — the one in your confirmation email
+          always works.
+        </p>
+        <p class="mt-7">
+          <Button href="/track">Look up an order</Button>
+        </p>
+      </div>
+    ) : (
+      <div>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-medium tracking-widest text-spice-500 uppercase">Your order</p>
+            <h1 class="mt-1 font-serif text-3xl text-ink sm:text-4xl">{order.order_number}</h1>
+            <p class="mt-1 text-sm text-ink/65">Placed {shortDate(order.placed_at)}</p>
+          </div>
+          <StatusBadge status={order.status} />
+        </div>
+
+        {needsPayment && (
+          <Alert kind="warning" title="This order is not paid for yet" class="mt-6">
+            Your jars are held until the payment goes through.{' '}
+            <a href={`/checkout/retry/${order.id}${tokenQuery}`}>Finish paying now</a>.
+          </Alert>
+        )}
+
+        {order.status === 'cancelled' && (
+          <Alert kind="info" title="This order was cancelled" class="mt-6">
+            {order.cancel_reason ?? 'Nothing is owed and the stock has gone back on the shelf.'}
+          </Alert>
+        )}
+
+        <div class="mt-6 grid gap-6 sm:grid-cols-2">
+          {/* ── Parcel ───────────────────────────────────────────────── */}
+          <section class="rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="parcel-heading">
+            <h2 id="parcel-heading" class="font-serif text-lg font-semibold text-ink">
+              The parcel
+            </h2>
+
+            {shipment ? (
+              <dl class="mt-3 space-y-2 text-sm">
+                <div class="flex justify-between gap-3">
+                  <dt class="text-ink/70">Courier</dt>
+                  <dd class="text-right font-medium text-ink">{shipment.courier_name ?? 'Being assigned'}</dd>
+                </div>
+                {shipment.awb_code && (
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-ink/70">Tracking number</dt>
+                    <dd class="text-right font-medium tabular-nums text-ink">{shipment.awb_code}</dd>
+                  </div>
+                )}
+                <div class="flex justify-between gap-3">
+                  <dt class="text-ink/70">Parcel status</dt>
+                  <dd class="text-right">
+                    <StatusBadge status={shipment.status} kind="shipment" />
+                  </dd>
+                </div>
+                {shipment.tracking_url && (
+                  <div class="pt-2">
+                    <a
+                      href={shipment.tracking_url}
+                      rel="noopener"
+                      class="text-sm font-medium text-spice-500 underline underline-offset-4"
+                    >
+                      Follow it on the courier's site
+                    </a>
+                  </div>
+                )}
+              </dl>
+            ) : (
+              <p class="mt-3 text-sm leading-relaxed text-ink/70">
+                {order.status === 'cancelled'
+                  ? 'No parcel was booked for this order.'
+                  : 'Not handed to the courier yet. We email the tracking number the moment it is on the road.'}
+              </p>
+            )}
+
+            {etaAt && order.status !== 'cancelled' && (
+              <p class="mt-4 rounded-2xl bg-mango-50/70 px-4 py-3 text-sm">
+                <span class="block text-ink/70">Expected delivery</span>
+                <span class="font-semibold text-ink">around {shortDate(etaAt)}</span>
+              </p>
+            )}
+            {order.delivered_at && (
+              <p class="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm">
+                <span class="block text-emerald-900/70">Delivered</span>
+                <span class="font-semibold text-emerald-950">{stamp(order.delivered_at)}</span>
+              </p>
+            )}
+          </section>
+
+          {/* ── Address ──────────────────────────────────────────────── */}
+          <section class="rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="address-heading">
+            <h2 id="address-heading" class="font-serif text-lg font-semibold text-ink">
+              Delivery address
+            </h2>
+            <address class="mt-2 text-sm leading-relaxed text-ink/75 not-italic">
+              <span class="block font-medium text-ink">{view.shippingAddress.full_name}</span>
+              {view.shippingAddress.line1}
+              {view.shippingAddress.line2 && <>, {view.shippingAddress.line2}</>}
+              <br />
+              {view.shippingAddress.landmark && (
+                <>
+                  {view.shippingAddress.landmark}
+                  <br />
+                </>
+              )}
+              {view.shippingAddress.city}, {view.shippingAddress.state} {view.shippingAddress.pincode}
+              <br />
+              {view.shippingAddress.phone}
+            </address>
+
+            <p class="mt-4 rounded-2xl bg-mango-50/70 px-4 py-3 text-sm">
+              <span class="block text-ink/70">{isCod ? 'Due on delivery, in cash' : 'Paid online'}</span>
+              <Money paise={order.total_paise} class="font-semibold text-ink" />
+            </p>
+          </section>
+        </div>
+
+        {/* ── Timeline ─────────────────────────────────────────────────── */}
+        <section class="mt-6 rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="timeline-heading">
+          <h2 id="timeline-heading" class="font-serif text-lg font-semibold text-ink">
+            What has happened so far
+          </h2>
+
+          {timeline.length === 0 ? (
+            <p class="mt-3 text-sm text-ink/65">Nothing to report yet. This fills up as your order moves.</p>
+          ) : (
+            <ol class="mt-4 list-none space-y-0 p-0">
+              {timeline.map((entry, index) => (
+                <li class="relative flex gap-4 pb-5 last:pb-0">
+                  {index < timeline.length - 1 && (
+                    <span class="absolute top-4 bottom-0 left-[7px] w-px bg-ink/10" aria-hidden="true" />
+                  )}
+                  <span
+                    class:list={[
+                      'relative mt-1 size-3.5 shrink-0 rounded-full ring-4 ring-white',
+                      index === 0 ? 'bg-spice-500' : entry.source === 'courier' ? 'bg-sky-500' : 'bg-ink/25',
+                    ]}
+                    aria-hidden="true"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm leading-relaxed text-ink/85">{entry.title}</p>
+                    <p class="mt-0.5 text-xs text-ink/55">
+                      {stamp(entry.at)}
+                      {entry.location && <> · {entry.location}</>}
+                      {entry.source === 'courier' && <> · courier update</>}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <p class="mt-4 border-t border-ink/10 pt-4 text-sm text-ink/65">
+            Current status: <span class="font-medium text-ink">{STATUS_LABEL[order.status]}</span>
+          </p>
+        </section>
+
+        {/* ── Items ────────────────────────────────────────────────────── */}
+        <section class="mt-6 rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="items-heading">
+          <h2 id="items-heading" class="font-serif text-lg font-semibold text-ink">
+            What is in the box
+          </h2>
+
+          <ul class="mt-4 list-none space-y-3 p-0 text-sm">
+            {view.items.map((item) => (
+              <li class="flex items-start justify-between gap-3">
+                <span class="min-w-0 text-ink/80">
+                  {item.product_name}
+                  <span class="block text-xs text-ink/55">
+                    {item.variant_name} × {item.qty}
+                  </span>
+                </span>
+                <Money paise={item.total_paise} class="text-ink" />
+              </li>
+            ))}
+          </ul>
+
+          <dl class="mt-4 space-y-2 border-t border-ink/10 pt-4 text-sm">
+            <div class="flex justify-between gap-4">
+              <dt class="text-ink/70">Items</dt>
+              <dd><Money paise={order.subtotal_paise} class="text-ink" /></dd>
+            </div>
+            {order.discount_paise > 0 && (
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/70">Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</dt>
+                <dd class="text-emerald-800">
+                  −<Money paise={order.discount_paise} />
+                </dd>
+              </div>
+            )}
+            <div class="flex justify-between gap-4">
+              <dt class="text-ink/70">Delivery</dt>
+              <dd class="text-ink">
+                {order.shipping_paise === 0 ? 'Free' : <Money paise={order.shipping_paise} />}
+              </dd>
+            </div>
+            {order.cod_fee_paise > 0 && (
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/70">Cash-handling fee</dt>
+                <dd class="text-ink">
+                  <Money paise={order.cod_fee_paise} />
+                </dd>
+              </div>
+            )}
+            <div class="flex justify-between gap-4 border-t border-ink/10 pt-3 text-base font-semibold">
+              <dt>Total</dt>
+              <dd><Money paise={order.total_paise} /></dd>
+            </div>
+            {order.refunded_paise > 0 && (
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/70">Refunded</dt>
+                <dd class="text-emerald-800">
+                  −<Money paise={order.refunded_paise} />
+                </dd>
+              </div>
+            )}
+          </dl>
+
+          <p class="mt-4 flex flex-wrap gap-3 text-sm">
+            <a href={`/invoice/${order.id}${tokenQuery}`} class="font-medium text-spice-500 underline underline-offset-4">
+              View or print the invoice
+            </a>
+            <a href="/shop" class="font-medium text-ink/60 underline underline-offset-4">Order again</a>
+          </p>
+        </section>
+
+        <p class="mt-6 text-sm leading-relaxed text-ink/60">
+          Something wrong with this order? Write to
+          <a href="mailto:mothersgoldspice@gmail.com" class="font-medium text-spice-500 underline underline-offset-4">
+            mothersgoldspice@gmail.com
+          </a>
+          quoting {order.order_number} and a person will read it.
+        </p>
+      </div>
+    )
+  }
+</ShopLayout>

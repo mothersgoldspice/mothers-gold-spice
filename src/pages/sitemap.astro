@@ -12,6 +12,13 @@ const pages = [
   { path: "/suppliers",       title: "Suppliers",       short: "Suppliers",   x: 610, y: 510, desc: "Bangalore packaging supplier shortlist · jar+cap+foil+label vendors" },
   { path: "/registration",    title: "Registration",    short: "Register",    x: 790, y: 510, desc: "Sole Prop quick reference · portals, process order, docs matrix, ₹13k cost breakdown" },
   { path: "/risk-mitigation", title: "Risk Mitigation", short: "Risk",        x: 970, y: 510, desc: "Mom's safety net · LLP upgrade + insurance + food-contamination playbook" },
+  // ── The shop (order management system) ────────────────────────────────────
+  { path: "/shop",            title: "Shop",            short: "Shop",        x: 140, y: 650, desc: "Storefront — every product, in stock and coming soon" },
+  { path: "/cart",            title: "Cart",            short: "Cart",        x: 320, y: 650, desc: "Basket · coupons · PIN code check · free-shipping progress" },
+  { path: "/checkout",        title: "Checkout",        short: "Checkout",    x: 500, y: 650, desc: "Address, payment method (online/COD), place order" },
+  { path: "/track",           title: "Track Order",     short: "Track",       x: 680, y: 650, desc: "Guest order lookup by order number + email" },
+  { path: "/account",         title: "Account",         short: "Account",     x: 860, y: 650, desc: "Orders, addresses, profile, notifications" },
+  { path: "/admin",           title: "Admin Console",   short: "Admin",       x: 1040, y: 650, desc: "Staff only — orders, fulfilment, inventory, emails, settings" },
 ];
 
 // Edges between pages: { from, to, type: 'primary' | 'cross' }
@@ -40,6 +47,16 @@ const edges = [
   { from: "/registration",  to: "/setup",           type: "cross" },
   { from: "/registration",  to: "/trademark",       type: "cross" },
   { from: "/registration",  to: "/risk-mitigation", type: "cross" },
+  // The shop hangs off the landing page, not off the working documents: a
+  // customer arrives at "/" and buys, they never see /plan.
+  { from: "/",              to: "/shop",            type: "primary" },
+  { from: "/shop",          to: "/cart",            type: "cross" },
+  { from: "/cart",          to: "/checkout",        type: "cross" },
+  { from: "/checkout",      to: "/track",           type: "cross" },
+  { from: "/checkout",      to: "/account",         type: "cross" },
+  { from: "/account",       to: "/track",           type: "cross" },
+  { from: "/admin",         to: "/account",         type: "cross" },
+  { from: "/shipping",      to: "/checkout",        type: "cross" },
 ];
 
 const PROD_BASE = "https://mothersgoldspice.com";
@@ -93,7 +110,8 @@ function edgePath(from: { x: number; y: number }, to: { x: number; y: number }, 
       <p class="text-sm text-ink/60 mb-6">Solid lines = primary navigation. Dashed lines = cross-references between pages.</p>
 
       <div class="sm-svg-wrap">
-        <svg viewBox="0 0 1050 580" preserveAspectRatio="xMidYMid meet" class="sm-svg">
+        {/* Widened and lengthened when the shop tier was added at y=650. */}
+        <svg viewBox="0 0 1130 700" preserveAspectRatio="xMidYMid meet" class="sm-svg">
           <defs>
             <marker id="sm-arrow-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a1f10"/>

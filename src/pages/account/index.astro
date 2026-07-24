@@ -1,0 +1,234 @@
+---
+/**
+ * The account dashboard.
+ *
+ * Four questions, in the order a customer asks them: where is my order, where
+ * do you send it, who am I to you, and what have you told me lately. Everything
+ * else is a link.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import EmptyState from '../../components/shop/EmptyState.astro';
+import Money from '../../components/shop/Money.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import StatusBadge from '../../components/shop/StatusBadge.astro';
+import { requireCtx } from '../../lib/api';
+import { listAddresses } from '../../lib/services/accounts';
+import { countUnread } from '../../lib/services/notify';
+import { listOrdersForUser } from '../../lib/services/orders';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+if (!ctx.user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+const user = ctx.user;
+
+const [orders, addresses, unread, cartCount] = await Promise.all([
+  listOrdersForUser(ctx.db, user.id, 3),
+  listAddresses(ctx.db, user.id),
+  countUnread(ctx.db, user.id),
+  ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [ctx.cartId ?? '']),
+]);
+
+const defaultAddress = addresses.find((address) => address.is_default_shipping === 1) ?? addresses[0] ?? null;
+
+const passwordUpdated = Astro.url.searchParams.get('password') === 'updated';
+
+// A first name is what a greeting wants; the full name is on the profile page.
+const firstName = user.name.trim().split(/\s+/)[0] || 'there';
+
+const formatDate = (ms: number) =>
+  new Date(ms).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+
+const CARD = 'rounded-3xl border border-mango-100 bg-white/60 p-5 sm:p-6';
+const CARD_LINK =
+  'block rounded-2xl border border-mango-100 bg-white/60 p-5 no-underline transition hover:border-spice-500/40 ' +
+  'hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-cream';
+const ROW =
+  'flex items-start gap-4 rounded-2xl border border-mango-100 bg-white/60 p-4 transition hover:border-spice-500/40';
+
+const QUICK_LINKS = [
+  { href: '/account/orders', title: 'Your orders', body: 'Every order, its status and its invoice.' },
+  { href: '/account/addresses', title: 'Saved addresses', body: 'Add, edit or change your default.' },
+  { href: '/account/profile', title: 'Profile and password', body: 'Name, mobile number, and how you sign in.' },
+  { href: '/account/notifications', title: 'Notifications', body: 'Everything we have told you, in one list.' },
+];
+---
+
+<ShopLayout title="Your account" user={user} cartCount={cartCount ?? 0}>
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="font-serif text-3xl font-semibold text-ink sm:text-4xl">Hello, {firstName}</h1>
+      <p class="mt-2 text-sm text-ink/65">
+        {user.email}
+        {
+          user.emailVerified && (
+            <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-700/25 ring-inset">
+              Confirmed
+            </span>
+          )
+        }
+      </p>
+    </div>
+
+    <form method="post" action="/account/profile">
+      <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+      <input type="hidden" name="_action" value="signout" />
+      <Button type="submit" variant="ghost" size="sm">Sign out</Button>
+    </form>
+  </header>
+
+  {passwordUpdated && <Alert kind="success" class="mt-6">Your password is updated and you are signed in again.</Alert>}
+
+  {
+    !user.emailVerified && (
+      <Alert kind="warning" title="Confirm your email address" class="mt-6">
+        <p>
+          We sent a link to {user.email}. Confirming it means our delivery updates and receipts reach
+          you — and lets us know we are writing to the right inbox.
+        </p>
+        {/* Posts to the verify page, which owns both halves of this flow. */}
+        <form method="post" action="/account/verify" class="mt-3">
+          <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+          <Button type="submit" variant="secondary" size="sm">
+            Send the link again
+          </Button>
+        </form>
+      </Alert>
+    )
+  }
+
+  <section class="mt-10" aria-labelledby="recent-orders">
+    <div class="flex items-baseline justify-between gap-4">
+      <h2 id="recent-orders" class="font-serif text-xl font-semibold text-ink sm:text-2xl">Recent orders</h2>
+      {
+        orders.length > 0 && (
+          <a
+            href="/account/orders"
+            class="text-sm font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+          >
+            See all
+          </a>
+        )
+      }
+    </div>
+
+    {
+      orders.length === 0 ? (
+        <div class="mt-4">
+          <EmptyState
+            title="No orders yet"
+            body="When you order a jar, it will show up here with its status and tracking."
+            actionHref="/shop"
+            actionLabel="Browse the shop"
+          />
+        </div>
+      ) : (
+        <ul class="mt-4 space-y-3">
+          {orders.map((row) => (
+            <li>
+              <a href={`/account/orders/${row.order.id}`} class:list={[ROW, 'no-underline']}>
+                {row.firstItemImage ? (
+                  <img
+                    src={row.firstItemImage}
+                    alt=""
+                    loading="lazy"
+                    class="size-14 shrink-0 rounded-xl object-cover"
+                  />
+                ) : (
+                  <span class="size-14 shrink-0 rounded-xl bg-mango-100" aria-hidden="true" />
+                )}
+
+                <span class="min-w-0 flex-1">
+                  <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="font-medium text-ink">{row.order.order_number}</span>
+                    <StatusBadge status={row.order.status} />
+                  </span>
+                  <span class="mt-1 block truncate text-sm text-ink/65">
+                    {row.firstItemName}
+                    {row.itemCount > 1 && ` and ${row.itemCount - 1} more`}
+                  </span>
+                  <span class="mt-1 block text-xs text-ink/55">{formatDate(row.order.placed_at)}</span>
+                </span>
+
+                <Money paise={row.order.total_paise} class="shrink-0 font-semibold text-ink" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+
+  <section class="mt-10 grid gap-4 sm:grid-cols-2" aria-label="Your details">
+    <div class={CARD}>
+      <h2 class="font-serif text-lg font-semibold text-ink">Saved addresses</h2>
+      <p class="mt-1 text-sm text-ink/65">
+        {addresses.length === 0
+          ? 'None saved yet — add one and checkout fills itself in.'
+          : `${addresses.length} saved ${addresses.length === 1 ? 'address' : 'addresses'}.`}
+      </p>
+
+      {
+        defaultAddress && (
+          <p class="mt-3 text-sm leading-relaxed text-ink/75">
+            <span class="font-medium text-ink">{defaultAddress.label}</span>
+            <br />
+            {defaultAddress.full_name}, {defaultAddress.line1}
+            <br />
+            {defaultAddress.city}, {defaultAddress.state} {defaultAddress.pincode}
+          </p>
+        )
+      }
+
+      <p class="mt-4">
+        <Button href="/account/addresses" variant="secondary" size="sm">
+          {addresses.length === 0 ? 'Add an address' : 'Manage addresses'}
+        </Button>
+      </p>
+    </div>
+
+    <div class={CARD}>
+      <h2 class="font-serif text-lg font-semibold text-ink">Notifications</h2>
+      <p class="mt-1 text-sm text-ink/65">
+        {unread === 0 ? 'Nothing unread. We only write when something moves.' : `${unread} unread.`}
+      </p>
+      <p class="mt-4">
+        <Button href="/account/notifications" variant="secondary" size="sm">
+          Open notifications
+        </Button>
+      </p>
+    </div>
+  </section>
+
+  <nav class="mt-10 grid gap-3 sm:grid-cols-2" aria-label="Account sections">
+    {
+      QUICK_LINKS.map((link) => (
+        <a href={link.href} class={CARD_LINK}>
+          <span class="block font-medium text-ink">{link.title}</span>
+          <span class="mt-1 block text-sm text-ink/65">{link.body}</span>
+        </a>
+      ))
+    }
+  </nav>
+
+  <p class="mt-10 text-center text-sm text-ink/65">
+    Something not right with an order?{' '}
+    <a
+      href="mailto:mothersgoldspice@gmail.com"
+      class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+    >
+      Write to us
+    </a>{' '}
+    and we will sort it out.
+  </p>
+</ShopLayout>

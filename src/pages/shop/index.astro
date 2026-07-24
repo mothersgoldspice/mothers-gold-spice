@@ -1,0 +1,180 @@
+---
+/**
+ * The shop front — every product we sell, and every product we are about to.
+ *
+ * Draft products are rendered on purpose rather than filtered out. Mother's Gold
+ * Spice is a food range, not a pickle shop, and a "coming soon" card for the
+ * chutney and the cookies is what tells a first-time visitor that. They are
+ * greyed, carry no price and are not links, so nothing about them looks buyable.
+ * Archived products are gone for good and never appear.
+ */
+import Alert from '../../components/shop/Alert.astro';
+import EmptyState from '../../components/shop/EmptyState.astro';
+import Money from '../../components/shop/Money.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import { getCart } from '../../lib/services/cart';
+import { listProducts } from '../../lib/services/catalog';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const settings = await ctx.settings();
+
+const catalogue = (await listProducts(ctx.db, { includeInactive: true })).filter((p) => p.status !== 'archived');
+const cart = await getCart(ctx.db, ctx.cartId, settings, { userId: ctx.user?.id ?? null });
+
+const forSale = catalogue.filter((p) => p.status === 'active');
+const comingSoon = catalogue.filter((p) => p.status !== 'active');
+
+/** One short line per card that says whether the customer can buy it today. */
+function stockNote(product: (typeof catalogue)[number]): { label: string; tone: string } | null {
+  if (!product.anyInStock) return { label: 'Sold out for now', tone: 'bg-ink/8 text-ink/70' };
+  if (product.variants.some((v) => v.lowStock)) {
+    return { label: 'Only a few jars left', tone: 'bg-amber-100 text-amber-900' };
+  }
+  return { label: 'In stock', tone: 'bg-emerald-100 text-emerald-900' };
+}
+
+const CARD =
+  'group relative flex h-full flex-col overflow-hidden rounded-3xl border border-mango-100 bg-white/70 ' +
+  'transition hover:border-mango-300 hover:shadow-lg hover:shadow-mango-300/20 focus-visible:outline-none ' +
+  'focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2 focus-visible:ring-offset-cream';
+---
+
+<ShopLayout
+  title="Shop"
+  description="Small-batch mango pickle, hand-made in a Bangalore kitchen. Ordered today, packed this week."
+  user={ctx.user}
+  cartCount={cart.itemCount}
+  wide
+>
+  <header class="mb-8">
+    <p class="mb-2 text-xs font-medium tracking-widest text-spice-500 uppercase">The kitchen</p>
+    <h1 class="font-serif text-3xl text-ink sm:text-4xl">Everything we make</h1>
+    <p class="mt-3 max-w-xl text-sm leading-relaxed text-ink/70">
+      Cooked in small batches in Bangalore, in the same order they have always been made. Nothing sits in a warehouse
+      for a season.
+    </p>
+  </header>
+
+  {
+    !settings.storeOpen && (
+      <Alert kind="info" title="We are between batches" class="mb-8">
+        {settings.storeClosedMessage}
+      </Alert>
+    )
+  }
+
+  {
+    catalogue.length === 0 ? (
+      <EmptyState
+        title="Nothing on the shelf yet"
+        body="The first batch is still cooking. Write to us and we will tell you the day it is ready."
+        actionHref="/"
+        actionLabel="Back to the story"
+      />
+    ) : (
+      <ul class="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        {forSale.map((product) => {
+          const note = stockNote(product);
+          return (
+            <li>
+              <a href={`/shop/${product.slug}`} class={CARD}>
+                <div class="aspect-square overflow-hidden bg-mango-50">
+                  {product.heroImage ? (
+                    <img
+                      src={product.heroImage}
+                      alt={product.name}
+                      width="600"
+                      height="600"
+                      loading="lazy"
+                      decoding="async"
+                      class="size-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div class="flex size-full items-center justify-center font-serif text-4xl text-mango-300">
+                      {product.name.slice(0, 1)}
+                    </div>
+                  )}
+                </div>
+
+                <div class="flex flex-1 flex-col gap-2 p-5">
+                  <div class="flex flex-wrap items-start justify-between gap-2">
+                    <h2 class="font-serif text-lg font-semibold text-ink">{product.name}</h2>
+                    {product.isVeg && (
+                      <span
+                        class="mt-1 inline-flex size-4 shrink-0 items-center justify-center rounded-sm border border-emerald-700"
+                        title="Vegetarian"
+                      >
+                        <span class="size-2 rounded-full bg-emerald-700" aria-hidden="true" />
+                        <span class="sr-only">Vegetarian</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <p class="text-sm leading-relaxed text-ink/65">{product.subtitle}</p>
+
+                  <div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
+                    {product.fromPricePaise !== null && (
+                      <p class="text-sm text-ink/70">
+                        from <Money paise={product.fromPricePaise} class="text-base font-semibold text-ink" />
+                      </p>
+                    )}
+                    {note && (
+                      <span class:list={['rounded-full px-2.5 py-1 text-xs font-medium', note.tone]}>{note.label}</span>
+                    )}
+                  </div>
+                </div>
+              </a>
+            </li>
+          );
+        })}
+
+        {comingSoon.map((product) => (
+          <li>
+            {/*
+              A div, not a link: /shop/[slug] serves active products only, so a
+              draft card that looked clickable would lead straight to a 404.
+            */}
+            <div class:list={[CARD, 'cursor-default opacity-70 hover:border-mango-100 hover:shadow-none']}>
+              <p class="absolute top-4 -left-9 z-10 w-36 -rotate-45 bg-ink py-1 text-center text-[11px] font-semibold tracking-wider text-cream uppercase">
+                Coming soon
+              </p>
+
+              <div class="aspect-square overflow-hidden bg-mango-50 grayscale">
+                {product.heroImage ? (
+                  <img
+                    src={product.heroImage}
+                    alt=""
+                    width="600"
+                    height="600"
+                    loading="lazy"
+                    decoding="async"
+                    class="size-full object-cover"
+                  />
+                ) : (
+                  <div class="flex size-full items-center justify-center font-serif text-4xl text-mango-300">
+                    {product.name.slice(0, 1)}
+                  </div>
+                )}
+              </div>
+
+              <div class="flex flex-1 flex-col gap-2 p-5">
+                <h2 class="font-serif text-lg font-semibold text-ink/80">{product.name}</h2>
+                <p class="text-sm leading-relaxed text-ink/60">{product.subtitle}</p>
+                <p class="mt-auto pt-3 text-sm text-ink/55">Being perfected in the kitchen. Not on sale yet.</p>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  <p class="mt-10 text-sm leading-relaxed text-ink/60">
+    Every jar is filled, capped and labelled by hand in Bengaluru. Delivery across India, free above
+    <Money paise={settings.freeShippingThresholdPaise} />.
+    <a href="/shipping" class="font-medium text-spice-500 underline underline-offset-4">See delivery charges</a>.
+  </p>
+</ShopLayout>

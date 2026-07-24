@@ -1,0 +1,305 @@
+---
+/**
+ * Who has bought from us.
+ *
+ * Order count and lifetime spend come from one LEFT JOIN + GROUP BY rather than
+ * a query per customer — the same reason the API does it that way. Lifetime
+ * spend is money we KEPT: refunds come off, and an unpaid or cancelled order was
+ * never revenue to begin with.
+ *
+ * `password_hash` is never selected. Not redacted afterwards — never asked for,
+ * so no later edit to this query can leak it by accident.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { readPaging, requireAdmin, requireCtx } from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+/** Whitelisted, because the chosen clause is interpolated into the SQL rather than bound. */
+const SORTS = {
+  recent: 'u.created_at DESC',
+  spend: 'lifetime_spend_paise DESC, u.created_at DESC',
+  orders: 'order_count DESC, u.created_at DESC',
+  name: 'u.name COLLATE NOCASE ASC',
+} as const;
+type SortKey = keyof typeof SORTS;
+
+const SORT_LABEL: Record<SortKey, string> = {
+  recent: 'Newest first',
+  spend: 'Biggest spenders',
+  orders: 'Most orders',
+  name: 'Name A–Z',
+};
+
+const ROLES = ['customer', 'staff', 'admin'] as const;
+
+const search = (Astro.url.searchParams.get('search') ?? '').trim().slice(0, 120);
+const rawRole = Astro.url.searchParams.get('role') ?? '';
+const role = ROLES.find((r) => r === rawRole) ?? null;
+const rawSort = Astro.url.searchParams.get('sort') ?? '';
+const sort: SortKey = (Object.keys(SORTS) as SortKey[]).find((s) => s === rawSort) ?? 'recent';
+
+const { limit, offset } = readPaging(Astro.url, 25, 100);
+const page = Math.max(Number.parseInt(Astro.url.searchParams.get('page') ?? '', 10) || 1, 1);
+
+const where: string[] = [];
+const params: (string | number)[] = [];
+if (search) {
+  const term = `%${search.toLowerCase()}%`;
+  where.push('(LOWER(u.email) LIKE ? OR LOWER(u.name) LIKE ? OR u.phone LIKE ?)');
+  params.push(term, term, term);
+}
+if (role) {
+  where.push('u.role = ?');
+  params.push(role);
+}
+const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+interface CustomerRow {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  email_verified_at: number | null;
+  marketing_opt_in: number;
+  has_password: number;
+  last_login_at: number | null;
+  created_at: number;
+  order_count: number;
+  paid_order_count: number;
+  lifetime_spend_paise: number;
+  last_order_at: number | null;
+}
+
+const total = (await ctx.db.scalar<number>(`SELECT COUNT(*) FROM users u ${clause}`, params)) ?? 0;
+
+const rows = await ctx.db.all<CustomerRow>(
+  `SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.email_verified_at, u.marketing_opt_in,
+          u.last_login_at, u.created_at,
+          CASE WHEN u.password_hash IS NULL THEN 0 ELSE 1 END AS has_password,
+          COUNT(o.id) AS order_count,
+          COUNT(CASE WHEN o.payment_status IN ('paid','partially_refunded') THEN 1 END) AS paid_order_count,
+          COALESCE(SUM(CASE WHEN o.payment_status IN ('paid','partially_refunded')
+                            THEN o.total_paise - o.refunded_paise END), 0) AS lifetime_spend_paise,
+          MAX(o.created_at) AS last_order_at
+     FROM users u
+     LEFT JOIN orders o ON o.user_id = u.id
+     ${clause}
+    GROUP BY u.id
+    ORDER BY ${SORTS[sort]}
+    LIMIT ? OFFSET ?`,
+  [...params, limit, offset],
+);
+
+const from = total === 0 ? 0 : offset + 1;
+const to = offset + rows.length;
+
+function pageHref(target: number): string {
+  const query = new URLSearchParams();
+  if (search) query.set('search', search);
+  if (role) query.set('role', role);
+  if (sort !== 'recent') query.set('sort', sort);
+  if (target > 1) query.set('page', String(target));
+  const q = query.toString();
+  return q ? `/admin/customers?${q}` : '/admin/customers';
+}
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: '2-digit',
+        timeZone: 'Asia/Kolkata',
+      });
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CONTROL =
+  'min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const PAGER =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/15 bg-white px-3 text-sm transition ' +
+  'hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+const TAG = 'rounded px-1.5 py-0.5 text-[11px] font-medium';
+---
+
+<AdminLayout
+  title="Customers"
+  subtitle={`${total} ${total === 1 ? 'person' : 'people'}${search ? ` matching “${search}”` : ''}`}
+>
+  <form method="get" action="/admin/customers" class="flex flex-wrap items-end gap-2">
+    <div>
+      <label for="filter-search" class="mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase">
+        Search
+      </label>
+      <input
+        id="filter-search"
+        name="search"
+        type="search"
+        value={search}
+        maxlength="120"
+        placeholder="Name, email or phone"
+        class:list={[CONTROL, 'w-56']}
+      />
+    </div>
+
+    <div>
+      <label for="filter-role" class="mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase">
+        Role
+      </label>
+      <select id="filter-role" name="role" class={CONTROL}>
+        <option value="">Everyone</option>
+        {
+          ROLES.map((value) => (
+            <option value={value} selected={role === value}>
+              {value}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+
+    <div>
+      <label for="filter-sort" class="mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase">
+        Sort
+      </label>
+      <select id="filter-sort" name="sort" class={CONTROL}>
+        {
+          (Object.keys(SORTS) as SortKey[]).map((value) => (
+            <option value={value} selected={sort === value}>
+              {SORT_LABEL[value]}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2"
+    >
+      Apply
+    </button>
+
+    {
+      (search || role || sort !== 'recent') && (
+        <a href="/admin/customers" class="min-h-9 px-1 py-2 text-sm text-ink/60 underline underline-offset-2 hover:text-spice-500">
+          Clear
+        </a>
+      )
+    }
+  </form>
+
+  <div class="mt-4 rounded-md border border-ink/10 bg-white">
+    {
+      rows.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          Nobody matches that. <a href="/admin/customers" class="underline underline-offset-2">Show everyone</a>.
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Customer
+                </th>
+                <th scope="col" class={TH}>
+                  Phone
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Orders
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Lifetime spend
+                </th>
+                <th scope="col" class={TH}>
+                  Last order
+                </th>
+                <th scope="col" class={TH}>
+                  Joined
+                </th>
+                <th scope="col" class={TH}>
+                  Account
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr class="border-b border-ink/8 last:border-0 hover:bg-mango-50">
+                  <td class={`${TD} max-w-64`}>
+                    <span class="block truncate font-medium">{row.name || 'No name given'}</span>
+                    <a href={`mailto:${row.email}`} class={`block truncate text-xs ${LINK}`}>
+                      {row.email}
+                    </a>
+                  </td>
+
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>{row.phone ?? '—'}</td>
+
+                  <td class={`${TD} text-right tabular-nums`}>
+                    {row.order_count > 0 ? (
+                      <a href={`/admin/orders?search=${encodeURIComponent(row.email)}`} class={LINK}>
+                        {row.order_count}
+                      </a>
+                    ) : (
+                      <span class="text-ink/45">0</span>
+                    )}
+                    {row.paid_order_count !== row.order_count && (
+                      <span class="block text-[11px] text-ink/45">{row.paid_order_count} paid</span>
+                    )}
+                  </td>
+
+                  <td class={`${TD} text-right font-medium whitespace-nowrap tabular-nums`}>
+                    {formatPaise(row.lifetime_spend_paise)}
+                  </td>
+
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>{stamp(row.last_order_at)}</td>
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>{stamp(row.created_at)}</td>
+
+                  <td class={TD}>
+                    <div class="flex flex-wrap gap-1">
+                      {row.role !== 'customer' && (
+                        <span class:list={[TAG, 'bg-spice-500/15 text-spice-700']}>{row.role}</span>
+                      )}
+                      {row.status !== 'active' && <span class:list={[TAG, 'bg-red-100 text-red-900']}>{row.status}</span>}
+                      {row.has_password === 0 ? (
+                        // A guest checkout leaves a passwordless shell so their
+                        // history survives them signing up later. Not a fault.
+                        <span class:list={[TAG, 'bg-ink/8 text-ink/70']}>guest</span>
+                      ) : row.email_verified_at === null ? (
+                        <span class:list={[TAG, 'bg-amber-100 text-amber-900']}>unverified</span>
+                      ) : (
+                        <span class:list={[TAG, 'bg-emerald-100 text-emerald-900']}>verified</span>
+                      )}
+                      {row.marketing_opt_in === 1 && <span class:list={[TAG, 'bg-mango-100 text-mango-700']}>news</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+  </div>
+
+  <nav aria-label="Pagination" class="mt-3 flex items-center justify-between gap-3 text-sm">
+    <p class="text-ink/60 tabular-nums">{from}–{to} of {total}</p>
+    <div class="flex gap-2">
+      {page > 1 && <a href={pageHref(page - 1)} class={PAGER} rel="prev">← Previous</a>}
+      {offset + rows.length < total && <a href={pageHref(page + 1)} class={PAGER} rel="next">Next →</a>}
+    </div>
+  </nav>
+</AdminLayout>

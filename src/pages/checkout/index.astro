@@ -1,0 +1,734 @@
+---
+/**
+ * One-page checkout.
+ *
+ * Everything is on one screen because a three-step wizard on a phone is three
+ * chances to lose the sale. The page never computes a price: the summary is
+ * rendered from the server's pricing module, and refreshed from
+ * /api/checkout/serviceability the moment we know the PIN code.
+ *
+ * Two details worth knowing before editing this file:
+ *
+ *  1. The idempotency key is generated ONCE, here, when the page is rendered.
+ *     A double tap on Place order therefore sends the same key twice and the
+ *     checkout route returns the order that already exists rather than making a
+ *     second one. Regenerating it per submit would defeat the whole mechanism.
+ *  2. Serviceability is always asked with `cod: true`, never with the method the
+ *     customer currently has selected. The courier only reports a meaningful COD
+ *     answer when it is asked about COD, and the answer is written to a shared
+ *     pincode cache — asking with `cod: false` would cache "no cash on delivery"
+ *     for that PIN code for days and break COD for the next customer.
+ */
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import Money from '../../components/shop/Money.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+import { listAddresses } from '../../lib/services/accounts';
+import { getCart } from '../../lib/services/cart';
+import { priceOrder } from '../../lib/services/pricing';
+import { isValidPincode, zoneForPincode } from '../../lib/shipping-zones';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const settings = await ctx.settings();
+
+const addresses = ctx.user ? await listAddresses(ctx.db, ctx.user.id) : [];
+const defaultAddress = addresses.find((a) => a.is_default_shipping === 1) ?? addresses[0] ?? null;
+
+// A signed-in customer with a saved address gets real delivery numbers on the
+// first paint instead of "worked out later".
+const zone = defaultAddress && isValidPincode(defaultAddress.pincode) ? zoneForPincode(defaultAddress.pincode) : null;
+
+const cart = await getCart(ctx.db, ctx.cartId, settings, {
+  zone,
+  paymentMethod: 'prepaid',
+  userId: ctx.user?.id ?? null,
+});
+
+// An empty basket has nothing to check out. Send them where the explanation is.
+if (cart.lines.length === 0) return Astro.redirect('/cart');
+
+const { pricing } = cart;
+
+// The same basket priced for cash on delivery, so the fee and the min/max rules
+// are judged against the number the order would actually carry.
+const codPricing = priceOrder({
+  lines: cart.lines.map((line) => ({
+    variantId: line.variantId,
+    qty: line.qty,
+    unitPricePaise: line.unitPricePaise,
+    gstRateBps: line.variant.gstRateBps,
+    shippingWeightGrams: line.variant.shippingWeightGrams,
+  })),
+  settings,
+  zone,
+  paymentMethod: 'cod',
+  coupon: cart.coupon,
+  shippingUnknown: zone === null,
+});
+
+/** Why cash on delivery cannot be picked yet, or null when it can. */
+function codBlockedReason(): string | null {
+  if (!settings.codEnabled) return 'Cash on delivery is switched off at the moment.';
+  if (zone === null) return 'Enter your PIN code and we will check whether cash on delivery reaches you.';
+  if (codPricing.totalPaise < settings.codMinOrderPaise) {
+    return `Cash on delivery needs an order of at least ${formatPaise(settings.codMinOrderPaise)}.`;
+  }
+  if (codPricing.totalPaise > settings.codMaxOrderPaise) {
+    return `Cash on delivery is available up to ${formatPaise(settings.codMaxOrderPaise)}.`;
+  }
+  // The courier still has to agree, which only the serviceability check knows.
+  return 'Enter your PIN code and we will check whether cash on delivery reaches you.';
+}
+
+const codReason = codBlockedReason();
+
+/**
+ * Generated once per page load, on the server, and sent with the order.
+ * `crypto.randomUUID()` is available in the Worker runtime and in the browser;
+ * doing it here means the key is fixed before the customer can tap anything.
+ */
+const idempotencyKey = crypto.randomUUID();
+
+const a = defaultAddress;
+const signedIn = ctx.user !== null;
+---
+
+<ShopLayout title="Checkout" user={ctx.user} cartCount={cart.itemCount}>
+  <h1 class="font-serif text-3xl text-ink sm:text-4xl">Checkout</h1>
+  <p class="mt-2 text-sm text-ink/65">
+    {cart.itemCount} {cart.itemCount === 1 ? 'jar' : 'jars'} · packed and posted from Bengaluru.
+  </p>
+
+  {
+    !settings.storeOpen && (
+      <Alert kind="warning" title="We are between batches" class="mt-6">
+        {settings.storeClosedMessage} We cannot take the order right now.
+      </Alert>
+    )
+  }
+
+  {
+    cart.hasIssues && (
+      <Alert kind="warning" title="Check your basket first" class="mt-6">
+        Something in your basket changed price or ran short.{' '}
+        <a href="/cart">Go back to the basket</a> and we will pick up from there.
+      </Alert>
+    )
+  }
+
+  <form
+    class="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem] lg:items-start"
+    data-checkout-form
+    data-idempotency-key={idempotencyKey}
+    data-cod-enabled={settings.codEnabled ? '1' : '0'}
+    data-cod-min={settings.codMinOrderPaise}
+    data-cod-max={settings.codMaxOrderPaise}
+  >
+    <div class="space-y-6">
+      {/* ── Contact ──────────────────────────────────────────────────── */}
+      <section class="rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="contact-heading">
+        <h2 id="contact-heading" class="font-serif text-lg font-semibold text-ink">
+          Where shall we send the receipt?
+        </h2>
+        <div class="mt-4">
+          <Field
+            label="Email address"
+            name="email"
+            type="email"
+            value={ctx.user?.email ?? ''}
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+            hint="Your receipt and the tracking link go here."
+          />
+        </div>
+        {
+          !signedIn && (
+            <p class="mt-3 text-sm text-ink/65">
+              Have an account?{' '}
+              <a href="/account" class="font-medium text-spice-500 underline underline-offset-4">
+                Sign in
+              </a>{' '}
+              to use a saved address. You can also order as a guest.
+            </p>
+          )
+        }
+      </section>
+
+      {/* ── Delivery address ─────────────────────────────────────────── */}
+      <section class="rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="address-heading">
+        <h2 id="address-heading" class="font-serif text-lg font-semibold text-ink">Delivery address</h2>
+
+        {
+          addresses.length > 0 && (
+            <fieldset class="mt-4 border-0 p-0" data-address-picker>
+              <legend class="sr-only">Choose a saved address</legend>
+              <div class="space-y-2">
+                {addresses.map((address) => (
+                  <label class="flex cursor-pointer gap-3 rounded-2xl border border-ink/15 bg-white p-3 text-sm transition has-[:checked]:border-spice-500 has-[:checked]:ring-2 has-[:checked]:ring-spice-500/20">
+                    <input
+                      type="radio"
+                      name="saved_address"
+                      value={address.id}
+                      checked={address.id === defaultAddress?.id}
+                      class="mt-1 size-4 shrink-0 accent-spice-500"
+                      data-address-full-name={address.full_name}
+                      data-address-phone={address.phone}
+                      data-address-line1={address.line1}
+                      data-address-line2={address.line2 ?? ''}
+                      data-address-landmark={address.landmark ?? ''}
+                      data-address-city={address.city}
+                      data-address-state={address.state}
+                      data-address-pincode={address.pincode}
+                    />
+                    <span class="min-w-0">
+                      <span class="block font-medium text-ink">
+                        {address.full_name}
+                        <span class="ml-2 text-xs font-normal text-ink/55">{address.label}</span>
+                      </span>
+                      <span class="block text-ink/70">
+                        {address.line1}
+                        {address.line2 ? `, ${address.line2}` : ''}, {address.city}, {address.state}{' '}
+                        {address.pincode}
+                      </span>
+                      <span class="block text-ink/55">{address.phone}</span>
+                    </span>
+                  </label>
+                ))}
+
+                <label class="flex cursor-pointer gap-3 rounded-2xl border border-ink/15 bg-white p-3 text-sm transition has-[:checked]:border-spice-500 has-[:checked]:ring-2 has-[:checked]:ring-spice-500/20">
+                  <input type="radio" name="saved_address" value="" class="mt-1 size-4 shrink-0 accent-spice-500" />
+                  <span class="font-medium text-ink">Send it somewhere else</span>
+                </label>
+              </div>
+            </fieldset>
+          )
+        }
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2" data-address-fields>
+          <Field
+            label="Full name"
+            name="full_name"
+            value={a?.full_name ?? ''}
+            required
+            autocomplete="name"
+            maxlength={120}
+          />
+          <Field
+            label="Mobile number"
+            name="phone"
+            type="tel"
+            value={a?.phone ?? ''}
+            required
+            autocomplete="tel"
+            inputmode="numeric"
+            maxlength={15}
+            hint="For the delivery agent's call."
+          />
+          <Field
+            label="Flat / house and street"
+            name="line1"
+            value={a?.line1 ?? ''}
+            required
+            autocomplete="address-line1"
+            maxlength={200}
+            class="sm:col-span-2"
+          />
+          <Field
+            label="Area, colony (optional)"
+            name="line2"
+            value={a?.line2 ?? ''}
+            autocomplete="address-line2"
+            maxlength={200}
+            class="sm:col-span-2"
+          />
+          <Field label="Landmark (optional)" name="landmark" value={a?.landmark ?? ''} maxlength={120} />
+          <Field
+            label="PIN code"
+            name="pincode"
+            value={a?.pincode ?? ''}
+            required
+            autocomplete="postal-code"
+            inputmode="numeric"
+            maxlength={6}
+            pattern="[1-9][0-9]{5}"
+          />
+          <Field label="City" name="city" value={a?.city ?? ''} required autocomplete="address-level2" maxlength={80} />
+          <Field
+            label="State"
+            name="state"
+            value={a?.state ?? ''}
+            required
+            autocomplete="address-level1"
+            maxlength={80}
+          />
+        </div>
+
+        <p class="mt-3 text-sm leading-relaxed" data-service-note role="status" aria-live="polite"></p>
+
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-ink/80">
+          <input type="checkbox" name="billing_same" checked class="mt-0.5 size-4 accent-spice-500" data-billing-same />
+          <span>The billing address is the same as this one</span>
+        </label>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2" data-billing-fields hidden>
+          <p class="text-sm font-medium text-ink/80 sm:col-span-2">Billing address</p>
+          <Field label="Full name" name="b_full_name" id="f-b-full-name" maxlength={120} />
+          <Field label="Mobile number" name="b_phone" id="f-b-phone" type="tel" inputmode="numeric" maxlength={15} />
+          <Field label="Flat / house and street" name="b_line1" id="f-b-line1" maxlength={200} class="sm:col-span-2" />
+          <Field label="Area, colony (optional)" name="b_line2" id="f-b-line2" maxlength={200} class="sm:col-span-2" />
+          <Field label="PIN code" name="b_pincode" id="f-b-pincode" inputmode="numeric" maxlength={6} />
+          <Field label="City" name="b_city" id="f-b-city" maxlength={80} />
+          <Field label="State" name="b_state" id="f-b-state" maxlength={80} class="sm:col-span-2" />
+        </div>
+      </section>
+
+      {/* ── Payment ──────────────────────────────────────────────────── */}
+      <section class="rounded-3xl border border-mango-100 bg-white/70 p-5" aria-labelledby="payment-heading">
+        <h2 id="payment-heading" class="font-serif text-lg font-semibold text-ink">How would you like to pay?</h2>
+
+        <fieldset class="mt-4 space-y-2 border-0 p-0">
+          <legend class="sr-only">Payment method</legend>
+
+          <label class="flex cursor-pointer gap-3 rounded-2xl border border-ink/15 bg-white p-4 text-sm transition has-[:checked]:border-spice-500 has-[:checked]:ring-2 has-[:checked]:ring-spice-500/20">
+            <input type="radio" name="payment_method" value="prepaid" checked class="mt-0.5 size-4 shrink-0 accent-spice-500" />
+            <span>
+              <span class="block font-medium text-ink">Pay online</span>
+              <span class="block text-ink/65">UPI, card or net banking. The parcel goes out sooner.</span>
+            </span>
+          </label>
+
+          <label
+            class="flex cursor-pointer gap-3 rounded-2xl border border-ink/15 bg-white p-4 text-sm transition has-[:checked]:border-spice-500 has-[:checked]:ring-2 has-[:checked]:ring-spice-500/20 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-55"
+            data-cod-label
+          >
+            <input
+              type="radio"
+              name="payment_method"
+              value="cod"
+              disabled={codReason !== null}
+              class="mt-0.5 size-4 shrink-0 accent-spice-500"
+              data-cod-radio
+            />
+            <span>
+              <span class="block font-medium text-ink">
+                Cash on delivery
+                {settings.codFeePaise > 0 && (
+                  <span class="ml-1 text-xs font-normal text-ink/60">
+                    (+<Money paise={settings.codFeePaise} /> handling)
+                  </span>
+                )}
+              </span>
+              <span class="block text-ink/65" data-cod-reason>
+                {codReason ?? 'Pay the delivery agent when the parcel arrives.'}
+              </span>
+            </span>
+          </label>
+        </fieldset>
+
+        <div class="mt-4">
+          <Field
+            label="Anything we should know? (optional)"
+            name="customer_note"
+            type="textarea"
+            rows={2}
+            maxlength={500}
+            placeholder="Gate code, a gift message, best time to deliver…"
+          />
+        </div>
+      </section>
+    </div>
+
+    {/* ── Summary ────────────────────────────────────────────────────── */}
+    <aside class="space-y-4 lg:sticky lg:top-20" aria-label="Order summary">
+      <div class="rounded-3xl border border-mango-100 bg-white/70 p-5">
+        <h2 class="font-serif text-lg font-semibold text-ink">Your order</h2>
+
+        <ul class="mt-4 list-none space-y-3 p-0 text-sm">
+          {
+            cart.lines.map((line) => (
+              <li class="flex justify-between gap-3">
+                <span class="min-w-0 text-ink/80">
+                  {line.variant.productName}
+                  <span class="block text-xs text-ink/55">
+                    {line.variant.name} × {line.qty}
+                  </span>
+                </span>
+                <Money paise={line.lineTotalPaise} class="text-ink" />
+              </li>
+            ))
+          }
+        </ul>
+
+        <dl class="mt-4 space-y-2 border-t border-ink/10 pt-4 text-sm">
+          <div class="flex justify-between gap-4">
+            <dt class="text-ink/70">Items</dt>
+            <dd><Money paise={pricing.subtotalPaise} class="text-ink" /></dd>
+          </div>
+
+          <div class="flex justify-between gap-4" data-sum-discount-row hidden={pricing.discountPaise <= 0}>
+            <dt class="text-ink/70">Discount{cart.coupon ? ` (${cart.coupon.code})` : ''}</dt>
+            <dd class="text-emerald-800">−<span data-sum-discount><Money paise={pricing.discountPaise} /></span></dd>
+          </div>
+
+          <div class="flex justify-between gap-4">
+            <dt class="text-ink/70">Delivery</dt>
+            <dd class="text-ink" data-sum-shipping>
+              {zone === null ? 'Once we have your PIN code' : pricing.shippingPaise === 0 ? 'Free' : formatPaise(pricing.shippingPaise)}
+            </dd>
+          </div>
+
+          <div class="flex justify-between gap-4" data-sum-cod-row hidden>
+            <dt class="text-ink/70">Cash-handling fee</dt>
+            <dd class="text-ink" data-sum-cod>{formatPaise(settings.codFeePaise)}</dd>
+          </div>
+
+          <div class="flex justify-between gap-4 border-t border-ink/10 pt-3 text-base font-semibold">
+            <dt>Total</dt>
+            <dd><span data-sum-total><Money paise={pricing.totalPaise} /></span></dd>
+          </div>
+        </dl>
+
+        <p class="mt-2 text-xs leading-relaxed text-ink/55">
+          All prices include GST. {zone === null && 'Delivery is added once we know the PIN code.'}
+        </p>
+
+        <p class="mt-4">
+          <Button type="submit" size="lg" class="w-full" disabled={!settings.storeOpen} data-place-order>
+            Place order
+          </Button>
+        </p>
+
+        <p class="mt-3 text-sm font-medium text-red-700" data-checkout-error role="alert" hidden></p>
+
+        <p class="mt-3 text-xs leading-relaxed text-ink/55">
+          By placing the order you agree to our delivery and returns terms. Nothing is charged until you complete the
+          payment.
+        </p>
+
+        <noscript>
+          <p class="mt-3 rounded-2xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+            Placing an order needs JavaScript. If it is switched off, write to
+            <a href="mailto:mothersgoldspice@gmail.com" class="font-medium underline">mothersgoldspice@gmail.com</a>
+            with what you would like and where it is going, and we will send you a payment link.
+          </p>
+        </noscript>
+      </div>
+
+      <p class="px-2 text-xs leading-relaxed text-ink/55">
+        Need to change something?{' '}
+        <a href="/cart" class="font-medium text-spice-500 underline underline-offset-4">Back to the basket</a>
+      </p>
+    </aside>
+  </form>
+</ShopLayout>
+
+<script>
+  /**
+   * Checkout behaviour: saved addresses, the billing toggle, the serviceability
+   * check and placing the order.
+   *
+   * No price is calculated here. The one arithmetic on this page is subtracting
+   * the cash-handling fee — an integer the server reports separately — from the
+   * COD total, because serviceability is deliberately always asked about COD
+   * (see the note at the top of this file) and the prepaid total is that same
+   * server-computed figure without the fee.
+   */
+  const form = document.querySelector<HTMLFormElement>('[data-checkout-form]');
+
+  if (form) {
+    const csrf = document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.content ?? '';
+
+    /** Mirrors formatPaise() in src/lib/money.ts — formatting only, no maths. */
+    const rupees = (paise: number) =>
+      new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: paise % 100 === 0 ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(paise / 100);
+
+    const field = (name: string) => form.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`);
+    const value = (name: string) => field(name)?.value.trim() ?? '';
+
+    const errorBox = form.querySelector<HTMLElement>('[data-checkout-error]');
+    const serviceNote = form.querySelector<HTMLElement>('[data-service-note]');
+    const codRadio = form.querySelector<HTMLInputElement>('[data-cod-radio]');
+    const codReason = form.querySelector<HTMLElement>('[data-cod-reason]');
+    const placeButton = form.querySelector<HTMLButtonElement>('[data-place-order]');
+    const billingSame = form.querySelector<HTMLInputElement>('[data-billing-same]');
+    const billingFields = form.querySelector<HTMLElement>('[data-billing-fields]');
+    const addressFields = form.querySelector<HTMLElement>('[data-address-fields]');
+
+    const codEnabled = form.dataset.codEnabled === '1';
+    const codMin = Number(form.dataset.codMin ?? '0');
+    const codMax = Number(form.dataset.codMax ?? '0');
+
+    const say = (text: string) => {
+      if (!errorBox) return;
+      errorBox.textContent = text;
+      errorBox.hidden = text === '';
+    };
+
+    const selectedMethod = () =>
+      form.querySelector<HTMLInputElement>('input[name="payment_method"]:checked')?.value ?? 'prepaid';
+
+    // ── Saved addresses ────────────────────────────────────────────────
+    // The typed fields are always filled in and always sent: the checkout route
+    // needs a valid shipping address in the payload even when it re-reads the
+    // saved one from the database by id.
+    const ADDRESS_FIELDS = ['full_name', 'phone', 'line1', 'line2', 'landmark', 'city', 'state', 'pincode'];
+
+    const applySavedAddress = () => {
+      const chosen = form.querySelector<HTMLInputElement>('input[name="saved_address"]:checked');
+      if (!chosen) return;
+
+      const values: Record<string, string> = chosen.value
+        ? {
+            full_name: chosen.dataset.addressFullName ?? '',
+            phone: chosen.dataset.addressPhone ?? '',
+            line1: chosen.dataset.addressLine1 ?? '',
+            line2: chosen.dataset.addressLine2 ?? '',
+            landmark: chosen.dataset.addressLandmark ?? '',
+            city: chosen.dataset.addressCity ?? '',
+            state: chosen.dataset.addressState ?? '',
+            pincode: chosen.dataset.addressPincode ?? '',
+          }
+        : Object.fromEntries(ADDRESS_FIELDS.map((name) => [name, '']));
+
+      for (const name of ADDRESS_FIELDS) {
+        const input = field(name);
+        if (input) input.value = values[name] ?? '';
+      }
+      // The fields stay visible rather than collapsing into a summary: someone
+      // correcting a flat number on a saved address should not hunt for an edit
+      // link, and the typed values are what get sent.
+      lastCheckedPincode = '';
+      void refreshDelivery();
+    };
+    for (const radio of form.querySelectorAll<HTMLInputElement>('input[name="saved_address"]')) {
+      radio.addEventListener('change', applySavedAddress);
+    }
+
+    // Editing the typed address means "somewhere else". Without this the
+    // checkout route would keep re-reading the saved address by id and quietly
+    // ignore the correction the customer just made.
+    addressFields?.addEventListener('input', () => {
+      const chosen = form.querySelector<HTMLInputElement>('input[name="saved_address"]:checked');
+      if (!chosen || !chosen.value) return;
+      const other = form.querySelector<HTMLInputElement>('input[name="saved_address"][value=""]');
+      if (other) other.checked = true;
+    });
+
+    // ── Billing toggle ─────────────────────────────────────────────────
+    const syncBilling = () => {
+      if (!billingSame || !billingFields) return;
+      const same = billingSame.checked;
+      billingFields.hidden = same;
+      // required is toggled with visibility so the browser never blocks a submit
+      // on a field nobody can see.
+      for (const name of ['b_full_name', 'b_phone', 'b_line1', 'b_pincode', 'b_city', 'b_state']) {
+        const input = field(name);
+        if (input) input.required = !same;
+      }
+    };
+    billingSame?.addEventListener('change', syncBilling);
+    syncBilling();
+
+    // ── Serviceability ─────────────────────────────────────────────────
+    let lastCheckedPincode = '';
+
+    const setCodAvailability = (available: boolean, reason: string) => {
+      if (!codRadio || !codReason) return;
+      codRadio.disabled = !available;
+      codReason.textContent = available ? 'Pay the delivery agent when the parcel arrives.' : reason;
+      if (!available && codRadio.checked) {
+        const prepaid = form.querySelector<HTMLInputElement>('input[name="payment_method"][value="prepaid"]');
+        if (prepaid) prepaid.checked = true;
+        paintTotals();
+      }
+    };
+
+    /** The last figures the server gave us for the current PIN code. */
+    let quote: { shippingPaise: number; codFeePaise: number; codTotalPaise: number } | null = null;
+
+    const paintTotals = () => {
+      if (!quote) return;
+      const cod = selectedMethod() === 'cod';
+      const shipping = form.querySelector<HTMLElement>('[data-sum-shipping]');
+      const codRow = form.querySelector<HTMLElement>('[data-sum-cod-row]');
+      const codCell = form.querySelector<HTMLElement>('[data-sum-cod]');
+      const total = form.querySelector<HTMLElement>('[data-sum-total]');
+
+      if (shipping) shipping.textContent = quote.shippingPaise === 0 ? 'Free' : rupees(quote.shippingPaise);
+      if (codRow) codRow.hidden = !cod || quote.codFeePaise <= 0;
+      if (codCell) codCell.textContent = rupees(quote.codFeePaise);
+      if (total) total.textContent = rupees(cod ? quote.codTotalPaise : quote.codTotalPaise - quote.codFeePaise);
+    };
+
+    const refreshDelivery = async () => {
+      const pincode = value('pincode');
+      if (!/^[1-9][0-9]{5}$/.test(pincode) || pincode === lastCheckedPincode) return;
+      lastCheckedPincode = pincode;
+
+      if (serviceNote) {
+        serviceNote.className = 'mt-3 text-sm leading-relaxed text-ink/65';
+        serviceNote.textContent = 'Checking delivery to this PIN code…';
+      }
+
+      try {
+        const response = await fetch('/api/checkout/serviceability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+          // Always asked about COD: see the file header.
+          body: JSON.stringify({ pincode, cod: true }),
+        });
+        const payload = (await response.json()) as
+          | {
+              ok: true;
+              data: {
+                serviceable: boolean;
+                codAvailable: boolean;
+                estimatedDays: number;
+                city: string | null;
+                state: string | null;
+                shippingPaise: number;
+                codFeePaise: number;
+                totalPaise: number;
+              };
+            }
+          | { ok: false; error: { message: string } };
+
+        if (!payload.ok) throw new Error(payload.error.message);
+        const data = payload.data;
+
+        if (!data.serviceable) {
+          if (serviceNote) {
+            serviceNote.className = 'mt-3 text-sm leading-relaxed font-medium text-red-700';
+            serviceNote.textContent = `We cannot deliver to ${pincode} yet. Write to us and we will try to arrange something.`;
+          }
+          setCodAvailability(false, 'We do not deliver to that PIN code yet.');
+          return;
+        }
+
+        quote = { shippingPaise: data.shippingPaise, codFeePaise: data.codFeePaise, codTotalPaise: data.totalPaise };
+        paintTotals();
+
+        const where = [data.city, data.state].filter(Boolean).join(', ');
+        if (serviceNote) {
+          serviceNote.className = 'mt-3 text-sm leading-relaxed text-ink/70';
+          serviceNote.textContent = `Delivers to ${where || pincode} in about ${data.estimatedDays} days.`;
+        }
+
+        if (!codEnabled) setCodAvailability(false, 'Cash on delivery is switched off at the moment.');
+        else if (!data.codAvailable) setCodAvailability(false, 'Cash on delivery does not reach that PIN code.');
+        else if (data.totalPaise < codMin) {
+          setCodAvailability(false, `Cash on delivery needs an order of at least ${rupees(codMin)}.`);
+        } else if (data.totalPaise > codMax) {
+          setCodAvailability(false, `Cash on delivery is available up to ${rupees(codMax)}.`);
+        } else setCodAvailability(true, '');
+      } catch (err) {
+        lastCheckedPincode = '';
+        if (serviceNote) {
+          serviceNote.className = 'mt-3 text-sm leading-relaxed font-medium text-red-700';
+          serviceNote.textContent = err instanceof Error ? err.message : 'We could not check that PIN code.';
+        }
+      }
+    };
+
+    field('pincode')?.addEventListener('change', () => void refreshDelivery());
+    field('pincode')?.addEventListener('blur', () => void refreshDelivery());
+    for (const radio of form.querySelectorAll<HTMLInputElement>('input[name="payment_method"]')) {
+      radio.addEventListener('change', paintTotals);
+    }
+
+    // A PIN code checked on the basket page should not have to be typed again.
+    const carried = window.sessionStorage.getItem('mgs:pincode');
+    const pincodeField = field('pincode');
+    if (carried && pincodeField && !pincodeField.value) pincodeField.value = carried;
+    void refreshDelivery();
+
+    // ── Place the order ────────────────────────────────────────────────
+    const addressPayload = (prefix: '' | 'b_') => ({
+      label: prefix ? 'Billing' : 'Home',
+      full_name: value(`${prefix}full_name`),
+      phone: value(`${prefix}phone`),
+      line1: value(`${prefix}line1`),
+      line2: value(`${prefix}line2`) || null,
+      landmark: prefix ? null : value('landmark') || null,
+      city: value(`${prefix}city`),
+      state: value(`${prefix}state`),
+      pincode: value(`${prefix}pincode`),
+      country: 'IN',
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      if (!placeButton) return;
+
+      const same = billingSame?.checked !== false;
+      const savedId = form.querySelector<HTMLInputElement>('input[name="saved_address"]:checked')?.value ?? '';
+
+      const body = {
+        email: value('email'),
+        shipping_address: addressPayload(''),
+        billing_same_as_shipping: same,
+        billing_address: same ? undefined : addressPayload('b_'),
+        payment_method: selectedMethod(),
+        shipping_method: 'surface',
+        customer_note: value('customer_note') || null,
+        address_id: savedId || undefined,
+        // Fixed when the page was rendered, so a second tap is the same order.
+        idempotency_key: form.dataset.idempotencyKey,
+      };
+
+      placeButton.disabled = true;
+      placeButton.textContent = 'Placing your order…';
+      say('');
+
+      void (async () => {
+        try {
+          const response = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+            body: JSON.stringify(body),
+          });
+          const payload = (await response.json()) as
+            | {
+                ok: true;
+                data: {
+                  orderId: string;
+                  checkoutUrl?: string;
+                  redirectUrl?: string;
+                  guestToken?: string;
+                };
+              }
+            | { ok: false; error: { message: string } };
+
+          if (!payload.ok) throw new Error(payload.error.message);
+          const data = payload.data;
+
+          // A guest's tracking token never appears in the gateway's return URL,
+          // so it is parked here for the return page to pick up on the way back.
+          if (data.guestToken) {
+            window.sessionStorage.setItem(`mgs:order-token:${data.orderId}`, data.guestToken);
+          }
+          window.sessionStorage.removeItem('mgs:pincode');
+
+          const next = data.checkoutUrl ?? data.redirectUrl ?? `/checkout/return?order=${encodeURIComponent(data.orderId)}`;
+          window.location.assign(next);
+        } catch (err) {
+          say(err instanceof Error ? err.message : 'We could not place that order. Please try again.');
+          placeButton.disabled = false;
+          placeButton.textContent = 'Place order';
+        }
+      })();
+    });
+  }
+</script>

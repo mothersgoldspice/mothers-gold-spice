@@ -6,11 +6,33 @@
  * natively. The stored format is self-describing so the iteration count can be
  * raised later and old hashes still verify (and get transparently upgraded on
  * the next successful login).
+ *
+ * ─── On the iteration count ──────────────────────────────────────────────────
+ *
+ * OWASP recommends 210,000 for PBKDF2-SHA256, and that is what this originally
+ * used. The Cloudflare runtime refuses it:
+ *
+ *     NotSupportedError: Pbkdf2 failed: iteration counts above 100000 are not
+ *     supported (requested 210000).
+ *
+ * That is a hard platform cap, verified against the live edge — and it does NOT
+ * reproduce in local development, where the same call succeeds. So this was a
+ * bug that only existed in production: every sign-up and sign-in returned a 500
+ * while the whole suite passed locally.
+ *
+ * 100,000 is therefore the ceiling, not a preference. With a per-user salt and a
+ * 10-character minimum passphrase it remains a reasonable barrier for a store of
+ * this size. If more is wanted later, the options are a WASM argon2 build or a
+ * server-side pepper held in a Worker secret (so a stolen database is not
+ * sufficient to attack the hashes offline) — both are additive, because the hash
+ * format records its own parameters.
  */
 
 const enc = new TextEncoder();
 
-export const PBKDF2_ITERATIONS = 210_000; // OWASP 2023+ guidance for PBKDF2-SHA256
+/** Hard limit imposed by the Workers runtime. Going above it throws. */
+export const PBKDF2_MAX_ITERATIONS = 100_000;
+export const PBKDF2_ITERATIONS = PBKDF2_MAX_ITERATIONS;
 const KEY_LENGTH_BITS = 256;
 const SALT_BYTES = 16;
 
@@ -37,10 +59,15 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
 
 /** Returns `pbkdf2$sha256$<iterations>$<saltHex>$<hashHex>`. */
 export async function hashPassword(password: string, iterations = PBKDF2_ITERATIONS): Promise<string> {
+  // Clamped rather than trusted: a caller asking for more than the runtime
+  // allows would otherwise throw at the worst possible moment — mid-signup, in
+  // production only. Silently doing the strongest thing available is better
+  // than refusing to create the account.
+  const safeIterations = Math.min(Math.max(1, Math.floor(iterations)), PBKDF2_MAX_ITERATIONS);
   const salt = new Uint8Array(SALT_BYTES);
   crypto.getRandomValues(salt);
-  const hash = await pbkdf2(password, salt, iterations);
-  return `pbkdf2$sha256$${iterations}$${toHex(salt)}$${hash}`;
+  const hash = await pbkdf2(password, salt, safeIterations);
+  return `pbkdf2$sha256$${safeIterations}$${toHex(salt)}$${hash}`;
 }
 
 export interface VerifyResult {
@@ -61,6 +88,14 @@ export async function verifyPassword(password: string, stored: string | null): P
   }
   const iterations = Number.parseInt(parts[2], 10);
   if (!Number.isFinite(iterations) || iterations <= 0) return { valid: false, needsRehash: false };
+
+  // A hash written before the platform cap was discovered (or by a tool that did
+  // not know about it) cannot be re-derived here at all — deriveBits throws.
+  // Report it as a failed verification rather than a 500, so the customer is
+  // told to reset their password instead of hitting an error page forever.
+  if (iterations > PBKDF2_MAX_ITERATIONS) {
+    return { valid: false, needsRehash: false };
+  }
 
   const computed = await pbkdf2(password, fromHex(parts[3]), iterations);
   const valid = timingSafeEqual(computed, parts[4]);

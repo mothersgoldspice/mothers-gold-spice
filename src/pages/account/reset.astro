@@ -1,0 +1,180 @@
+---
+/**
+ * Set a new password from a reset link.
+ *
+ * The GET only peeks at the token so an expired link can say so before the
+ * customer types a password they are about to lose. The POST is what consumes
+ * it, atomically, which is why two taps on the same link cannot both set a
+ * password.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import { revokeAllSessions, startSession } from '../../lib/auth/session';
+import { badRequest, isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log } from '../../lib/log';
+import { passwordChanged, storeContext } from '../../lib/providers/email/templates';
+import {
+  consumeToken,
+  findUserById,
+  markEmailVerified,
+  peekToken,
+  setPassword,
+} from '../../lib/services/accounts';
+import { queueAndSend } from '../../lib/services/notify';
+import { parseOrThrow, passwordResetSchema } from '../../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+let error = '';
+// The token travels in the query string on the first visit and in a hidden
+// field afterwards, so a failed attempt does not lose it from the URL bar.
+let token = Astro.url.searchParams.get('token')?.trim() ?? '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  token = String(form.get('token') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+  const confirm = String(form.get('confirm_password') ?? '');
+
+  try {
+    // Checked before the token is consumed: a typo in the second box must not
+    // burn the link and send the customer back to the forgot-password form.
+    if (password !== confirm) throw badRequest('The two passwords do not match. Please type them again.');
+
+    const input = parseOrThrow(passwordResetSchema, { token, password });
+
+    const consumed = await consumeToken(ctx.db, input.token, 'password_reset');
+    if (!consumed.user_id) throw badRequest('That link is not valid. Please ask for a new one.');
+
+    await setPassword(ctx.db, consumed.user_id, input.password);
+    // Clicking a link sent to the address proves control of it.
+    await markEmailVerified(ctx.db, consumed.user_id);
+
+    // Whoever knew the old password is signed out everywhere. That is the point
+    // of a reset when the account may have been taken over.
+    const revoked = await revokeAllSessions(ctx.db, consumed.user_id);
+
+    const user = await findUserById(ctx.db, consumed.user_id);
+    if (user) {
+      const mail = passwordChanged({
+        store: storeContext(ctx.env),
+        name: user.name || 'there',
+        changedAt: Date.now(),
+        ip: ctx.clientIp,
+        device: Astro.request.headers.get('user-agent'),
+      });
+      await queueAndSend(ctx, {
+        to: user.email,
+        toName: user.name,
+        subject: mail.subject,
+        template: mail.template,
+        text: mail.text,
+        html: mail.html,
+        userId: user.id,
+        idempotencyKey: `pwchanged:${user.id}:${Math.floor(Date.now() / 60000)}`,
+      });
+
+      await startSession(ctx.db, Astro.cookies, ctx.env, {
+        userId: user.id,
+        ip: ctx.clientIp,
+        userAgent: Astro.request.headers.get('user-agent') ?? '',
+      });
+    }
+
+    log.info('auth.password_reset_completed', { userId: consumed.user_id, sessionsRevoked: revoked });
+    return Astro.redirect('/account?password=updated', 303);
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.reset_page_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+  }
+}
+
+// Re-peeked after a failed POST too: if the failure was "already used", the
+// form must not be offered again.
+const live = token ? await peekToken(ctx.db, token, 'password_reset') : null;
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+---
+
+<ShopLayout title="Set a new password" user={ctx.user} cartCount={cartCount}>
+  <div class="mx-auto max-w-md">
+    {
+      live ? (
+        <>
+          <h1 class="font-serif text-3xl font-semibold text-ink">Set a new password</h1>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">
+            Choose something you have not used elsewhere. Every other device signed in to this account
+            will be signed out.
+          </p>
+
+          {error && (
+            <Alert kind="error" title="That did not work" class="mt-6">
+              {error}
+            </Alert>
+          )}
+
+          <form method="post" class="mt-8 space-y-5">
+            <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+            <input type="hidden" name="token" value={token} />
+
+            <Field
+              label="New password"
+              name="password"
+              type="password"
+              required
+              autocomplete="new-password"
+              hint="At least 10 characters — a short phrase works well."
+            />
+
+            <Field
+              label="Type it again"
+              name="confirm_password"
+              type="password"
+              required
+              autocomplete="new-password"
+            />
+
+            <Button type="submit" size="lg" class="w-full">
+              Save my new password
+            </Button>
+          </form>
+        </>
+      ) : (
+        <div class="text-center">
+          <h1 class="font-serif text-3xl font-semibold text-ink">This link has expired</h1>
+          <p class="mt-3 text-sm leading-relaxed text-ink/70">
+            Reset links last one hour and work only once — and asking for a new one cancels the old link.
+            Request another and we will email it straight away.
+          </p>
+
+          {error && (
+            <Alert kind="error" class="mt-6">
+              {error}
+            </Alert>
+          )}
+
+          <div class="mt-8 space-y-3">
+            <Button href="/account/forgot" size="lg" class="w-full">
+              Send me a new link
+            </Button>
+            <Button href="/account/login" variant="secondary" size="lg" class="w-full">
+              Back to sign in
+            </Button>
+          </div>
+        </div>
+      )
+    }
+  </div>
+</ShopLayout>

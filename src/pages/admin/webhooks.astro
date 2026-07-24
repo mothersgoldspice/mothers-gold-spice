@@ -1,0 +1,320 @@
+---
+/**
+ * Provider callbacks, and the ability to run one again.
+ *
+ * Every webhook is recorded before it is acted on, so a payment we heard about
+ * but failed to apply is a row on this page rather than a mystery. Replaying is
+ * how that row becomes a confirmed order.
+ *
+ * The list deliberately does not select `payload_json` — twenty-five raw
+ * provider payloads is most of a megabyte on a phone. Opening one row fetches
+ * that single body.
+ *
+ * A replay does not re-check a signature: the trust boundary is our own stored
+ * payload, which was verified when it arrived. The column is still shown,
+ * because a run of `signature invalid` rows is the first sign of a rotated
+ * secret.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { readPaging, requireAdmin, requireCtx } from '../../lib/api';
+import type { WebhookEventRow } from '../../lib/db/types';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const SOURCES = ['payment', 'shipping'] as const;
+const STATUSES = ['received', 'processed', 'failed', 'ignored'] as const;
+
+const rawSource = Astro.url.searchParams.get('source') ?? '';
+const source = SOURCES.find((s) => s === rawSource) ?? null;
+const rawStatus = Astro.url.searchParams.get('status') ?? '';
+const status = STATUSES.find((s) => s === rawStatus) ?? null;
+const selectedId = (Astro.url.searchParams.get('id') ?? '').trim();
+
+const { limit, offset } = readPaging(Astro.url, 25, 100);
+const page = Math.max(Number.parseInt(Astro.url.searchParams.get('page') ?? '', 10) || 1, 1);
+
+const where: string[] = [];
+const params: (string | number)[] = [];
+if (source) {
+  where.push('source = ?');
+  params.push(source);
+}
+if (status) {
+  where.push('status = ?');
+  params.push(status);
+}
+const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+type WebhookSummary = Omit<WebhookEventRow, 'payload_json'>;
+
+const SUMMARY_COLUMNS =
+  'id, source, provider, event_id, event_type, status, signature_valid, error, attempts, order_id, received_at, processed_at';
+
+const [total, items, selected] = await Promise.all([
+  ctx.db.scalar<number>(`SELECT COUNT(*) FROM webhook_events ${clause}`, params),
+  ctx.db.all<WebhookSummary>(
+    `SELECT ${SUMMARY_COLUMNS} FROM webhook_events ${clause} ORDER BY received_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset],
+  ),
+  selectedId
+    ? ctx.db.first<{ id: string; event_id: string; payload_json: string }>(
+        'SELECT id, event_id, payload_json FROM webhook_events WHERE id = ?',
+        [selectedId],
+      )
+    : null,
+]);
+
+/** Pretty-print for reading; a payload that will not parse is shown as it was stored. */
+function formatPayload(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw) as unknown, null, 2);
+  } catch {
+    return raw;
+  }
+}
+
+const totalCount = total ?? 0;
+const from = totalCount === 0 ? 0 : offset + 1;
+const to = offset + items.length;
+
+function href(overrides: Record<string, string | null>): string {
+  const query = new URLSearchParams();
+  const base: Record<string, string | null> = {
+    source,
+    status,
+    id: selectedId || null,
+    page: page > 1 ? String(page) : null,
+  };
+  for (const [key, value] of Object.entries({ ...base, ...overrides })) {
+    if (value) query.set(key, value);
+  }
+  const q = query.toString();
+  return q ? `/admin/webhooks?${q}` : '/admin/webhooks';
+}
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+const STATUS_TONE: Record<string, string> = {
+  received: 'bg-amber-100 text-amber-900',
+  processed: 'bg-emerald-100 text-emerald-900',
+  failed: 'bg-red-100 text-red-900',
+  ignored: 'bg-ink/8 text-ink/70',
+};
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CONTROL =
+  'min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const PAGER =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/15 bg-white px-3 text-sm transition ' +
+  'hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+const TAG = 'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap';
+---
+
+<AdminLayout
+  title="Webhooks"
+  subtitle={`${totalCount} recorded${source ? ` · ${source}` : ''}${status ? ` · ${status}` : ''}`}
+>
+  <form slot="actions" method="get" action="/admin/webhooks" class="flex flex-wrap items-center gap-2">
+    <label for="filter-source" class="sr-only">Source</label>
+    <select id="filter-source" name="source" class={CONTROL}>
+      <option value="">Both sources</option>
+      {
+        SOURCES.map((value) => (
+          <option value={value} selected={source === value}>
+            {value}
+          </option>
+        ))
+      }
+    </select>
+
+    <label for="filter-status" class="sr-only">Status</label>
+    <select id="filter-status" name="status" class={CONTROL}>
+      <option value="">All statuses</option>
+      {
+        STATUSES.map((value) => (
+          <option value={value} selected={status === value}>
+            {value}
+          </option>
+        ))
+      }
+    </select>
+
+    <button
+      type="submit"
+      class="min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700"
+    >
+      Apply
+    </button>
+  </form>
+
+  <div class="rounded-md border border-ink/10 bg-white">
+    {
+      items.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          No callbacks recorded. <a href="/admin/webhooks" class="underline underline-offset-2">Clear the filters</a>.
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Received
+                </th>
+                <th scope="col" class={TH}>
+                  Source
+                </th>
+                <th scope="col" class={TH}>
+                  Event
+                </th>
+                <th scope="col" class={TH}>
+                  Status
+                </th>
+                <th scope="col" class={TH}>
+                  Signature
+                </th>
+                <th scope="col" class={TH}>
+                  Order
+                </th>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row) => (
+                <tr
+                  class:list={[
+                    'border-b border-ink/8 last:border-0 hover:bg-mango-50',
+                    row.id === selectedId && 'bg-mango-50',
+                    row.status === 'failed' && 'bg-red-50/60',
+                  ]}
+                >
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>
+                    {stamp(row.received_at)}
+                    {row.attempts > 1 && <span class="block text-[11px] text-ink/45">{row.attempts} attempts</span>}
+                  </td>
+
+                  <td class={TD}>
+                    <span class="block text-xs">{row.source}</span>
+                    <span class="block text-[11px] text-ink/50">{row.provider}</span>
+                  </td>
+
+                  <td class={`${TD} max-w-64`}>
+                    <a href={`${href({ id: row.id })}#payload`} class:list={['block truncate font-medium', LINK]}>
+                      {row.event_type}
+                    </a>
+                    <span class="block truncate font-mono text-[11px] text-ink/45">{row.event_id}</span>
+                    {row.error && (
+                      <span class="mt-0.5 block max-w-64 truncate text-[11px] text-red-800" title={row.error}>
+                        {row.error}
+                      </span>
+                    )}
+                  </td>
+
+                  <td class={TD}>
+                    <span class:list={[TAG, STATUS_TONE[row.status] ?? 'bg-ink/8 text-ink/70']}>{row.status}</span>
+                    {row.processed_at !== null && (
+                      <span class="mt-0.5 block text-[11px] text-ink/45 tabular-nums">{stamp(row.processed_at)}</span>
+                    )}
+                  </td>
+
+                  <td class={TD}>
+                    <span
+                      class:list={[
+                        TAG,
+                        row.signature_valid === 1 ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900',
+                      ]}
+                    >
+                      {row.signature_valid === 1 ? 'valid' : 'not verified'}
+                    </span>
+                  </td>
+
+                  <td class={TD}>
+                    {row.order_id ? (
+                      <a href={`/admin/orders/${row.order_id}`} class={`text-xs ${LINK}`}>
+                        open
+                      </a>
+                    ) : (
+                      <span class="text-xs text-ink/45">unmatched</span>
+                    )}
+                  </td>
+
+                  <td class={TD}>
+                    <form
+                      data-api="/api/admin/webhooks"
+                      data-method="POST"
+                      data-confirm="Run this callback again? It is applied exactly as it was when it arrived."
+                      data-success-message="Callback replayed."
+                    >
+                      <input type="hidden" name="action" value="replay" />
+                      <input type="hidden" name="id" value={row.id} />
+                      <button
+                        type="submit"
+                        class="min-h-9 rounded-md border border-ink/20 bg-white px-2.5 text-xs font-medium whitespace-nowrap transition hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                      >
+                        Replay
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <nav aria-label="Pagination" class="flex items-center justify-between gap-3 border-t border-ink/10 px-3 py-2 text-sm">
+      <p class="text-ink/60 tabular-nums">{from}–{to} of {totalCount}</p>
+      <div class="flex gap-2">
+        {page > 1 && <a href={href({ page: page === 2 ? null : String(page - 1) })} class={PAGER} rel="prev">← Newer</a>}
+        {offset + items.length < totalCount && (
+          <a href={href({ page: String(page + 1) })} class={PAGER} rel="next">Older →</a>
+        )}
+      </div>
+    </nav>
+  </div>
+
+  {
+    selected && (
+      <section id="payload" class="mt-4 rounded-md border border-ink/10 bg-white" aria-labelledby="payload-heading">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-ink/10 px-3 py-2">
+          <h2 id="payload-heading" class="font-serif text-sm font-semibold">
+            Payload as it arrived
+            <span class="ml-2 font-mono text-xs font-normal text-ink/50">{selected.event_id}</span>
+          </h2>
+          <a href={href({ id: null })} class={`text-xs ${LINK}`}>
+            Close
+          </a>
+        </div>
+        <pre class="max-h-96 overflow-auto px-3 py-3 font-mono text-xs leading-relaxed">{formatPayload(selected.payload_json)}</pre>
+      </section>
+    )
+  }
+
+  <p class="mt-3 text-xs text-ink/55">
+    A shipping replay re-pulls the whole tracking history from the courier rather than re-applying an old scan — more
+    current, and duplicate scans are absorbed. A payment replay re-applies the stored, already-verified payload.
+  </p>
+</AdminLayout>

@@ -1,0 +1,32 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "mothers-gold-spice-cron",
+  "main": "index.js",
+  "compatibility_date": "2025-05-05",
+  // Kept reachable over HTTP so an operator can force a maintenance run and see
+  // the result, rather than waiting up to five minutes and guessing. The handler
+  // requires the same bearer secret as the endpoint it calls.
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "triggers": {
+    // Every five minutes. The jobs it drives are all idempotent and cheap when
+    // there is nothing to do, so a tighter schedule buys faster email retries
+    // and stock release without costing anything meaningful.
+    "crons": ["*/5 * * * *"]
+  },
+  // Dispatches straight into the storefront Worker. Cloudflare blocks
+  // Worker-to-Worker requests on the same zone, so calling the public URL is not
+  // an option; a binding also skips DNS, TLS and the network entirely.
+  "services": [
+    {
+      "binding": "STOREFRONT",
+      "service": "mothers-gold-spice"
+    }
+  ],
+  "vars": {
+    // Only supplies the origin for the Request URL; the binding decides where it
+    // actually goes.
+    "SITE_URL": "https://mothers-gold-spice.raniketram.workers.dev"
+  }
+}

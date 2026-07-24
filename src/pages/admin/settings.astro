@@ -1,0 +1,657 @@
+---
+/**
+ * The knobs that change how the shop behaves, without a deploy.
+ *
+ * This is the most dangerous screen in the console. Nothing here fails loudly: a
+ * shipping rate typed with one zero too many does not throw, it quietly charges
+ * every customer in zone C ten times too much until somebody notices. Three
+ * things push back against that:
+ *
+ *   Money is entered in RUPEES, everywhere, labelled as such, and converted to
+ *   integer paise on submit by the shared serialiser (`data-json="paise"` →
+ *   `Math.round(value * 100)`). Nobody types paise into a box, which is where
+ *   the extra zero comes from.
+ *
+ *   Each section saves on its own. Editing the COD rules sends four fields, not
+ *   forty, so the audit entry says what actually changed and a mistake cannot
+ *   travel further than the box it was typed into.
+ *
+ *   What the courier costs us is shown beside what we charge, so a rate that has
+ *   drifted below cost is visible at the moment it is being edited.
+ *
+ * The API is the authority on what is valid — it re-checks every number, refuses
+ * unrecognised keys, and runs the cross-field rules against the merged result.
+ * The `min`/`max` attributes here are a courtesy, not a guarantee.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin, requireCtx } from '../../lib/api';
+import { formatPaise } from '../../lib/money';
+import { loadSettings } from '../../lib/settings';
+import { ZONE_COURIER_COST_PAISE, ZONE_ETD_DAYS, ZONE_LABEL, type Zone } from '../../lib/shipping-zones';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+// Read straight from the database rather than `ctx.settings()`: the cached copy
+// is for pricing this request, and this screen must show what is stored, not
+// what was loaded before somebody else saved.
+const settings = await loadSettings(ctx.db);
+
+const ZONES: Zone[] = ['A', 'B', 'C', 'D', 'E'];
+
+/** Paise → the rupee figure that goes in the input. 99900 → "999", 4950 → "49.5". */
+const rupees = (paise: number): string => String(paise / 100);
+
+const SECTION = 'rounded-md border border-ink/10 bg-white';
+const SECTION_HEAD = 'border-b border-ink/10 px-3 py-2';
+const SECTION_TITLE = 'font-serif text-sm font-semibold';
+const SECTION_NOTE = 'mt-0.5 text-xs text-ink/60';
+const BODY = 'space-y-3 px-3 py-3';
+const GRID = 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3';
+const LABEL = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase';
+const HINT = 'mt-1 text-xs text-ink/55';
+const CONTROL =
+  'block w-full min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const CHECKBOX = 'size-4 shrink-0 rounded border-ink/30 text-spice-500 focus:ring-2 focus:ring-spice-500/30';
+const SAVE =
+  'min-h-9 rounded-md bg-spice-500 px-4 text-sm font-medium text-cream transition hover:bg-spice-700 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2';
+const FOOT = 'flex items-center justify-end gap-3 border-t border-ink/10 px-3 py-2';
+const TH = 'px-2 py-1.5 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-2 py-1.5 align-middle';
+
+/** Every section posts here; only its own fields travel. */
+const API = '/api/admin/settings';
+---
+
+<AdminLayout title="Settings" subtitle="Money is entered in rupees and stored as paise. Each block saves on its own.">
+  <div class="grid gap-4 xl:grid-cols-2 xl:items-start">
+    <!-- ── Storefront ─────────────────────────────────────────────────── -->
+    <section class={SECTION} aria-labelledby="store-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="store-heading" class={SECTION_TITLE}>Storefront</h2>
+        <p class={SECTION_NOTE}>
+          Closing the shop turns off add-to-cart and checkout and shows the notice instead. Orders already placed are
+          untouched.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="Storefront settings saved.">
+        <div class={BODY}>
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="storeOpen"
+              data-json="boolean"
+              checked={settings.storeOpen}
+              class:list={[CHECKBOX, 'mt-0.5']}
+            />
+            <span>
+              The shop is open
+              <span class="block text-xs text-ink/55">Currently {settings.storeOpen ? 'open' : 'closed'}.</span>
+            </span>
+          </label>
+
+          <div>
+            <label for="closed-message" class={LABEL}>Notice shown while closed</label>
+            <textarea
+              id="closed-message"
+              name="storeClosedMessage"
+              rows="2"
+              maxlength="300"
+              required
+              class:list={[CONTROL, 'resize-y leading-relaxed']}
+            >{settings.storeClosedMessage}</textarea>
+            <p class={HINT}>Customers read this word for word. Say when jars come back, not that something failed.</p>
+          </div>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save storefront</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Tax ────────────────────────────────────────────────────────── -->
+    <section class={SECTION} aria-labelledby="tax-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="tax-heading" class={SECTION_TITLE}>GST</h2>
+        <p class={SECTION_NOTE}>
+          Indian MRP is tax-inclusive: a ₹299 jar at 12% <em>contains</em> ₹32.04 of GST rather than attracting ₹35.88
+          on top. Turning inclusive off would add tax to every price at checkout.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="GST settings saved.">
+        <div class={BODY}>
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="taxEnabled"
+              data-json="boolean"
+              checked={settings.taxEnabled}
+              class:list={[CHECKBOX, 'mt-0.5']}
+            />
+            <span>Charge and report GST</span>
+          </label>
+
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="taxInclusive"
+              data-json="boolean"
+              checked={settings.taxInclusive}
+              class:list={[CHECKBOX, 'mt-0.5']}
+            />
+            <span>
+              Prices are inclusive of GST
+              <span class="block text-xs text-ink/55">Leave this on unless a CA has told you otherwise.</span>
+            </span>
+          </label>
+
+          <div class="max-w-40">
+            <label for="tax-rate" class={LABEL}>Fallback rate (basis points)</label>
+            <input
+              id="tax-rate"
+              name="defaultTaxRateBps"
+              data-json="number"
+              type="number"
+              min="0"
+              max="5000"
+              step="1"
+              inputmode="numeric"
+              value={settings.defaultTaxRateBps}
+              class:list={[CONTROL, 'tabular-nums']}
+            />
+            <p class={HINT}>
+              1200 = 12%. Used only when a variant carries no rate of its own. Currently{' '}
+              {(settings.defaultTaxRateBps / 100).toFixed(2)}%.
+            </p>
+          </div>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save GST</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Delivery ───────────────────────────────────────────────────── -->
+    <section class:list={[SECTION, 'xl:col-span-2']} aria-labelledby="delivery-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="delivery-heading" class={SECTION_TITLE}>Delivery charges</h2>
+        <p class={SECTION_NOTE}>
+          What the customer pays, per 500 g slab. The courier cost beside each row is what we are billed — a rate below
+          it is a parcel sent at a loss. Free shipping is judged on the subtotal <em>after</em> any discount.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="Delivery charges saved.">
+        <div class={BODY}>
+          <div class="max-w-56">
+            <label for="free-shipping" class={LABEL}>Free delivery above (₹)</label>
+            <input
+              id="free-shipping"
+              name="freeShippingThresholdPaise"
+              data-json="paise"
+              type="number"
+              min="0"
+              step="1"
+              inputmode="decimal"
+              value={rupees(settings.freeShippingThresholdPaise)}
+              class:list={[CONTROL, 'tabular-nums']}
+            />
+            <p class={HINT}>Currently {formatPaise(settings.freeShippingThresholdPaise)}. Zero makes delivery always free.</p>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <caption class="sr-only">Delivery rate per zone, in rupees</caption>
+              <thead class="border-b border-ink/10">
+                <tr>
+                  <th scope="col" class={TH}>Zone</th>
+                  <th scope="col" class={TH}>First 500 g (₹)</th>
+                  <th scope="col" class={TH}>Each extra 500 g (₹)</th>
+                  <th scope="col" class={TH}>Courier cost</th>
+                  <th scope="col" class={TH}>Typical</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  ZONES.map((zone) => {
+                    const rate = settings.shippingRates[zone];
+                    const cost = ZONE_COURIER_COST_PAISE[zone];
+                    const thin = rate.first500g < cost.first500g;
+                    return (
+                      <tr class="border-b border-ink/8 last:border-0">
+                        <td class={TD}>
+                          <span class="font-semibold">{zone}</span>
+                          <span class="ml-1.5 text-xs text-ink/60">{ZONE_LABEL[zone]}</span>
+                        </td>
+                        <td class={TD}>
+                          <label class="sr-only" for={`rate-${zone}-first`}>
+                            Zone {zone} first 500 g in rupees
+                          </label>
+                          <input
+                            id={`rate-${zone}-first`}
+                            name={`shippingRates.${zone}.first500g`}
+                            data-json="paise"
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputmode="decimal"
+                            required
+                            value={rupees(rate.first500g)}
+                            class:list={[CONTROL, 'w-28 tabular-nums']}
+                          />
+                        </td>
+                        <td class={TD}>
+                          <label class="sr-only" for={`rate-${zone}-extra`}>
+                            Zone {zone} each extra 500 g in rupees
+                          </label>
+                          <input
+                            id={`rate-${zone}-extra`}
+                            name={`shippingRates.${zone}.perExtra500g`}
+                            data-json="paise"
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputmode="decimal"
+                            required
+                            value={rupees(rate.perExtra500g)}
+                            class:list={[CONTROL, 'w-28 tabular-nums']}
+                          />
+                        </td>
+                        <td class:list={[TD, 'text-xs tabular-nums', thin ? 'font-semibold text-red-800' : 'text-ink/60']}>
+                          {formatPaise(cost.first500g)} + {formatPaise(cost.perExtra500g)}
+                          {thin && <span class="block">below cost</span>}
+                        </td>
+                        <td class={`${TD} text-xs text-ink/60 tabular-nums`}>{ZONE_ETD_DAYS[zone]} days</td>
+                      </tr>
+                    );
+                  })
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <p class={HINT}>
+            The extra-500 g rate cannot be higher than the first-500 g rate — the API refuses that pair, because it is
+            almost always the two numbers swapped.
+          </p>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save delivery charges</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Cash on delivery ───────────────────────────────────────────── -->
+    <section class={SECTION} aria-labelledby="cod-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="cod-heading" class={SECTION_TITLE}>Cash on delivery</h2>
+        <p class={SECTION_NOTE}>
+          COD carries a real risk of refusal at the door, which is what the fee and the ceiling are for. Remote zones
+          are prepaid-only regardless of what is set here.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="Cash-on-delivery rules saved.">
+        <div class={BODY}>
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="codEnabled"
+              data-json="boolean"
+              checked={settings.codEnabled}
+              class:list={[CHECKBOX, 'mt-0.5']}
+            />
+            <span>Offer cash on delivery</span>
+          </label>
+
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label for="cod-fee" class={LABEL}>Handling fee (₹)</label>
+              <input
+                id="cod-fee"
+                name="codFeePaise"
+                data-json="paise"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="decimal"
+                value={rupees(settings.codFeePaise)}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="cod-min" class={LABEL}>Minimum order (₹)</label>
+              <input
+                id="cod-min"
+                name="codMinOrderPaise"
+                data-json="paise"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="decimal"
+                value={rupees(settings.codMinOrderPaise)}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="cod-max" class={LABEL}>Maximum order (₹)</label>
+              <input
+                id="cod-max"
+                name="codMaxOrderPaise"
+                data-json="paise"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="decimal"
+                value={rupees(settings.codMaxOrderPaise)}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+          </div>
+
+          <p class={HINT}>
+            Currently {formatPaise(settings.codFeePaise)} on orders between {formatPaise(settings.codMinOrderPaise)} and{' '}
+            {formatPaise(settings.codMaxOrderPaise)}.
+          </p>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save COD rules</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Cart limits ────────────────────────────────────────────────── -->
+    <section class={SECTION} aria-labelledby="limits-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="limits-heading" class={SECTION_TITLE}>Cart limits and stock holds</h2>
+        <p class={SECTION_NOTE}>
+          The caps stop a fat-fingered quantity draining a whole batch. The hold is how long an unpaid order keeps its
+          jars before they go back on the shelf.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="Cart limits saved.">
+        <div class={BODY}>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label for="max-variant" class={LABEL}>Max per variant</label>
+              <input
+                id="max-variant"
+                name="maxQtyPerVariant"
+                data-json="number"
+                type="number"
+                min="1"
+                max="100"
+                step="1"
+                inputmode="numeric"
+                value={settings.maxQtyPerVariant}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="max-order" class={LABEL}>Max jars per order</label>
+              <input
+                id="max-order"
+                name="maxItemsPerOrder"
+                data-json="number"
+                type="number"
+                min="1"
+                max="500"
+                step="1"
+                inputmode="numeric"
+                value={settings.maxItemsPerOrder}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="reservation" class={LABEL}>Hold stock for (minutes)</label>
+              <input
+                id="reservation"
+                name="reservationMinutes"
+                data-json="number"
+                type="number"
+                min="5"
+                max="1440"
+                step="1"
+                inputmode="numeric"
+                value={settings.reservationMinutes}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+          </div>
+          <p class={HINT}>
+            A long hold starves the shop: every abandoned checkout keeps its jars unsellable for that whole window.
+          </p>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save limits</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Parcel and origin ──────────────────────────────────────────── -->
+    <section class={SECTION} aria-labelledby="parcel-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="parcel-heading" class={SECTION_TITLE}>Parcel and pickup</h2>
+        <p class={SECTION_NOTE}>
+          Couriers bill on the greater of actual and volumetric weight, so the box size is a price, not a detail. A
+          tightly packed 13×13×13 cm box is 440 g volumetric, which keeps a 500 g jar inside its slab.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="Parcel and pickup saved.">
+        <div class={BODY}>
+          <div class="grid gap-3 sm:grid-cols-4">
+            <div>
+              <label for="dim-l" class={LABEL}>Length (cm)</label>
+              <input
+                id="dim-l"
+                name="parcelDimensionsCm.length"
+                data-json="number"
+                type="number"
+                min="1"
+                max="150"
+                step="1"
+                inputmode="numeric"
+                required
+                value={settings.parcelDimensionsCm.length}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="dim-b" class={LABEL}>Breadth (cm)</label>
+              <input
+                id="dim-b"
+                name="parcelDimensionsCm.breadth"
+                data-json="number"
+                type="number"
+                min="1"
+                max="150"
+                step="1"
+                inputmode="numeric"
+                required
+                value={settings.parcelDimensionsCm.breadth}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="dim-h" class={LABEL}>Height (cm)</label>
+              <input
+                id="dim-h"
+                name="parcelDimensionsCm.height"
+                data-json="number"
+                type="number"
+                min="1"
+                max="150"
+                step="1"
+                inputmode="numeric"
+                required
+                value={settings.parcelDimensionsCm.height}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="packaging-weight" class={LABEL}>Packaging weight (g)</label>
+              <input
+                id="packaging-weight"
+                name="packagingWeightGrams"
+                data-json="number"
+                type="number"
+                min="0"
+                max="5000"
+                step="1"
+                inputmode="numeric"
+                value={settings.packagingWeightGrams}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+          </div>
+
+          <div class={GRID}>
+            <div>
+              <label for="origin-pincode" class={LABEL}>Pickup PIN code</label>
+              <input
+                id="origin-pincode"
+                name="originPincode"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                pattern="[1-9][0-9]{5}"
+                value={settings.originPincode}
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="origin-city" class={LABEL}>Pickup city</label>
+              <input id="origin-city" name="originCity" type="text" maxlength="80" value={settings.originCity} class={CONTROL} />
+            </div>
+            <div>
+              <label for="origin-state" class={LABEL}>Pickup state</label>
+              <input
+                id="origin-state"
+                name="originState"
+                type="text"
+                maxlength="80"
+                value={settings.originState}
+                class={CONTROL}
+              />
+            </div>
+          </div>
+
+          <p class={HINT}>
+            The pickup state also decides the tax split on every invoice: same state is CGST + SGST, anywhere else is
+            IGST.
+          </p>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save parcel and pickup</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ── Legal and contact ──────────────────────────────────────────── -->
+    <section class:list={[SECTION, 'xl:col-span-2']} aria-labelledby="legal-heading">
+      <div class={SECTION_HEAD}>
+        <h2 id="legal-heading" class={SECTION_TITLE}>Legal and contact</h2>
+        <p class={SECTION_NOTE}>
+          Printed on every invoice. Without a GSTIN the document is issued as a <strong>bill of supply</strong> rather
+          than a tax invoice, which is correct until registration comes through — leave it blank rather than inventing
+          one.
+        </p>
+      </div>
+
+      <form data-api={API} data-method="PATCH" data-success-message="Legal and contact details saved.">
+        <div class={BODY}>
+          <div class={GRID}>
+            <div>
+              <label for="legal-name" class={LABEL}>Legal entity name</label>
+              <input
+                id="legal-name"
+                name="legalEntityName"
+                type="text"
+                maxlength="120"
+                value={settings.legalEntityName}
+                class={CONTROL}
+              />
+            </div>
+            <div>
+              <label for="gstin" class={LABEL}>GSTIN</label>
+              <input
+                id="gstin"
+                name="gstin"
+                type="text"
+                maxlength="15"
+                value={settings.gstin}
+                placeholder="Blank until registered"
+                class:list={[CONTROL, 'font-mono uppercase']}
+              />
+              <p class={HINT}>15 characters. Checked against the GSTIN shape before it saves.</p>
+            </div>
+            <div>
+              <label for="fssai" class={LABEL}>FSSAI licence</label>
+              <input
+                id="fssai"
+                name="fssaiLicence"
+                type="text"
+                inputmode="numeric"
+                maxlength="14"
+                value={settings.fssaiLicence}
+                placeholder="14 digits"
+                class:list={[CONTROL, 'font-mono tabular-nums']}
+              />
+              <p class={HINT}>Legally required on the label and the invoice once trading.</p>
+            </div>
+            <div>
+              <label for="support-phone" class={LABEL}>Support phone</label>
+              <input
+                id="support-phone"
+                name="supportPhone"
+                type="tel"
+                inputmode="tel"
+                maxlength="15"
+                value={settings.supportPhone}
+                placeholder="10-digit mobile"
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="whatsapp" class={LABEL}>WhatsApp number</label>
+              <input
+                id="whatsapp"
+                name="whatsappNumber"
+                type="tel"
+                inputmode="tel"
+                maxlength="15"
+                value={settings.whatsappNumber}
+                placeholder="10-digit mobile"
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+            </div>
+            <div>
+              <label for="registered-address" class={LABEL}>Registered address</label>
+              <textarea
+                id="registered-address"
+                name="registeredAddress"
+                rows="2"
+                maxlength="300"
+                class:list={[CONTROL, 'resize-y leading-relaxed']}
+              >{settings.registeredAddress}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class={FOOT}>
+          <button type="submit" class={SAVE}>Save legal and contact</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</AdminLayout>

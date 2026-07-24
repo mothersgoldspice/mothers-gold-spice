@@ -1,0 +1,106 @@
+---
+/**
+ * "Where is my order?" for people who checked out as guests.
+ *
+ * A plain HTML form posting to /api/track, so it works with JavaScript switched
+ * off — this is the page somebody opens on a train with one bar of signal, and
+ * it is the last place to put a fetch call behind a bundle that may not arrive.
+ *
+ * The answer never says whether an order number exists on its own; see the note
+ * in src/pages/api/track.ts for why.
+ */
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import { getCart } from '../../lib/services/cart';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const settings = await ctx.settings();
+const cart = await getCart(ctx.db, ctx.cartId, settings, { userId: ctx.user?.id ?? null });
+
+const failure = Astro.url.searchParams.get('e');
+const message =
+  failure === 'rate'
+    ? 'That is a lot of attempts in a short while. Please wait a few minutes and try again.'
+    : failure
+      ? 'We could not find an order with that number and email address. Check both against your confirmation email.'
+      : '';
+---
+
+<ShopLayout
+  title="Track your order"
+  description="Look up a Mother's Gold Spice order with your order number and email address."
+  user={ctx.user}
+  cartCount={cart.itemCount}
+>
+  <h1 class="font-serif text-3xl text-ink sm:text-4xl">Track your order</h1>
+  <p class="mt-3 max-w-lg text-sm leading-relaxed text-ink/70">
+    Enter the order number from your confirmation email — it looks like <span class="font-medium">MGS-26-0042</span> —
+    and the email address you ordered with.
+  </p>
+
+  {failure && <Alert kind="error" class="mt-6">{message}</Alert>}
+
+  <form method="post" action="/api/track" class="mt-6 max-w-md rounded-3xl border border-mango-100 bg-white/70 p-5">
+    <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+
+    <div class="space-y-4">
+      <Field
+        label="Order number"
+        name="order_number"
+        required
+        maxlength={40}
+        autocomplete="off"
+        placeholder="MGS-26-0042"
+        hint="Printed at the top of your confirmation email."
+      />
+      <Field
+        label="Email address"
+        name="email"
+        type="email"
+        required
+        autocomplete="email"
+        placeholder="you@example.com"
+      />
+    </div>
+
+    <p class="mt-5">
+      <Button type="submit" size="lg" class="w-full">Find my order</Button>
+    </p>
+  </form>
+
+  <div class="mt-8 space-y-2 text-sm leading-relaxed text-ink/65">
+    <p>
+      {
+        ctx.user ? (
+          <>
+            Signed in as {ctx.user.email} —{' '}
+            <a href="/account/orders" class="font-medium text-spice-500 underline underline-offset-4">
+              every order on your account is here
+            </a>
+            .
+          </>
+        ) : (
+          <>
+            Have an account?{' '}
+            <a href="/account" class="font-medium text-spice-500 underline underline-offset-4">
+              Sign in
+            </a>{' '}
+            and your orders are all in one place, no order number needed.
+          </>
+        )
+      }
+    </p>
+    <p>
+      Lost the email? Write to
+      <a href="mailto:mothersgoldspice@gmail.com" class="font-medium text-spice-500 underline underline-offset-4">
+        mothersgoldspice@gmail.com
+      </a>
+      {settings.supportPhone && <> or call {settings.supportPhone}</>} and we will find it for you.
+    </p>
+  </div>
+</ShopLayout>

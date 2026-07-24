@@ -1,0 +1,212 @@
+---
+/**
+ * Order history.
+ *
+ * "Order again" is a form post handled here rather than a link, because
+ * refilling a cart is a write. It adds back whatever is still sellable and
+ * leaves the rest — a jar that has since sold out should not stop the other two
+ * from coming back.
+ */
+
+import Alert from '../../../components/shop/Alert.astro';
+import Button from '../../../components/shop/Button.astro';
+import EmptyState from '../../../components/shop/EmptyState.astro';
+import Money from '../../../components/shop/Money.astro';
+import ShopLayout from '../../../components/shop/ShopLayout.astro';
+import StatusBadge from '../../../components/shop/StatusBadge.astro';
+import { readPaging, requireCtx } from '../../../lib/api';
+import { isAppError, notFound, publicMessage } from '../../../lib/errors';
+import { errMessage, log } from '../../../lib/log';
+import { addItem, getOrCreateCart } from '../../../lib/services/cart';
+import { getOrderById, listOrdersForUser, orderStockLines } from '../../../lib/services/orders';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+if (!ctx.user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+const user = ctx.user;
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const orderId = String(form.get('order_id') ?? '').trim();
+
+  try {
+    // Ownership comes from the session, never from the form: an order id in a
+    // body is only a claim about which order to copy.
+    const order = orderId ? await getOrderById(ctx.db, orderId) : null;
+    if (!order || order.user_id !== user.id) throw notFound('We could not find that order on your account.');
+
+    const settings = await ctx.settings();
+    const cartId = await getOrCreateCart(ctx, Astro.cookies);
+    // The variant/quantity pairs of the order, which is exactly what a cart
+    // needs; the helper is named for its other caller, the stock ledger.
+    const lines = await orderStockLines(ctx.db, order.id);
+
+    let added = 0;
+    for (const line of lines) {
+      try {
+        await addItem(ctx.db, cartId, line.variantId, line.qty, settings);
+        added += 1;
+      } catch (err) {
+        // Sold out, archived, or over the per-order cap. Skip the line rather
+        // than failing the whole basket.
+        log.info('account.reorder_line_skipped', {
+          orderId: order.id,
+          variantId: line.variantId,
+          reason: errMessage(err),
+        });
+      }
+    }
+
+    if (added === 0) {
+      error = 'None of the jars from that order can be added right now. They may be between batches.';
+    } else {
+      // Straight to the cart: whatever could not be added is visible there by
+      // its absence, and the cart is where the next decision happens.
+      return Astro.redirect('/cart', 303);
+    }
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.reorder_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = isAppError(err) ? publicMessage(err) : 'We could not rebuild that order. Please try again.';
+  }
+}
+
+const { limit, offset } = readPaging(Astro.url, 10, 50);
+const [orders, total, cartCount] = await Promise.all([
+  listOrdersForUser(ctx.db, user.id, limit, offset),
+  ctx.db.scalar<number>('SELECT COUNT(*) FROM orders WHERE user_id = ?', [user.id]),
+  ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [ctx.cartId ?? '']),
+]);
+
+const totalOrders = total ?? 0;
+const page = Math.floor(offset / limit) + 1;
+const lastPage = Math.max(1, Math.ceil(totalOrders / limit));
+
+const formatDate = (ms: number) =>
+  new Date(ms).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+
+const CARD = 'rounded-3xl border border-mango-100 bg-white/60 p-4 sm:p-5';
+const PAGE_LINK =
+  'inline-flex min-h-11 items-center rounded-full border border-ink/15 px-4 text-sm font-medium text-ink ' +
+  'no-underline transition hover:border-ink/40 hover:bg-ink/5';
+---
+
+<ShopLayout title="Your orders" user={user} cartCount={cartCount ?? 0} wide>
+  <p class="text-sm">
+    <a href="/account" class="text-ink/65 no-underline transition hover:text-spice-500">← Your account</a>
+  </p>
+
+  <h1 class="mt-3 font-serif text-3xl font-semibold text-ink sm:text-4xl">Your orders</h1>
+  <p class="mt-2 text-sm text-ink/65">
+    {totalOrders === 0
+      ? 'Nothing here yet.'
+      : `${totalOrders} order${totalOrders === 1 ? '' : 's'} so far. Thank you.`}
+  </p>
+
+  {error && <Alert kind="error" title="That did not work" class="mt-6">{error}</Alert>}
+
+  {
+    orders.length === 0 ? (
+      <div class="mt-8">
+        <EmptyState
+          title="No orders yet"
+          body="Once you order, every jar you have bought lives here — with its status, its invoice and a one-tap reorder."
+          actionHref="/shop"
+          actionLabel="Browse the shop"
+        />
+      </div>
+    ) : (
+      <ul class="mt-8 space-y-4">
+        {orders.map((row) => (
+          <li class={CARD}>
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <a
+                    href={`/account/orders/${row.order.id}`}
+                    class="font-medium text-ink no-underline transition hover:text-spice-500"
+                  >
+                    {row.order.order_number}
+                  </a>
+                  <StatusBadge status={row.order.status} />
+                </p>
+                <p class="mt-1 text-xs text-ink/55">Placed {formatDate(row.order.placed_at)}</p>
+              </div>
+
+              <p class="text-right">
+                <Money paise={row.order.total_paise} class="font-semibold text-ink" />
+                <span class="mt-0.5 block text-xs text-ink/55">
+                  {row.order.payment_method === 'cod' ? 'Cash on delivery' : 'Paid online'}
+                </span>
+              </p>
+            </div>
+
+            <div class="mt-4 flex items-center gap-4">
+              {row.firstItemImage ? (
+                <img src={row.firstItemImage} alt="" loading="lazy" class="size-14 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <span class="size-14 shrink-0 rounded-xl bg-mango-100" aria-hidden="true" />
+              )}
+              <p class="min-w-0 flex-1 text-sm text-ink/75">
+                <span class="block truncate">{row.firstItemName}</span>
+                <span class="mt-0.5 block text-xs text-ink/55">
+                  {row.itemCount} jar{row.itemCount === 1 ? '' : 's'} in this order
+                </span>
+              </p>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <Button href={`/account/orders/${row.order.id}`} variant="secondary" size="sm">
+                View order
+              </Button>
+
+              <form method="post">
+                <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+                <input type="hidden" name="order_id" value={row.order.id} />
+                <Button type="submit" variant="ghost" size="sm">
+                  Order again
+                </Button>
+              </form>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  {
+    lastPage > 1 && (
+      <nav class="mt-8 flex items-center justify-between gap-4" aria-label="Order history pages">
+        {page > 1 ? (
+          <a href={`/account/orders?page=${page - 1}`} class={PAGE_LINK} rel="prev">
+            ← Newer
+          </a>
+        ) : (
+          <span />
+        )}
+
+        <span class="text-sm text-ink/65">Page {page} of {lastPage}</span>
+
+        {page < lastPage ? (
+          <a href={`/account/orders?page=${page + 1}`} class={PAGE_LINK} rel="next">
+            Older →
+          </a>
+        ) : (
+          <span />
+        )}
+      </nav>
+    )
+  }
+</ShopLayout>

@@ -1,0 +1,190 @@
+---
+/**
+ * In-app notifications.
+ *
+ * The same events that generate an email land here, so a customer who lost the
+ * email — or who never got it, because the address bounced — still has the
+ * record. Marking as read is a form post rather than a fetch: it is one write
+ * and it must work on the connection that made the email unreliable in the
+ * first place.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import EmptyState from '../../components/shop/EmptyState.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { requireCtx } from '../../lib/api';
+import { badRequest, isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log } from '../../lib/log';
+import { countUnread, listNotifications, markNotificationsRead } from '../../lib/services/notify';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+if (!ctx.user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+const user = ctx.user;
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? '');
+
+  try {
+    if (action === 'read_all') {
+      const marked = await markNotificationsRead(ctx.db, user.id);
+      log.info('account.notifications_read_all', { userId: user.id, marked });
+      return Astro.redirect('/account/notifications?read=all', 303);
+    }
+
+    if (action === 'read_one') {
+      const id = String(form.get('id') ?? '').trim();
+      if (!id) throw badRequest('Which notification did you mean?');
+      // Scoped to the session's user inside the service, so an id borrowed from
+      // somebody else's notification is a no-op rather than a read receipt.
+      await markNotificationsRead(ctx.db, user.id, [id]);
+      return Astro.redirect('/account/notifications', 303);
+    }
+
+    throw badRequest('That action is not available here.');
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.notifications_page_error', { error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+  }
+}
+
+const [items, unread, cartCount] = await Promise.all([
+  listNotifications(ctx.db, user.id, { limit: 50 }),
+  countUnread(ctx.db, user.id),
+  ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [ctx.cartId ?? '']),
+]);
+
+const markedAll = Astro.url.searchParams.get('read') === 'all';
+
+const formatWhen = (ms: number) => {
+  const minutes = Math.floor((Date.now() - ms) / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  // Past a day the clock stops being useful and the date starts.
+  return new Date(ms).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+};
+
+const ROW = 'rounded-3xl border p-5 transition';
+---
+
+<ShopLayout title="Notifications" user={user} cartCount={cartCount ?? 0}>
+  <p class="text-sm">
+    <a href="/account" class="text-ink/65 no-underline transition hover:text-spice-500">← Your account</a>
+  </p>
+
+  <div class="mt-3 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="font-serif text-3xl font-semibold text-ink sm:text-4xl">Notifications</h1>
+      <p class="mt-2 text-sm text-ink/65">
+        {unread === 0 ? 'Nothing unread.' : `${unread} unread.`}
+      </p>
+    </div>
+
+    {
+      unread > 0 && (
+        <form method="post">
+          <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+          <input type="hidden" name="_action" value="read_all" />
+          <Button type="submit" variant="secondary" size="sm">
+            Mark all as read
+          </Button>
+        </form>
+      )
+    }
+  </div>
+
+  {markedAll && <Alert kind="success" class="mt-6">All caught up.</Alert>}
+  {error && <Alert kind="error" class="mt-6">{error}</Alert>}
+
+  {
+    items.length === 0 ? (
+      <div class="mt-8">
+        <EmptyState
+          title="Nothing yet"
+          body="When an order is confirmed, packed, shipped or delivered, you will find it here."
+          actionHref="/shop"
+          actionLabel="Browse the shop"
+        />
+      </div>
+    ) : (
+      <ul class="mt-8 space-y-3">
+        {items.map((item) => {
+          const isUnread = item.read_at === null;
+          return (
+            <li
+              class:list={[
+                ROW,
+                isUnread ? 'border-spice-500/25 bg-white' : 'border-mango-100 bg-white/50',
+              ]}
+            >
+              <div class="flex items-start gap-3">
+                <span
+                  class:list={['mt-1.5 size-2 shrink-0 rounded-full', isUnread ? 'bg-spice-500' : 'bg-ink/20']}
+                  aria-hidden="true"
+                />
+
+                <div class="min-w-0 flex-1">
+                  <p class:list={['text-ink', isUnread && 'font-medium']}>
+                    {item.title}
+                    {isUnread && <span class="sr-only"> (unread)</span>}
+                  </p>
+
+                  {item.body && <p class="mt-1 text-sm leading-relaxed text-ink/70">{item.body}</p>}
+
+                  <p class="mt-1.5 text-xs text-ink/55">{formatWhen(item.created_at)}</p>
+
+                  <div class="mt-3 flex flex-wrap items-center gap-2">
+                    {item.link && (
+                      <a
+                        href={item.link}
+                        class="inline-flex min-h-11 items-center text-sm font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+                      >
+                        Open
+                      </a>
+                    )}
+
+                    {isUnread && (
+                      <form method="post">
+                        <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+                        <input type="hidden" name="_action" value="read_one" />
+                        <input type="hidden" name="id" value={item.id} />
+                        <Button type="submit" variant="ghost" size="sm">
+                          Mark as read
+                        </Button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    )
+  }
+
+  {
+    items.length >= 50 && (
+      <p class="mt-6 text-center text-sm text-ink/55">
+        Showing your 50 most recent notifications.
+      </p>
+    )
+  }
+</ShopLayout>

@@ -1,0 +1,596 @@
+---
+/**
+ * The basket.
+ *
+ * Every number on this page is computed by the server's pricing module and sent
+ * down as integer paise. The browser re-renders totals after a quantity change
+ * so a customer on a slow connection is not made to watch a full page reload for
+ * a plus button, but it never *calculates* money — it formats integers the API
+ * returned, which is what keeps the price shown and the price charged the same
+ * number.
+ *
+ * Two warnings are given prominence rather than being tucked away: a price that
+ * changed since the item was added, and a quantity we can no longer fill. Both
+ * are things a customer would otherwise discover at the payment step.
+ */
+import Alert from '../components/shop/Alert.astro';
+import Button from '../components/shop/Button.astro';
+import EmptyState from '../components/shop/EmptyState.astro';
+import Money from '../components/shop/Money.astro';
+import QuantityStepper from '../components/shop/QuantityStepper.astro';
+import ShopLayout from '../components/shop/ShopLayout.astro';
+import { requireCtx } from '../lib/api';
+import { getCart } from '../lib/services/cart';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+const settings = await ctx.settings();
+const cart = await getCart(ctx.db, ctx.cartId, settings, { userId: ctx.user?.id ?? null });
+
+const { pricing } = cart;
+const threshold = settings.freeShippingThresholdPaise;
+const remainingForFree = pricing.freeShippingRemainingPaise;
+// Capped at 99 while anything is still owed: a full bar next to "₹1 more for
+// free delivery" reads as a bug.
+const freeShippingProgress =
+  threshold <= 0 || remainingForFree <= 0
+    ? 100
+    : Math.min(99, Math.max(0, Math.floor(((threshold - remainingForFree) / threshold) * 100)));
+
+// A cart we cannot fill must not reach the payment step: stock is reserved at
+// order creation, so the failure would otherwise land after the customer has
+// typed an address.
+const blockingIssues = cart.lines.filter((line) => line.availabilityIssue !== null);
+const canCheckout = settings.storeOpen && cart.lines.length > 0 && blockingIssues.length === 0;
+
+const ROW = 'flex gap-4 rounded-3xl border border-mango-100 bg-white/70 p-4';
+
+/**
+ * Hoisted out of the template on purpose.
+ *
+ * A template literal written inline inside a `{...}` expression in the markup
+ * makes the Astro compiler emit broken JavaScript — it rewrites the `${` as if
+ * it owned the string, and esbuild then fails with `Expected "}" but found "$"`
+ * pointing at an unrelated line. Building the sentence up here sidesteps it
+ * entirely. Anywhere else on this page needing interpolation should do the same.
+ */
+function availabilityMessage(available: number): string {
+  if (available <= 0) return 'This size has just sold out. Please remove it to carry on.';
+  return 'Only ' + available + ' left of this size. Please lower the quantity to carry on.';
+}
+---
+
+<ShopLayout title="Your basket" user={ctx.user} cartCount={cart.itemCount}>
+  <h1 class="font-serif text-3xl text-ink sm:text-4xl">Your basket</h1>
+
+  {
+    cart.lines.length === 0 ? (
+      <div class="mt-8">
+        <EmptyState
+          title="Nothing in the basket yet"
+          body="Small batches, made in Bengaluru and packed the week you order. Have a look at what is on the shelf."
+          actionHref="/shop"
+          actionLabel="Go to the shop"
+        />
+      </div>
+    ) : (
+      <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_20rem] lg:items-start">
+        {/* ── Lines ────────────────────────────────────────────────────── */}
+        <div>
+          {!settings.storeOpen && (
+            <Alert kind="warning" title="We are between batches" class="mb-5">
+              {settings.storeClosedMessage} Your basket is safe — it will be here when the next batch is ready.
+            </Alert>
+          )}
+
+          {cart.couponError && (
+            <Alert kind="warning" title={`Coupon ${cart.couponCode}`} class="mb-5">
+              {cart.couponError}
+            </Alert>
+          )}
+
+          <ul class="list-none space-y-4 p-0" data-lines>
+            {cart.lines.map((line) => (
+              <li class={ROW} data-line data-variant-id={line.variantId}>
+                <a href={`/shop/${line.variant.productSlug}`} class="shrink-0">
+                  {line.variant.productImage ? (
+                    <img
+                      src={line.variant.productImage}
+                      alt=""
+                      width="160"
+                      height="160"
+                      loading="lazy"
+                      decoding="async"
+                      class="size-20 rounded-2xl bg-mango-50 object-cover sm:size-24"
+                    />
+                  ) : (
+                    <span class="flex size-20 items-center justify-center rounded-2xl bg-mango-50 font-serif text-2xl text-mango-300 sm:size-24">
+                      {line.variant.productName.slice(0, 1)}
+                    </span>
+                  )}
+                </a>
+
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                    <div class="min-w-0">
+                      <a
+                        href={`/shop/${line.variant.productSlug}`}
+                        class="font-serif text-base font-semibold text-ink transition hover:text-spice-500"
+                      >
+                        {line.variant.productName}
+                      </a>
+                      <p class="text-sm text-ink/65">{line.variant.name}</p>
+                    </div>
+                    <p class="text-right">
+                      <span data-line-total>
+                        <Money paise={line.lineTotalPaise} class="font-semibold text-ink" />
+                      </span>
+                      <span class="block text-xs text-ink/55">
+                        <Money paise={line.unitPricePaise} /> each
+                      </span>
+                    </p>
+                  </div>
+
+                  {line.priceChanged && (
+                    <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed font-medium text-amber-900">
+                      The price of this size changed from <Money paise={line.snapshotPricePaise} /> to{' '}
+                      <Money paise={line.unitPricePaise} /> since you added it. The new price is what you will pay.
+                    </p>
+                  )}
+
+                  {line.availabilityIssue && (
+                    <p
+                      class="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs leading-relaxed font-medium text-red-900"
+                      role="alert"
+                    >
+                      {availabilityMessage(line.availabilityIssue.available)}
+                    </p>
+                  )}
+
+                  <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <QuantityStepper
+                      name={`qty-${line.variantId}`}
+                      value={line.qty}
+                      min={1}
+                      max={settings.maxQtyPerVariant}
+                    />
+                    <button
+                      type="button"
+                      data-remove
+                      class="min-h-11 rounded-full px-3 text-sm font-medium text-ink/60 underline underline-offset-4 transition hover:text-spice-500 focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:outline-none disabled:opacity-50"
+                    >
+                      Remove<span class="sr-only"> {line.variant.productName} {line.variant.name}</span>
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <p class="mt-4 text-sm font-medium text-red-700" data-cart-error role="alert" hidden></p>
+
+          <noscript>
+            <p class="mt-4 rounded-2xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+              Changing quantities, applying a coupon and checking a PIN code all need JavaScript. If it is switched
+              off, write to
+              <a href="mailto:mothersgoldspice@gmail.com" class="font-medium underline">mothersgoldspice@gmail.com</a>
+              and we will take the order by email.
+            </p>
+          </noscript>
+
+          <p class="mt-6">
+            <a href="/shop" class="text-sm font-medium text-spice-500 underline underline-offset-4">
+              Keep looking around the shop
+            </a>
+          </p>
+        </div>
+
+        {/* ── Summary ──────────────────────────────────────────────────── */}
+        <aside class="space-y-4 lg:sticky lg:top-20" aria-label="Order summary">
+          {/* Free delivery nudge */}
+          <div class="rounded-3xl border border-mango-100 bg-white/70 p-4" data-free-shipping>
+            <p class="text-sm font-medium text-ink" data-free-shipping-message>
+              {remainingForFree > 0 ? (
+                <>
+                  <Money paise={remainingForFree} /> more for free delivery
+                </>
+              ) : (
+                'Free delivery on this order'
+              )}
+            </p>
+            <div
+              class="mt-2 h-2 overflow-hidden rounded-full bg-mango-100"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={freeShippingProgress}
+              aria-label="Progress towards free delivery"
+              data-free-shipping-bar
+              data-threshold={threshold}
+            >
+              <span
+                class="block h-full rounded-full bg-mango-500 transition-all"
+                style={`width: ${freeShippingProgress}%`}
+                data-free-shipping-fill
+              />
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-ink/60">
+              Free above <Money paise={threshold} />. Below that, delivery depends on where it is going.
+            </p>
+          </div>
+
+          {/* Coupon */}
+          <div class="rounded-3xl border border-mango-100 bg-white/70 p-4">
+            {cart.coupon ? (
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-sm">
+                  <span class="font-semibold text-ink">{cart.coupon.code}</span>
+                  <span class="block text-xs text-ink/60">{cart.coupon.description}</span>
+                </p>
+                <button
+                  type="button"
+                  data-coupon-remove
+                  class="min-h-11 rounded-full px-3 text-sm font-medium text-ink/60 underline underline-offset-4 transition hover:text-spice-500 focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:outline-none"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <form data-coupon-form class="flex flex-wrap items-end gap-2">
+                <div class="min-w-32 flex-1">
+                  <label for="coupon-code" class="mb-1.5 block text-sm font-medium text-ink/80">
+                    Coupon code
+                  </label>
+                  <input
+                    id="coupon-code"
+                    name="code"
+                    type="text"
+                    autocapitalize="characters"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="WELCOME10"
+                    maxlength="40"
+                    class="block h-11 w-full rounded-2xl border border-ink/15 bg-white px-4 text-base uppercase text-ink placeholder:text-ink/35 placeholder:normal-case focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none"
+                  />
+                </div>
+                <Button type="submit" variant="secondary">Apply</Button>
+              </form>
+            )}
+            <p class="mt-2 text-sm font-medium text-red-700" data-coupon-error role="alert" hidden></p>
+          </div>
+
+          {/* PIN code */}
+          <div class="rounded-3xl border border-mango-100 bg-white/70 p-4">
+            <form data-pin-form class="flex flex-wrap items-end gap-2">
+              <div class="min-w-32 flex-1">
+                <label for="pin-code" class="mb-1.5 block text-sm font-medium text-ink/80">
+                  Delivery PIN code
+                </label>
+                <input
+                  id="pin-code"
+                  name="pincode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="postal-code"
+                  pattern="[1-9][0-9]{5}"
+                  maxlength="6"
+                  placeholder="560001"
+                  class="block h-11 w-full rounded-2xl border border-ink/15 bg-white px-4 text-base tabular-nums text-ink placeholder:text-ink/35 focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none"
+                />
+              </div>
+              <Button type="submit" variant="secondary">Check</Button>
+            </form>
+            <div class="mt-2 text-sm leading-relaxed" data-pin-result role="status" aria-live="polite"></div>
+          </div>
+
+          {/* Totals */}
+          <div class="rounded-3xl border border-mango-100 bg-white/70 p-4">
+            <dl class="space-y-2 text-sm">
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/70">
+                  Items <span data-item-count>{cart.itemCount}</span>
+                </dt>
+                <dd><span data-subtotal><Money paise={pricing.subtotalPaise} class="text-ink" /></span></dd>
+              </div>
+
+              <div class="flex justify-between gap-4" data-discount-row hidden={pricing.discountPaise <= 0}>
+                <dt class="text-ink/70">Discount{cart.coupon ? ` (${cart.coupon.code})` : ''}</dt>
+                <dd class="text-emerald-800">
+                  −<span data-discount><Money paise={pricing.discountPaise} /></span>
+                </dd>
+              </div>
+
+              <div class="flex justify-between gap-4">
+                <dt class="text-ink/70">Delivery</dt>
+                <dd class="text-ink/70" data-shipping>Worked out at checkout</dd>
+              </div>
+
+              <div class="mt-3 flex justify-between gap-4 border-t border-ink/10 pt-3 text-base font-semibold">
+                <dt>Total</dt>
+                <dd><span data-total><Money paise={pricing.totalPaise} /></span></dd>
+              </div>
+            </dl>
+
+            {pricing.taxInclusive && pricing.taxPaise > 0 && (
+              <p class="mt-2 text-xs text-ink/55">
+                Includes <span data-tax><Money paise={pricing.taxPaise} /></span> GST on the items. Delivery is added
+                once we know the PIN code.
+              </p>
+            )}
+
+            <p class="mt-4">
+              <Button href="/checkout" size="lg" class="w-full" disabled={!canCheckout} data-checkout-button>
+                Proceed to checkout
+              </Button>
+            </p>
+
+            {blockingIssues.length > 0 && (
+              <p class="mt-2 text-xs leading-relaxed font-medium text-red-700">
+                Sort out the quantities marked above and the checkout will open.
+              </p>
+            )}
+            {!settings.storeOpen && (
+              <p class="mt-2 text-xs leading-relaxed text-ink/60">Checkout opens again with the next batch.</p>
+            )}
+          </div>
+        </aside>
+      </div>
+    )
+  }
+</ShopLayout>
+
+<script>
+  /**
+   * Basket editing.
+   *
+   * Quantities, coupons and the PIN check all go to the server and the server's
+   * reply is what repaints the totals. The one thing done locally is turning an
+   * integer number of paise into a rupee string, which mirrors formatPaise() in
+   * src/lib/money.ts — there is no arithmetic here, only formatting.
+   */
+  const root = document.querySelector<HTMLElement>('[data-lines]');
+
+  if (root) {
+    const csrf = document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.content ?? '';
+
+    const rupees = (paise: number) =>
+      new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        // Whole rupees drop the decimals, exactly as the server renders them.
+        minimumFractionDigits: paise % 100 === 0 ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(paise / 100);
+
+    const errorBox = document.querySelector<HTMLElement>('[data-cart-error]');
+    const couponError = document.querySelector<HTMLElement>('[data-coupon-error]');
+    const pinResult = document.querySelector<HTMLElement>('[data-pin-result]');
+    const pinForm = document.querySelector<HTMLFormElement>('[data-pin-form]');
+    const couponForm = document.querySelector<HTMLFormElement>('[data-coupon-form]');
+
+    interface CartTotals {
+      subtotalPaise: number;
+      discountPaise: number;
+      shippingPaise: number;
+      totalPaise: number;
+      taxPaise: number;
+      freeShippingApplied: boolean;
+      freeShippingRemainingPaise: number;
+    }
+    interface CartPayload {
+      itemCount: number;
+      hasIssues: boolean;
+      lines: { variantId: string; qty: number; lineTotalPaise: number }[];
+      totals: CartTotals;
+    }
+
+    const showError = (box: HTMLElement | null, text: string) => {
+      if (!box) return;
+      box.textContent = text;
+      box.hidden = false;
+    };
+
+    const request = async <T,>(url: string, method: string, body: unknown): Promise<T> => {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify(body),
+      });
+      const payload = (await response.json()) as { ok: true; data: T } | { ok: false; error: { message: string } };
+      if (!payload.ok) throw new Error(payload.error.message);
+      return payload.data;
+    };
+
+    const setText = (selector: string, text: string) => {
+      const node = document.querySelector<HTMLElement>(selector);
+      if (node) node.textContent = text;
+    };
+
+    const repaint = (cart: CartPayload) => {
+      // A line that gained a stock warning, or a basket that just emptied,
+      // changes the shape of the page rather than a number on it. Let the server
+      // render that rather than trying to reproduce it here.
+      if (cart.itemCount === 0 || cart.hasIssues) {
+        window.location.reload();
+        return;
+      }
+
+      for (const line of cart.lines) {
+        const row = root.querySelector<HTMLElement>(`[data-variant-id="${CSS.escape(line.variantId)}"]`);
+        const total = row?.querySelector<HTMLElement>('[data-line-total]');
+        if (total) total.textContent = rupees(line.lineTotalPaise);
+      }
+
+      const totals = cart.totals;
+      setText('[data-item-count]', String(cart.itemCount));
+      setText('[data-subtotal]', rupees(totals.subtotalPaise));
+      setText('[data-total]', rupees(totals.totalPaise));
+      setText('[data-tax]', rupees(totals.taxPaise));
+      setText('[data-discount]', rupees(totals.discountPaise));
+
+      const discountRow = document.querySelector<HTMLElement>('[data-discount-row]');
+      if (discountRow) discountRow.hidden = totals.discountPaise <= 0;
+
+      const badge = document.querySelector<HTMLAnchorElement>('a[href="/cart"]')?.querySelector('span:not(.sr-only)');
+      if (badge) badge.textContent = String(cart.itemCount);
+
+      // Free-delivery nudge: the remaining amount comes from the server, the bar
+      // is the same ratio the server rendered on load.
+      const bar = document.querySelector<HTMLElement>('[data-free-shipping-bar]');
+      const fill = document.querySelector<HTMLElement>('[data-free-shipping-fill]');
+      const message = document.querySelector<HTMLElement>('[data-free-shipping-message]');
+      const remaining = totals.freeShippingRemainingPaise;
+      const threshold = Number(bar?.dataset.threshold ?? '0');
+      if (message) {
+        message.textContent = remaining > 0 ? `${rupees(remaining)} more for free delivery` : 'Free delivery on this order';
+      }
+      if (bar && fill && threshold > 0) {
+        const percent =
+          remaining <= 0 ? 100 : Math.min(99, Math.max(0, Math.floor(((threshold - remaining) / threshold) * 100)));
+        fill.style.width = `${percent}%`;
+        bar.setAttribute('aria-valuenow', String(percent));
+      }
+    };
+
+    const withBusy = async (button: HTMLButtonElement | null, run: () => Promise<void>) => {
+      if (button) button.disabled = true;
+      try {
+        if (errorBox) errorBox.hidden = true;
+        await run();
+      } catch (err) {
+        showError(errorBox, err instanceof Error ? err.message : 'We could not update the basket. Please try again.');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    };
+
+    // Quantity: the stepper fires `change` once the value has settled.
+    root.addEventListener('change', (event) => {
+      const input = event.target as HTMLElement;
+      if (!(input instanceof HTMLInputElement) || input.type !== 'number') return;
+      const row = input.closest<HTMLElement>('[data-line]');
+      const variantId = row?.dataset.variantId;
+      if (!variantId) return;
+
+      void withBusy(null, async () => {
+        const cart = await request<CartPayload>('/api/cart', 'PATCH', {
+          variant_id: variantId,
+          qty: Number.parseInt(input.value, 10) || 1,
+        });
+        repaint(cart);
+      });
+    });
+
+    root.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-remove]');
+      if (!button) return;
+      const variantId = button.closest<HTMLElement>('[data-line]')?.dataset.variantId;
+      if (!variantId) return;
+
+      void withBusy(button, async () => {
+        const cart = await request<CartPayload>('/api/cart', 'DELETE', { variant_id: variantId });
+        button.closest('[data-line]')?.remove();
+        repaint(cart);
+      });
+    });
+
+    couponForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const field = couponForm.querySelector<HTMLInputElement>('input[name="code"]');
+      const button = couponForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+      const code = field?.value.trim() ?? '';
+      if (!code) return;
+
+      if (couponError) couponError.hidden = true;
+      if (button) button.disabled = true;
+      void (async () => {
+        try {
+          await request('/api/cart/coupon', 'POST', { code });
+          // A coupon changes discount, delivery and the free-delivery nudge at
+          // once; a reload is the honest way to show all three.
+          window.location.reload();
+        } catch (err) {
+          showError(couponError, err instanceof Error ? err.message : 'That coupon could not be applied.');
+          if (button) button.disabled = false;
+        }
+      })();
+    });
+
+    document.querySelector<HTMLButtonElement>('[data-coupon-remove]')?.addEventListener('click', (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+      void (async () => {
+        try {
+          await request('/api/cart/coupon', 'DELETE', {});
+          window.location.reload();
+        } catch (err) {
+          showError(couponError, err instanceof Error ? err.message : 'We could not remove that coupon.');
+          button.disabled = false;
+        }
+      })();
+    });
+
+    pinForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const field = pinForm.querySelector<HTMLInputElement>('input[name="pincode"]');
+      const button = pinForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+      const pincode = field?.value.trim() ?? '';
+      if (!pinResult) return;
+
+      pinResult.textContent = 'Checking…';
+      if (button) button.disabled = true;
+
+      void (async () => {
+        try {
+          const result = await request<{
+            serviceable: boolean;
+            codAvailable: boolean;
+            estimatedDays: number;
+            city: string | null;
+            state: string | null;
+            shippingPaise: number;
+            codFeePaise: number;
+            freeShippingApplied: boolean;
+            totalPaise: number;
+          }>('/api/checkout/serviceability', 'POST', {
+            pincode,
+            // Always asked about cash on delivery. The courier only gives a
+            // meaningful COD answer when it is asked about COD, and the answer
+            // is written to a shared pincode cache — asking with cod:false would
+            // cache "no cash on delivery" here and break it at checkout.
+            cod: true,
+          });
+
+          if (!result.serviceable) {
+            pinResult.className = 'mt-2 text-sm leading-relaxed font-medium text-red-700';
+            pinResult.textContent = `We cannot deliver to ${pincode} yet. Write to us and we will try to arrange something.`;
+            return;
+          }
+
+          const freeDelivery = result.freeShippingApplied || result.shippingPaise === 0;
+          const where = [result.city, result.state].filter(Boolean).join(', ');
+          pinResult.className = 'mt-2 text-sm leading-relaxed text-ink/75';
+          pinResult.textContent =
+            `Delivers to ${where || pincode} in about ${result.estimatedDays} days. ` +
+            `Delivery ${freeDelivery ? 'free' : rupees(result.shippingPaise)}.` +
+            (result.codAvailable ? ' Cash on delivery available.' : ' Cash on delivery is not available there.');
+
+          setText('[data-shipping]', freeDelivery ? 'Free' : rupees(result.shippingPaise));
+          // The figure above was priced for COD, so the cash-handling fee the
+          // server reports separately comes back off. Both are server integers;
+          // nothing about the price is worked out here.
+          setText('[data-total]', rupees(result.totalPaise - result.codFeePaise));
+
+          // Carried into checkout so the customer types their PIN code once.
+          window.sessionStorage.setItem('mgs:pincode', pincode);
+        } catch (err) {
+          pinResult.className = 'mt-2 text-sm leading-relaxed font-medium text-red-700';
+          pinResult.textContent = err instanceof Error ? err.message : 'We could not check that PIN code.';
+        } finally {
+          if (button) button.disabled = false;
+        }
+      })();
+    });
+  }
+</script>

@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { requireAdmin } from '../../../../lib/api';
 import type { AppContext } from '../../../../lib/context';
 import type { OrderRow, PaymentRow, RefundRow, ShipmentEventRow } from '../../../../lib/db/types';
-import { badRequest, conflict } from '../../../../lib/errors';
+import { badRequest, notFound } from '../../../../lib/errors';
 import { handle, ok, readJson } from '../../../../lib/http';
 import { newId } from '../../../../lib/ids';
 import { log } from '../../../../lib/log';
@@ -86,7 +86,7 @@ async function recordAudit(
   );
 }
 
-function orderId(params: Record<string, string | undefined>): string {
+function readOrderId(params: Record<string, string | undefined>): string {
   const id = params.id?.trim();
   if (!id) throw badRequest('Missing order reference.');
   return id;
@@ -95,7 +95,7 @@ function orderId(params: Record<string, string | undefined>): string {
 export const GET: APIRoute = async ({ locals, params }) =>
   handle(async () => {
     const { ctx } = requireAdmin(locals);
-    return ok(await loadAdminOrder(ctx, orderId(params)));
+    return ok(await loadAdminOrder(ctx, readOrderId(params)));
   });
 
 const actionSchema = z.object({
@@ -116,7 +116,7 @@ const shipSchema = z.object({
 export const PATCH: APIRoute = async ({ locals, params, request }) =>
   handle(async () => {
     const { ctx, user } = requireAdmin(locals);
-    const id = orderId(params);
+    const id = readOrderId(params);
     const body = await readJson<Record<string, unknown>>(request);
     const { action } = parseOrThrow(actionSchema, body);
     let result: Record<string, unknown> = {};
@@ -141,7 +141,7 @@ export const PATCH: APIRoute = async ({ locals, params, request }) =>
           // confirmed order. `confirmOrder` is idempotent, so a webhook that
           // lands a second later is a no-op.
           const order = await ctx.db.first<OrderRow>('SELECT * FROM orders WHERE id = ?', [id]);
-          if (!order) throw conflict('We could not find that order.');
+          if (!order) throw notFound('We could not find that order.');
           const { alreadyConfirmed } = await confirmOrder(ctx.db, id, {
             // A COD order is confirmed with the money still outstanding.
             paymentStatus: order.payment_method === 'cod' ? 'pending' : 'paid',

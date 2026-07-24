@@ -1,0 +1,334 @@
+---
+/**
+ * Profile, password and sessions.
+ *
+ * The email address is read-only here on purpose: it is the key a guest order is
+ * claimed by and the address every receipt has already gone to, so changing it
+ * needs a verified flow of its own rather than a field on this form.
+ */
+
+import Alert from '../../components/shop/Alert.astro';
+import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
+import ShopLayout from '../../components/shop/ShopLayout.astro';
+import { rateKey, requireCtx } from '../../lib/api';
+import { endSession, revokeAllSessions } from '../../lib/auth/session';
+import { badRequest, internal, isAppError, publicMessage } from '../../lib/errors';
+import { errMessage, log } from '../../lib/log';
+import { passwordChanged, storeContext } from '../../lib/providers/email/templates';
+import { RATE_LIMITS, enforceRateLimit } from '../../lib/rate-limit';
+import { authenticate, findUserById, setPassword, updateProfile } from '../../lib/services/accounts';
+import { queueAndSend } from '../../lib/services/notify';
+import { parseOrThrow, passwordChangeSchema, profileUpdateSchema } from '../../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+if (!ctx.user) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`, 303);
+}
+const user = ctx.user;
+
+/** Which form failed, so the message lands under the form that produced it. */
+let failedForm = '';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('_action') ?? '');
+
+  try {
+    if (action === 'signout') {
+      // The cart cookie deliberately survives: a shared laptop losing its
+      // session should not also lose the basket the next person is buying from.
+      await endSession(ctx.db, Astro.cookies, ctx.env, ctx.sessionId);
+      return Astro.redirect('/account/login?signedout=1', 303);
+    }
+
+    if (action === 'signout_others') {
+      const revoked = await revokeAllSessions(ctx.db, user.id, ctx.sessionId ?? undefined);
+      log.info('account.other_sessions_revoked', { userId: user.id, revoked });
+      return Astro.redirect(`/account/profile?others=${revoked}`, 303);
+    }
+
+    if (action === 'profile') {
+      const name = String(form.get('name') ?? '').trim();
+      const phone = String(form.get('phone') ?? '').trim();
+
+      const input = parseOrThrow(profileUpdateSchema, {
+        name,
+        // A blank box means "leave it alone", not "store an empty number" — the
+        // schema has no shape for an empty phone and the courier needs one.
+        ...(phone ? { phone } : {}),
+        marketing_opt_in: form.get('marketing_opt_in') !== null,
+      });
+
+      // The id comes from the session, never from the form.
+      await updateProfile(ctx.db, user.id, {
+        name: input.name,
+        phone: input.phone,
+        marketingOptIn: input.marketing_opt_in,
+      });
+
+      return Astro.redirect('/account/profile?saved=1', 303);
+    }
+
+    if (action === 'password') {
+      const input = parseOrThrow(passwordChangeSchema, {
+        current_password: String(form.get('current_password') ?? ''),
+        password: String(form.get('password') ?? ''),
+      });
+
+      // Same budget as a password reset: this is the other way to take an
+      // account over, so it gets the same ceiling on guesses.
+      await enforceRateLimit(ctx.db, rateKey(ctx, 'pwchange'), RATE_LIMITS.passwordReset);
+
+      try {
+        await authenticate(ctx.db, user.email, input.current_password);
+      } catch (err) {
+        // `authenticate` words its failure for the sign-in form, where naming
+        // the wrong field would confirm which addresses are registered. Here
+        // the customer is already signed in, so the only useful answer is which
+        // box to fix.
+        if (isAppError(err) && err.code === 'unauthorized') {
+          throw badRequest('That is not your current password. Please try again.');
+        }
+        throw err;
+      }
+
+      await setPassword(ctx.db, user.id, input.password);
+
+      // Every OTHER device is signed out. If the password is being changed
+      // because it leaked, leaving those sessions alive would defeat the change.
+      // This one is spared so the customer is not thrown off the page they are
+      // standing on.
+      const revoked = await revokeAllSessions(ctx.db, user.id, ctx.sessionId ?? undefined);
+
+      const mail = passwordChanged({
+        store: storeContext(ctx.env),
+        name: user.name || 'there',
+        changedAt: Date.now(),
+        ip: ctx.clientIp,
+        device: Astro.request.headers.get('user-agent'),
+      });
+      await queueAndSend(ctx, {
+        to: user.email,
+        toName: user.name,
+        subject: mail.subject,
+        template: mail.template,
+        text: mail.text,
+        html: mail.html,
+        userId: user.id,
+        // Per-minute key: a genuine second change an hour later must still be
+        // announced, but a double-submitted form must not send two warnings.
+        idempotencyKey: `pwchanged:${user.id}:${Math.floor(Date.now() / 60000)}`,
+      });
+
+      log.info('account.password_changed', { userId: user.id, sessionsRevoked: revoked });
+      return Astro.redirect(`/account/profile?password=1&others=${revoked}`, 303);
+    }
+
+    throw badRequest('That action is not available here.');
+  } catch (err) {
+    if (!isAppError(err) || err.status >= 500) {
+      log.error('account.profile_page_error', { action, error: errMessage(err) });
+    }
+    Astro.response.status = isAppError(err) ? err.status : 500;
+    error = publicMessage(err);
+    failedForm = action;
+  }
+}
+
+// Read from the database rather than from the session: the session snapshot is
+// hours old, would still show the previous name after a save, and carries
+// neither the phone number nor the marketing flag.
+const profile = await findUserById(ctx.db, user.id);
+if (!profile) throw internal('A live session resolved to a user row that no longer exists.');
+
+const cartCount =
+  (await ctx.db.scalar<number>('SELECT COALESCE(SUM(qty), 0) FROM cart_items WHERE cart_id = ?', [
+    ctx.cartId ?? '',
+  ])) ?? 0;
+
+const savedFlash = Astro.url.searchParams.get('saved') === '1';
+const passwordFlash = Astro.url.searchParams.get('password') === '1';
+const othersRaw = Number.parseInt(Astro.url.searchParams.get('others') ?? '', 10);
+const othersRevoked = Number.isFinite(othersRaw) && othersRaw >= 0 ? othersRaw : null;
+
+const memberSince = new Date(profile.created_at).toLocaleDateString('en-IN', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'Asia/Kolkata',
+});
+
+const SECTION = 'rounded-3xl border border-mango-100 bg-white/60 p-5 sm:p-6';
+const CHECKBOX = 'mt-0.5 size-5 shrink-0 rounded border-ink/25 text-spice-500 focus:ring-2 focus:ring-spice-500/30';
+---
+
+<ShopLayout title="Your profile" user={user} cartCount={cartCount}>
+  <p class="text-sm">
+    <a href="/account" class="text-ink/65 no-underline transition hover:text-spice-500">← Your account</a>
+  </p>
+
+  <h1 class="mt-3 font-serif text-3xl font-semibold text-ink sm:text-4xl">Your profile</h1>
+  <p class="mt-2 text-sm text-ink/65">With us since {memberSince}.</p>
+
+  {savedFlash && <Alert kind="success" class="mt-6">Your details are saved.</Alert>}
+
+  {
+    passwordFlash && (
+      <Alert kind="success" title="Password changed" class="mt-6">
+        {othersRevoked && othersRevoked > 0
+          ? `We also signed out ${othersRevoked} other device${othersRevoked === 1 ? '' : 's'}.`
+          : 'No other devices were signed in.'}
+      </Alert>
+    )
+  }
+
+  {
+    !passwordFlash && othersRevoked !== null && (
+      <Alert kind="success" class="mt-6">
+        {othersRevoked > 0
+          ? `Signed out of ${othersRevoked} other device${othersRevoked === 1 ? '' : 's'}.`
+          : 'There were no other devices signed in.'}
+      </Alert>
+    )
+  }
+
+  {/* ── Details ─────────────────────────────────────────────────────── */}
+  <section class:list={[SECTION, 'mt-8']} aria-labelledby="details">
+    <h2 id="details" class="font-serif text-xl font-semibold text-ink">Your details</h2>
+
+    {
+      failedForm === 'profile' && error && (
+        <Alert kind="error" class="mt-4">
+          {error}
+        </Alert>
+      )
+    }
+
+    <form method="post" class="mt-5 space-y-5">
+      <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+      <input type="hidden" name="_action" value="profile" />
+
+      <Field label="Your name" name="name" value={profile.name} required autocomplete="name" maxlength={120} />
+
+      <Field
+        label="Email address"
+        name="email_display"
+        type="email"
+        value={profile.email}
+        readonly
+        hint={
+          profile.email_verified_at
+            ? 'Confirmed. Receipts and delivery updates go here. Write to us to change it.'
+            : 'Not confirmed yet — check your inbox for the link, or ask for a new one from your account page.'
+        }
+      />
+
+      <Field
+        label="Mobile number"
+        name="phone"
+        type="tel"
+        value={profile.phone ?? ''}
+        autocomplete="tel"
+        inputmode="tel"
+        placeholder="98765 43210"
+        hint="The courier calls this number on delivery day. Leave it blank to keep the number you have."
+      />
+
+      <label class="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-ink/75">
+        <input
+          type="checkbox"
+          name="marketing_opt_in"
+          checked={profile.marketing_opt_in === 1}
+          class={CHECKBOX}
+        />
+        <span>Tell me when a new batch or a new pickle is ready. No more than once a month.</span>
+      </label>
+
+      <Button type="submit">Save my details</Button>
+    </form>
+  </section>
+
+  {/* ── Password ────────────────────────────────────────────────────── */}
+  <section class:list={[SECTION, 'mt-6']} aria-labelledby="password">
+    <h2 id="password" class="font-serif text-xl font-semibold text-ink">Change your password</h2>
+    <p class="mt-2 text-sm leading-relaxed text-ink/65">
+      Changing it signs out every other device. We will email you to say it happened.
+    </p>
+
+    {
+      failedForm === 'password' && error && (
+        <Alert kind="error" class="mt-4">
+          {error}
+        </Alert>
+      )
+    }
+
+    <form method="post" class="mt-5 space-y-5">
+      <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+      <input type="hidden" name="_action" value="password" />
+
+      {/* Kept on the page for password managers to fill and save against. */}
+      <input type="hidden" name="username" value={profile.email} autocomplete="username" />
+
+      <Field
+        label="Current password"
+        name="current_password"
+        type="password"
+        required
+        autocomplete="current-password"
+      />
+
+      <Field
+        label="New password"
+        name="password"
+        type="password"
+        required
+        autocomplete="new-password"
+        hint="At least 10 characters — a short phrase works well."
+      />
+
+      <Button type="submit">Change my password</Button>
+    </form>
+
+    <p class="mt-4 text-sm text-ink/65">
+      Cannot remember the current one?{' '}
+      <a href="/account/forgot" class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700">
+        Send yourself a reset link
+      </a>
+    </p>
+  </section>
+
+  {/* ── Sessions ────────────────────────────────────────────────────── */}
+  <section class:list={[SECTION, 'mt-6']} aria-labelledby="devices">
+    <h2 id="devices" class="font-serif text-xl font-semibold text-ink">Devices</h2>
+    <p class="mt-2 text-sm leading-relaxed text-ink/65">
+      Signed in on a friend's phone, or on a computer at an internet café? Sign those out from here —
+      this device stays signed in.
+    </p>
+
+    {
+      failedForm === 'signout_others' && error && (
+        <Alert kind="error" class="mt-4">
+          {error}
+        </Alert>
+      )
+    }
+
+    <div class="mt-5 flex flex-wrap gap-3">
+      <form method="post">
+        <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+        <input type="hidden" name="_action" value="signout_others" />
+        <Button type="submit" variant="secondary">Sign out everywhere else</Button>
+      </form>
+
+      <form method="post">
+        <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+        <input type="hidden" name="_action" value="signout" />
+        <Button type="submit" variant="ghost">Sign out of this device</Button>
+      </form>
+    </div>
+  </section>
+</ShopLayout>
