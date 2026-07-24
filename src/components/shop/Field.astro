@@ -1,0 +1,168 @@
+---
+/**
+ * A labelled form control with its hint and error text wired up properly.
+ *
+ * Server-rendered errors are the only errors we have — checkout must work with
+ * JavaScript switched off — so the error string is a prop, not something a
+ * client script paints on later.
+ */
+
+interface Props {
+  label: string;
+  name: string;
+  /** Any HTML input type, plus 'textarea' and 'select'. */
+  type?: string;
+  value?: string | number;
+  required?: boolean;
+  error?: string;
+  hint?: string;
+  placeholder?: string;
+  autocomplete?: string;
+  inputmode?: string;
+  maxlength?: number;
+  /** Overrides the id derived from `name` — needed when the same name appears twice on a page. */
+  id?: string;
+  disabled?: boolean;
+  readonly?: boolean;
+  rows?: number;
+  min?: number | string;
+  max?: number | string;
+  step?: number | string;
+  pattern?: string;
+  class?: string;
+}
+
+const {
+  label,
+  name,
+  type = 'text',
+  value,
+  required = false,
+  error,
+  hint,
+  placeholder,
+  autocomplete,
+  inputmode,
+  maxlength,
+  id,
+  disabled = false,
+  readonly = false,
+  rows = 4,
+  min,
+  max,
+  step,
+  pattern,
+  class: className,
+} = Astro.props;
+
+// Names like `items[0][qty]` are legal in a form but not in an id attribute.
+const fieldId = id ?? `f-${name.replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
+const hintId = `${fieldId}-hint`;
+const errorId = `${fieldId}-error`;
+
+// aria-describedby must only name elements that are actually on the page, so it
+// is built from the same conditions that render the hint and error paragraphs.
+const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
+
+const CONTROL =
+  'block w-full min-h-11 rounded-2xl border bg-white px-4 py-2.5 text-base text-ink placeholder:text-ink/35 ' +
+  'transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-ink/5 disabled:text-ink/50';
+
+// The red border is a nicety; the icon and the "Error:" prefix below are what
+// actually carry the message when colour is not available.
+const STATE = error
+  ? 'border-red-600 focus:border-red-700 focus:ring-red-600/25'
+  : 'border-ink/15 focus:border-spice-500 focus:ring-spice-500/20';
+
+const controlClass = [CONTROL, STATE];
+
+/*
+ * Two shapes below that look like formatting mistakes but are not:
+ * the textarea's content is written hard against its tags because a textarea
+ * preserves every character between them, and the select takes no `value`
+ * attribute — the caller marks the chosen <option selected> inside the slot.
+ */
+
+const shared = {
+  id: fieldId,
+  name,
+  required,
+  disabled,
+  readonly,
+  placeholder,
+  autocomplete,
+  inputmode,
+  maxlength,
+  'aria-describedby': describedBy,
+  'aria-invalid': error ? 'true' : undefined,
+};
+---
+
+<div class:list={['w-full', className]}>
+  <label for={fieldId} class="mb-1.5 block text-sm font-medium text-ink/80">
+    {label}
+    {
+      required && (
+        <>
+          <span aria-hidden="true" class="ml-0.5 text-spice-500">
+            *
+          </span>
+          <span class="sr-only">(required)</span>
+        </>
+      )
+    }
+  </label>
+
+  {
+    type === 'textarea' ? (
+      <textarea {...shared} rows={rows} class:list={[controlClass, 'resize-y leading-relaxed']}>{value}</textarea>
+    ) : type === 'select' ? (
+      <select {...shared} class:list={[controlClass, 'appearance-none pr-10']}>
+        <slot />
+      </select>
+    ) : (
+      <input
+        {...shared}
+        type={type}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        pattern={pattern}
+        class:list={controlClass}
+      />
+    )
+  }
+
+  {
+    hint && (
+      <p id={hintId} class="mt-1.5 text-xs leading-relaxed text-ink/65">
+        {hint}
+      </p>
+    )
+  }
+
+  {
+    error && (
+      <p id={errorId} class="mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed font-medium text-red-700">
+        <svg
+          class="mt-px size-3.5 shrink-0"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M10 1.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17ZM9.25 5.5a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5ZM10 13a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span>
+          <span class="sr-only">Error: </span>
+          {error}
+        </span>
+      </p>
+    )
+  }
+</div>

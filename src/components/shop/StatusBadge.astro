@@ -1,0 +1,121 @@
+---
+/**
+ * Every status string the database can hold, rendered as a badge a customer or
+ * an operator can read at a glance.
+ *
+ * The badge takes a plain `string`, not a union type: statuses arrive from D1
+ * rows and from provider webhooks, and a badge is the wrong place to blow up an
+ * order page over a value we have not seen before. Anything unrecognised falls
+ * through to a grey badge showing the raw string, which is also the fastest way
+ * to spot a status we forgot to map.
+ */
+
+type Kind = 'order' | 'payment' | 'shipment' | 'email';
+type Tone = 'amber' | 'green' | 'red' | 'blue' | 'grey';
+
+interface Props {
+  status: string;
+  kind?: Kind;
+}
+
+const { status, kind = 'order' } = Astro.props;
+
+interface Entry {
+  label: string;
+  tone: Tone;
+}
+
+/**
+ * Labels shared across kinds. Where a word means the same thing everywhere
+ * ("Cancelled", "Delivered") it lives here once.
+ */
+const BASE: Record<string, Entry> = {
+  // OrderStatus
+  pending_payment: { label: 'Awaiting payment', tone: 'amber' },
+  payment_failed: { label: 'Payment failed', tone: 'red' },
+  confirmed: { label: 'Confirmed', tone: 'blue' },
+  processing: { label: 'Being packed', tone: 'blue' },
+  packed: { label: 'Packed', tone: 'blue' },
+  shipped: { label: 'Shipped', tone: 'blue' },
+  out_for_delivery: { label: 'Out for delivery', tone: 'blue' },
+  delivered: { label: 'Delivered', tone: 'green' },
+  cancelled: { label: 'Cancelled', tone: 'red' },
+  returned: { label: 'Returned', tone: 'red' },
+  refunded: { label: 'Refunded', tone: 'grey' },
+
+  // PaymentStatus (and the extra states a payment row can hold)
+  pending: { label: 'Pending', tone: 'amber' },
+  authorized: { label: 'Authorised', tone: 'blue' },
+  paid: { label: 'Paid', tone: 'green' },
+  failed: { label: 'Failed', tone: 'red' },
+  partially_refunded: { label: 'Partly refunded', tone: 'amber' },
+
+  // ShipmentStatus
+  created: { label: 'Label created', tone: 'grey' },
+  pickup_scheduled: { label: 'Pickup scheduled', tone: 'blue' },
+  picked_up: { label: 'Picked up', tone: 'blue' },
+  in_transit: { label: 'In transit', tone: 'blue' },
+  failed_delivery: { label: 'Delivery attempt failed', tone: 'red' },
+  rto_initiated: { label: 'Returning to us', tone: 'amber' },
+  rto_delivered: { label: 'Back with us', tone: 'grey' },
+
+  // OutboxStatus
+  queued: { label: 'Queued', tone: 'amber' },
+  sending: { label: 'Sending', tone: 'blue' },
+  sent: { label: 'Sent', tone: 'green' },
+  suppressed: { label: 'Suppressed', tone: 'grey' },
+
+  // FulfillmentStatus — same column family, so it belongs in the same map.
+  unfulfilled: { label: 'Not packed yet', tone: 'amber' },
+  fulfilled: { label: 'Fulfilled', tone: 'green' },
+};
+
+/**
+ * Where one word means different things to different tables. 'failed' on a
+ * payment is money that did not move; on an email it is a send that bounced.
+ */
+const BY_KIND: Record<Kind, Record<string, Entry>> = {
+  order: {},
+  payment: {
+    pending: { label: 'Payment pending', tone: 'amber' },
+    failed: { label: 'Payment failed', tone: 'red' },
+    cancelled: { label: 'Payment cancelled', tone: 'red' },
+  },
+  shipment: {
+    cancelled: { label: 'Shipment cancelled', tone: 'red' },
+  },
+  email: {
+    failed: { label: 'Send failed', tone: 'red' },
+    cancelled: { label: 'Send cancelled', tone: 'grey' },
+  },
+};
+
+const entry: Entry = BY_KIND[kind][status] ?? BASE[status] ?? { label: status, tone: 'grey' };
+
+const TONES: Record<Tone, string> = {
+  amber: 'bg-amber-100 text-amber-900 ring-amber-600/25',
+  green: 'bg-emerald-100 text-emerald-900 ring-emerald-700/25',
+  red: 'bg-red-100 text-red-900 ring-red-700/25',
+  blue: 'bg-sky-100 text-sky-900 ring-sky-700/25',
+  grey: 'bg-ink/8 text-ink/75 ring-ink/15',
+};
+
+const DOTS: Record<Tone, string> = {
+  amber: 'bg-amber-500',
+  green: 'bg-emerald-600',
+  red: 'bg-red-600',
+  blue: 'bg-sky-600',
+  grey: 'bg-ink/40',
+};
+---
+
+<span
+  class:list={[
+    'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ring-1 ring-inset',
+    TONES[entry.tone],
+  ]}
+  data-status={status}
+>
+  <span class:list={['size-1.5 shrink-0 rounded-full', DOTS[entry.tone]]} aria-hidden="true"></span>
+  {entry.label}
+</span>

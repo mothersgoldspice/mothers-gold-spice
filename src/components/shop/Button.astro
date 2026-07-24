@@ -1,0 +1,78 @@
+---
+/**
+ * One button, two elements. An `href` makes it an anchor so browsers keep
+ * middle-click, "open in new tab" and the status bar; everything else is a real
+ * <button> so it can submit a form without JavaScript.
+ */
+
+import type { HTMLAttributes } from 'astro/types';
+
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Size = 'sm' | 'md' | 'lg';
+
+// Extending the button attributes lets callers pass id, form, aria-* and data-*
+// through without this component growing a prop for each one.
+interface Props extends Omit<HTMLAttributes<'button'>, 'type' | 'size'> {
+  href?: string;
+  type?: 'button' | 'submit';
+  variant?: Variant;
+  size?: Size;
+  disabled?: boolean;
+  class?: string;
+  name?: string;
+  value?: string;
+}
+
+const {
+  href,
+  type = 'button',
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
+  class: className,
+  name,
+  value,
+  ...rest
+} = Astro.props;
+
+const BASE =
+  'inline-flex items-center justify-center rounded-full font-medium leading-none text-center no-underline transition ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2 focus-visible:ring-offset-cream';
+
+const VARIANTS: Record<Variant, string> = {
+  primary: 'bg-spice-500 text-cream shadow-lg shadow-spice-700/20 hover:bg-spice-700',
+  secondary: 'bg-transparent text-ink border border-ink/20 hover:bg-ink/5 hover:border-ink/40',
+  ghost: 'bg-transparent text-ink/70 hover:text-spice-500 hover:bg-ink/5',
+  danger: 'bg-red-700 text-white shadow-lg shadow-red-900/20 hover:bg-red-800',
+};
+
+// Every size clears 44px so a thumb on a phone hits it first time.
+const SIZES: Record<Size, string> = {
+  sm: 'min-h-11 gap-1.5 px-4 text-sm',
+  md: 'min-h-11 gap-2 px-6 text-sm',
+  lg: 'min-h-12 gap-2 px-7 text-base',
+};
+
+const classes = [BASE, VARIANTS[variant], SIZES[size], disabled && 'opacity-50 cursor-not-allowed', className];
+---
+
+{
+  href ? (
+    // A disabled anchor is not a thing in HTML: drop the href so it stops being a
+    // link, and say so out loud for assistive tech.
+    <a
+      href={disabled ? undefined : href}
+      role={disabled ? 'link' : undefined}
+      aria-disabled={disabled ? 'true' : undefined}
+      tabindex={disabled ? -1 : undefined}
+      class:list={[classes, disabled && 'pointer-events-none']}
+      {...rest}
+    >
+      <slot />
+    </a>
+  ) : (
+    <button type={type} name={name} value={value} disabled={disabled} class:list={classes} {...rest}>
+      <slot />
+    </button>
+  )
+}

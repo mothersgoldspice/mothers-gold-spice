@@ -1,11 +1,35 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mothers-gold-spice",
-  "compatibility_date": "2025-01-01",
-  "workers_dev": false,
+  "main": "./dist/_worker.js/index.js",
+  "compatibility_date": "2025-05-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
   "preview_urls": false,
+  "observability": { "enabled": true },
   "assets": {
+    "binding": "ASSETS",
     "directory": "./dist",
     "not_found_handling": "404-page"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mothers-gold-spice",
+      "database_id": "5dcdf0df-d8d7-46d7-b4ac-4d25d5263a27",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "APP_ENV": "production",
+    "PUBLIC_SITE_URL": "https://mothers-gold-spice.raniketram.workers.dev",
+    "STORE_NAME": "Mother's Gold Spice",
+    "SUPPORT_EMAIL": "mothersgoldspice@gmail.com",
+    "EMAIL_PROVIDER": "mock",
+    "EMAIL_FROM": "orders@mothersgoldspice.com",
+    "EMAIL_FROM_NAME": "Mother's Gold Spice",
+    "PAYMENT_PROVIDER": "mock",
+    "SHIPPING_PROVIDER": "mock",
+    "ALLOW_MOCK_PROVIDERS": "true"
   }
 }

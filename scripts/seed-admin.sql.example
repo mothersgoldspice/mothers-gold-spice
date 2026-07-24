@@ -1,0 +1,115 @@
+-- Mother's Gold Spice — template for creating the first admin user.
+--
+-- This is a TEMPLATE, not a runnable file. There is no bootstrap admin in
+-- scripts/seed.sql and there never will be: a shipped default login is a
+-- back door, and the one field that matters here cannot be written by hand.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- The password hash
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- `password_hash` MUST be produced by hashPassword() in src/lib/crypto.ts. Its
+-- format is self-describing:
+--
+--     pbkdf2$sha256$<iterations>$<saltHex>$<hashHex>
+--
+-- verifyPassword() splits that string on '$' and requires exactly five parts,
+-- literal 'pbkdf2' and 'sha256' in the first two, a positive integer iteration
+-- count in the third, and a hex salt and hex digest in the last two. It then
+-- re-derives the digest with those exact parameters and compares.
+--
+-- A placeholder such as 'CHANGEME', 'password123' or a bcrypt string from some
+-- other project will NOT work. It does not fail loudly at insert time — the
+-- column is plain TEXT and SQLite accepts anything. It fails later, at the
+-- login screen, where verifyPassword() returns { valid: false } for every
+-- password you type, including the right one, and there is no way in from
+-- there. Generate a real hash first.
+--
+-- Generate one (from the project root):
+--
+--   npx wrangler dev  # then, in a scratch route or the console, call:
+--   //  import { hashPassword } from '../lib/crypto';
+--   //  console.log(await hashPassword('the-actual-password'));
+--
+-- Or, without the Worker running, reproduce the same format with Node's
+-- crypto — PBKDF2-HMAC-SHA256, 32-byte key, 16-byte salt, hex-encoded. Keep
+-- the iteration count in step with PBKDF2_ITERATIONS in src/lib/crypto.ts
+-- (210000 at the time of writing) or the hash will verify slower than intended
+-- and will be flagged for rehash on first login:
+--
+--   node -e "const c=require('node:crypto');const i=210000;const s=c.randomBytes(16);const p=process.argv[1];console.log(['pbkdf2','sha256',i,s.toString('hex'),c.pbkdf2Sync(p,s,i,32,'sha256').toString('hex')].join('\$'))" 'the-actual-password'
+--
+-- Use a password from a password manager. This account can refund orders.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Running it
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- Copy this file OUTSIDE the repository before filling it in — the finished
+-- file contains a real credential, *.sql.example is what git tracks here, and
+-- a password hash committed to history has to be treated as compromised:
+--
+--   cp scripts/seed-admin.sql.example /tmp/seed-admin.sql
+--   $EDITOR /tmp/seed-admin.sql
+--   npx wrangler d1 execute mothers-gold-spice --remote --file=/tmp/seed-admin.sql
+--   rm /tmp/seed-admin.sql
+--
+-- Then sign in and change the password through the account screen, which
+-- rotates the session and leaves an audit_log entry. Run this once. To reset a
+-- forgotten password later, use the password-reset flow rather than a second
+-- INSERT — this statement will refuse to overwrite an existing row.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Fill in every <...> below
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+--   <ADMIN_ID>        usr_ prefix + lowercase alphanumerics, per src/lib/ids.ts.
+--                     e.g. usr_01k9admin0bootstrap
+--   <ADMIN_EMAIL>     lowercased and trimmed. This is the login and the UNIQUE key.
+--   <ADMIN_NAME>      shown in the admin header and on audit entries.
+--   <ADMIN_PHONE>     +91XXXXXXXXXX. For no phone, replace '<ADMIN_PHONE>'
+--                     including the surrounding quotes with a bare NULL.
+--   <PBKDF2_HASH>     the full pbkdf2$sha256$... string from above.
+--   <EPOCH_MS>        epoch milliseconds, e.g. the output of Date.now().
+--                     Use the same value in all three timestamp positions.
+--
+-- email_verified_at is set at the same instant on purpose: this account is
+-- created out of band by the operator, so there is no verification mail to
+-- send and no reason to lock the first admin out of their own store pending a
+-- click-through.
+
+INSERT INTO users (
+  id,
+  email,
+  email_verified_at,
+  password_hash,
+  name,
+  phone,
+  role,
+  status,
+  marketing_opt_in,
+  failed_logins,
+  locked_until,
+  last_login_at,
+  created_at,
+  updated_at
+) VALUES (
+  '<ADMIN_ID>',
+  '<ADMIN_EMAIL>',
+  <EPOCH_MS>,
+  '<PBKDF2_HASH>',
+  '<ADMIN_NAME>',
+  '<ADMIN_PHONE>',
+  'admin',
+  'active',
+  0,
+  0,
+  NULL,
+  NULL,
+  <EPOCH_MS>,
+  <EPOCH_MS>
+)
+-- DO NOTHING rather than DO UPDATE: running this twice by accident must not
+-- reset an admin's password, unlock a deliberately locked account, or clear
+-- failed_logins mid brute-force.
+ON CONFLICT (id) DO NOTHING;

@@ -1,0 +1,128 @@
+---
+/**
+ * Quantity control that starts life as a plain number input.
+ *
+ * With JavaScript off — a real case on a patchy mobile connection where the
+ * bundle never arrives — it is still a labelled, submittable field. The script
+ * only adds the minus and plus buttons, which do nothing without it, so they are
+ * created rather than rendered and hidden.
+ *
+ * The script sits inside the component's own element and finds its instance
+ * through document.currentScript. That keeps it off document-level selectors,
+ * which would wire up every stepper on the page once per instance, and off
+ * define:vars, whose top-level consts collide the moment a page renders this
+ * component twice.
+ */
+
+interface Props {
+  name: string;
+  value: number;
+  min?: number;
+  max?: number;
+  class?: string;
+}
+
+const { name, value, min = 1, max = 99, class: className } = Astro.props;
+
+// Unique per instance so a cart with four lines does not produce four inputs
+// sharing one id.
+const inputId = `qty-${crypto.randomUUID().slice(0, 8)}`;
+
+const safeValue = Math.min(Math.max(value, min), max);
+---
+
+<div
+  class:list={['inline-flex items-center rounded-full border border-ink/15 bg-white', className]}
+  data-qty-stepper
+  data-min={min}
+  data-max={max}
+>
+  <label class="sr-only" for={inputId}>Quantity</label>
+  <input
+    id={inputId}
+    name={name}
+    type="number"
+    inputmode="numeric"
+    value={safeValue}
+    min={min}
+    max={max}
+    step="1"
+    class="h-11 w-16 border-0 bg-transparent text-center text-base font-medium tabular-nums text-ink focus:ring-2 focus:ring-spice-500/30 focus:outline-none"
+    data-qty-input
+  />
+
+  <script is:inline>
+    (() => {
+      const self = document.currentScript;
+      const root = self && self.parentElement;
+      const input = root && root.querySelector('[data-qty-input]');
+      if (!root || !input) return;
+
+      const min = Number(root.dataset.min);
+      const max = Number(root.dataset.max);
+
+      const BUTTON =
+        'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl leading-none ' +
+        'text-ink/70 transition hover:bg-ink/5 hover:text-spice-500 focus-visible:ring-2 ' +
+        'focus-visible:ring-spice-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35';
+
+      const makeButton = (label, glyph) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = BUTTON;
+        b.setAttribute('aria-label', label);
+        b.textContent = glyph;
+        return b;
+      };
+
+      const minus = makeButton('Decrease quantity', '−');
+      const plus = makeButton('Increase quantity', '+');
+
+      // The native spinner is redundant next to the buttons and steals the width
+      // the value needs on a narrow phone.
+      input.classList.add('[appearance:textfield]', '[&::-webkit-inner-spin-button]:appearance-none');
+
+      input.insertAdjacentElement('beforebegin', minus);
+      input.insertAdjacentElement('afterend', plus);
+
+      const current = () => {
+        const n = Number.parseInt(input.value, 10);
+        return Number.isNaN(n) ? min : n;
+      };
+
+      const sync = () => {
+        const n = current();
+        minus.disabled = n <= min;
+        plus.disabled = n >= max;
+      };
+
+      const nudge = (delta) => {
+        const next = Math.min(Math.max(current() + delta, min), max);
+        if (String(next) === input.value) return;
+        input.value = String(next);
+        // Both events fire: 'input' for anything watching keystrokes, 'change'
+        // for forms that only act on a settled value.
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        sync();
+      };
+
+      minus.addEventListener('click', () => nudge(-1));
+      plus.addEventListener('click', () => nudge(1));
+
+      // Typing can still put the field out of range. Clamp when the customer
+      // leaves it rather than fighting them mid-keystroke.
+      input.addEventListener('input', sync);
+      input.addEventListener('blur', () => {
+        const clamped = String(Math.min(Math.max(current(), min), max));
+        if (clamped !== input.value) {
+          input.value = clamped;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        sync();
+      });
+
+      sync();
+    })();
+  </script>
+</div>

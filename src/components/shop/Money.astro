@@ -1,0 +1,33 @@
+---
+/**
+ * The single place a paise integer becomes something a customer reads. Nothing
+ * in the shop should ever build a rupee string by hand — see src/lib/money.ts
+ * for why the arithmetic stays in integers.
+ */
+
+import { formatPaise } from '../../lib/money';
+
+interface Props {
+  paise: number;
+  class?: string;
+  /** Renders as a struck-through "was" price. Uses <s>, so screen readers announce it as such. */
+  strike?: boolean;
+}
+
+const { paise, class: className, strike = false } = Astro.props;
+
+const Tag = strike ? 's' : 'span';
+const formatted = formatPaise(paise);
+---
+
+<Tag
+  class:list={[
+    // tabular-nums keeps a column of prices from jittering as digits change.
+    'tabular-nums whitespace-nowrap',
+    strike && 'text-ink/65',
+    className,
+  ]}
+  data-paise={paise}
+>
+  {formatted}
+</Tag>

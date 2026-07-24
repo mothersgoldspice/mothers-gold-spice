@@ -1,0 +1,205 @@
+---
+/**
+ * Page shell for everything behind /shop, /cart, /checkout and /account.
+ *
+ * Deliberately separate from src/layouts/Layout.astro: the marketing site is a
+ * one-page pitch with an anchor nav and no session, while every shop page needs
+ * real routes, a cart count and the CSRF token. Sharing one layout would have
+ * meant a pile of conditionals in both.
+ */
+
+import '../../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  user?: { name: string; email: string } | null;
+  cartCount?: number;
+  /** Wide gives admin tables and product grids room; the default column suits forms and receipts. */
+  wide?: boolean;
+}
+
+const {
+  title,
+  description = 'Small-batch mango pickle, hand-made in a Bangalore kitchen. Ordered today, packed this week.',
+  user = null,
+  cartCount = 0,
+  wide = false,
+} = Astro.props;
+
+/**
+ * Prerendered pages run through the middleware at build time with no Cloudflare
+ * runtime, so there is no token to embed. An empty string keeps the meta tag
+ * shape stable; client scripts on those pages have nothing to post anyway.
+ */
+const csrfToken = Astro.locals.csrfToken ?? '';
+
+const fullTitle = title.includes("Mother's Gold Spice") ? title : `${title} — Mother's Gold Spice`;
+const container = wide ? 'max-w-6xl' : 'max-w-3xl';
+const year = new Date().getFullYear();
+
+// The skip link is parked off-screen rather than sr-only, because `not-sr-only`
+// resets position to static and then fights whatever brings the link back.
+const SKIP_LINK =
+  'fixed -top-20 left-3 z-50 inline-flex min-h-11 items-center rounded-full bg-ink px-4 text-sm text-cream ' +
+  'transition-all focus:top-3';
+
+// min-h-11 on every nav item: a header link on a phone has to be a 44px target,
+// not just 44px of text.
+const NAV_LINK =
+  'inline-flex min-h-11 items-center rounded-full px-3 transition hover:text-spice-500 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-cream';
+
+const FOOTER_LINK =
+  'inline-flex min-h-11 items-center text-cream/85 transition hover:text-mango-300 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango-300 focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-ink';
+
+const NAV = [
+  { href: '/shop', label: 'Shop' },
+  { href: '/track', label: 'Track order' },
+];
+
+// The current path drives aria-current so the active link is not signalled by
+// weight alone.
+const path = Astro.url.pathname;
+const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="csrf-token" content={csrfToken} />
+
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mother's Gold Spice" />
+    <meta property="og:locale" content="en_IN" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <title>{fullTitle}</title>
+  </head>
+
+  <body class="flex min-h-screen flex-col bg-cream text-ink antialiased">
+    <a href="#main" class={SKIP_LINK}>Skip to content</a>
+
+    <header class="sticky top-0 z-30 border-b border-ink/10 bg-cream/95 backdrop-blur">
+      <nav
+        class:list={['mx-auto flex items-center justify-between gap-3 px-4 py-2 sm:px-6', container]}
+        aria-label="Shop"
+      >
+        <a
+          href="/"
+          class="inline-flex min-h-11 items-center font-serif text-lg font-semibold tracking-tight text-spice-700 transition hover:text-spice-500 sm:text-xl"
+        >
+          Mother's Gold Spice
+        </a>
+
+        <ul class="flex items-center gap-0.5 text-sm font-medium text-ink/75 sm:gap-1">
+          {
+            NAV.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class:list={[NAV_LINK, isCurrent(item.href) && 'text-spice-700 underline underline-offset-4']}
+                  aria-current={isCurrent(item.href) ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+
+          <li>
+            <a
+              href="/account"
+              class:list={[NAV_LINK, isCurrent('/account') && 'text-spice-700 underline underline-offset-4']}
+              aria-current={isCurrent('/account') ? 'page' : undefined}
+            >
+              <span class="max-w-24 truncate sm:max-w-none">{user ? user.name : 'Account'}</span>
+              {user && <span class="sr-only"> — signed in as {user.email}</span>}
+            </a>
+          </li>
+
+          <li>
+            <a
+              href="/cart"
+              class:list={[NAV_LINK, 'gap-1.5', isCurrent('/cart') && 'text-spice-700 underline underline-offset-4']}
+              aria-current={isCurrent('/cart') ? 'page' : undefined}
+            >
+              Cart
+              {
+                cartCount > 0 && (
+                  <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-spice-500 px-1.5 py-0.5 text-xs font-semibold text-cream tabular-nums">
+                    {cartCount}
+                    <span class="sr-only"> items in cart</span>
+                  </span>
+                )
+              }
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main" class:list={['mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-12', container]}>
+      <slot />
+    </main>
+
+    <footer class="mt-12 bg-ink py-12 text-cream">
+      <div class:list={['mx-auto px-4 sm:px-6', container]}>
+        <div class="grid gap-8 sm:grid-cols-3">
+          <div>
+            <p class="mb-2 font-serif text-xl text-mango-300">Mother's Gold Spice</p>
+            <p class="text-sm leading-relaxed text-cream/75">
+              Small-batch mango pickle, hand-made in Bangalore.
+            </p>
+          </div>
+
+          <div>
+            <p class="mb-1 text-xs tracking-widest uppercase text-mango-300">Your order</p>
+            <ul class="text-sm">
+              <li><a href="/track" class={FOOTER_LINK}>Track an order</a></li>
+              <li><a href="/shipping" class={FOOTER_LINK}>Shipping and delivery</a></li>
+              <li><a href="/account" class={FOOTER_LINK}>Your account</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="mb-1 text-xs tracking-widest uppercase text-mango-300">Get in touch</p>
+            <ul class="text-sm">
+              <li>
+                <a href="mailto:mothersgoldspice@gmail.com" class:list={[FOOTER_LINK, 'break-all']}>
+                  mothersgoldspice@gmail.com
+                </a>
+              </li>
+              <li>
+                <a href="https://instagram.com/mothersgoldspice" target="_blank" rel="noopener" class={FOOTER_LINK}>
+                  Instagram → @mothersgoldspice
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div
+          class="mt-10 flex flex-col justify-between gap-2 border-t border-cream/10 pt-6 text-xs text-cream/60 sm:flex-row"
+        >
+          <p>© {year} Mother's Gold Spice. Made with love in Bangalore.</p>
+          <p>All prices in ₹, inclusive of GST.</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

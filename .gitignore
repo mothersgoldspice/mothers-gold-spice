@@ -13,3 +13,13 @@ chat-with-gemini.md
 
 # Original large image files kept locally as backup; the optimized JPGs in public/process/ are what we ship
 _raw-images/
+
+# Local Worker secrets — never commit
+.dev.vars
+scripts/*.local.sql
+
+# Agent worktrees and scratch notes — local only
+.claude/worktrees/
+notes.txt
+notes.txt.save
+chat-with-gemini

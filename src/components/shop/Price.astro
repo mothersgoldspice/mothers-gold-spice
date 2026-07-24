@@ -1,0 +1,48 @@
+---
+/**
+ * Price with an optional "was" price beside it.
+ *
+ * The discount is computed here rather than stored, so a variant's
+ * compare_at_price_paise can be edited in the admin without a second field ever
+ * going stale.
+ */
+
+import { formatPaise } from '../../lib/money';
+
+interface Props {
+  paise: number;
+  compareAtPaise?: number | null;
+  class?: string;
+}
+
+const { paise, compareAtPaise = null, class: className } = Astro.props;
+
+// A compare-at at or below the selling price is a data entry slip, not a
+// discount — show the plain price rather than "Save 0%".
+const compareAt = compareAtPaise !== null && compareAtPaise > paise ? compareAtPaise : null;
+const savePercent = compareAt === null ? 0 : Math.round(((compareAt - paise) / compareAt) * 100);
+---
+
+<span class:list={['inline-flex flex-wrap items-baseline gap-x-2 gap-y-1', className]}>
+  <span class="text-lg font-semibold tabular-nums whitespace-nowrap text-ink">
+    {compareAt !== null && <span class="sr-only">Now </span>}
+    {formatPaise(paise)}
+  </span>
+
+  {
+    compareAt !== null && (
+      <s class="text-sm tabular-nums whitespace-nowrap text-ink/65">
+        <span class="sr-only">Was </span>
+        {formatPaise(compareAt)}
+      </s>
+    )
+  }
+
+  {
+    savePercent > 0 && (
+      <span class="rounded-full bg-mango-100 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-mango-700">
+        Save {savePercent}%
+      </span>
+    )
+  }
+</span>
