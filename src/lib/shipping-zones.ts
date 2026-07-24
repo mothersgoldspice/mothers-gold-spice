@@ -90,7 +90,7 @@ export const ZONE_COURIER_COST_PAISE: Record<Zone, { first500g: number; perExtra
 
 /**
  * Couriers bill on the greater of actual and volumetric weight. A tightly packed
- * 13×13×13 cm box for one jar is 440 g volumetric, which keeps a 500 g jar in the
+ * 13×13×13 cm box for one jar is 439 g volumetric, which keeps a 500 g jar in the
  * 500 g slab instead of spilling into the next one.
  */
 export function volumetricWeightGrams(lengthCm: number, breadthCm: number, heightCm: number): number {

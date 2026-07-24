@@ -356,13 +356,23 @@ export async function onOrderDelivered(ctx: AppContext, orderId: string): Promis
     const { order } = bundle;
     const firstItem = bundle.items[0];
 
+    // order_items snapshots product_id, but /shop/[slug] resolves by slug and
+    // only serves active products. Linking by id sent every "how was it?" email
+    // to a 404. The slug is looked up now, and anything that no longer resolves
+    // falls back to the shop index rather than a dead page.
+    const reviewProduct = firstItem
+      ? await ctx.db.first<{ slug: string }>("SELECT slug FROM products WHERE id = ? AND status = 'active'", [
+          firstItem.product_id,
+        ])
+      : null;
+
     const rendered = templates.orderDelivered({
       store: storeContext(ctx.env),
       orderNumber: order.order_number,
       customerName: order.customer_name,
       deliveredAt: order.delivered_at ?? Date.now(),
-      reviewUrl: firstItem
-        ? `${siteUrl(ctx.env)}/shop/${firstItem.product_id}?review=${encodeURIComponent(order.id)}`
+      reviewUrl: reviewProduct
+        ? `${siteUrl(ctx.env)}/shop/${reviewProduct.slug}?review=${encodeURIComponent(order.id)}`
         : `${siteUrl(ctx.env)}/shop`,
     });
 

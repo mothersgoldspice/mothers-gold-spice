@@ -25,7 +25,6 @@ import type {
   TrackingEvent,
   TrackingStatus,
 } from '../providers/shipping/types';
-import type { StoreSettings } from '../settings';
 import { ZONE_ETD_DAYS, zoneForPincode } from '../shipping-zones';
 import { getOrderById, orderEventStatement, transitionOrder } from './orders';
 import { onOrderDelivered, onOrderShipped, onOutForDelivery } from './order-notifications';

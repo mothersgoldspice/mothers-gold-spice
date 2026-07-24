@@ -24,7 +24,7 @@ import { conflict, notFound } from '../../../lib/errors';
 import { handle, ok, readJson } from '../../../lib/http';
 import { newId } from '../../../lib/ids';
 import { errMessage, log } from '../../../lib/log';
-import { handlePaymentWebhook } from '../../../lib/services/payments';
+import { replayPaymentEvent } from '../../../lib/services/payments';
 import { getShipmentForOrder, refreshTracking } from '../../../lib/services/shipments';
 import { parseOrThrow } from '../../../lib/validate';
 
@@ -119,56 +119,31 @@ export const POST: APIRoute = async ({ locals, request }) =>
 /**
  * Re-apply a stored payment callback.
  *
- * `handlePaymentWebhook` records the event and applies it in one piece, and its
- * UNIQUE (provider, event_id) insert IS the once-only guard — so the stored row
- * has to make way for the fresh one. If that recording fails, the original is
- * put straight back: losing the only record of a payment callback is far worse
- * than having a duplicate one.
+ * Goes through `replayPaymentEvent`, which applies the event WITHOUT the
+ * idempotency insert. `handlePaymentWebhook` cannot be used here: its
+ * UNIQUE (provider, event_id) insert is its own once-only guard, so a replay
+ * would collide with the very row being replayed and report "duplicate" having
+ * done nothing. Deleting the audit row to make way for a fresh one was the other
+ * option, and it loses the only record of a payment callback if anything fails
+ * in between — so the row stays exactly where it is.
  */
 async function replayPayment(ctx: AppContext, row: WebhookEventRow): Promise<Record<string, unknown>> {
   const event = await ctx.payment.parseTrustedWebhook(row.payload_json);
 
-  await ctx.db.run('DELETE FROM webhook_events WHERE id = ?', [row.id]);
-
-  let outcome: Awaited<ReturnType<typeof handlePaymentWebhook>>;
   try {
-    outcome = await handlePaymentWebhook(ctx, event, row.signature_valid === 1);
+    const outcome = await replayPaymentEvent(ctx, event);
+    await ctx.db.run(
+      `UPDATE webhook_events SET status = ?, error = NULL, attempts = attempts + 1, processed_at = ? WHERE id = ?`,
+      [outcome === 'ignored' ? 'ignored' : 'processed', Date.now(), row.id],
+    );
+    return { outcome, orderId: event.orderId };
   } catch (err) {
     await ctx.db.run(
-      `INSERT OR IGNORE INTO webhook_events (id, source, provider, event_id, event_type, status, signature_valid,
-                                             payload_json, error, attempts, order_id, received_at, processed_at)
-       VALUES (?, ?, ?, ?, ?, 'failed', ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        row.id,
-        row.source,
-        row.provider,
-        row.event_id,
-        row.event_type,
-        row.signature_valid,
-        row.payload_json,
-        errMessage(err).slice(0, 1000),
-        row.attempts + 1,
-        row.order_id,
-        row.received_at,
-        Date.now(),
-      ],
+      `UPDATE webhook_events SET status = 'failed', error = ?, attempts = attempts + 1, processed_at = ? WHERE id = ?`,
+      [errMessage(err).slice(0, 1000), Date.now(), row.id],
     );
     throw err;
   }
-
-  // A `duplicate` here means a live delivery of the same event won the gap
-  // between the delete and the re-insert. Its bookkeeping is the real one;
-  // leave it alone.
-  if (outcome.outcome !== 'duplicate') {
-    await ctx.db.run('UPDATE webhook_events SET received_at = ?, attempts = ? WHERE provider = ? AND event_id = ?', [
-      row.received_at,
-      row.attempts + 1,
-      row.provider,
-      row.event_id,
-    ]);
-  }
-
-  return { outcome: outcome.outcome, orderId: outcome.orderId };
 }
 
 /**

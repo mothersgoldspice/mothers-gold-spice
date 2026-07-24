@@ -236,6 +236,25 @@ export async function handlePaymentWebhook(
   }
 }
 
+/**
+ * Re-apply an already-recorded event, without the idempotency insert.
+ *
+ * An operator replaying a stuck `webhook_events` row must not go through
+ * `handlePaymentWebhook`: that function's UNIQUE (provider, event_id) insert IS
+ * its once-only guard, so a replay would collide with the very row being
+ * replayed and be reported as a duplicate that did nothing. The alternative the
+ * admin route reached for was deleting the audit row first and re-inserting it
+ * afterwards — which loses the record entirely if the process dies in between.
+ *
+ * Exposing the apply step separately keeps the audit row untouched. It is safe
+ * to call twice: `confirmOrder` and the shipment/refund paths are all idempotent
+ * on their own.
+ */
+export async function replayPaymentEvent(ctx: AppContext, event: PaymentWebhookEvent): Promise<WebhookOutcome> {
+  log.info('payments.webhook_replayed', { eventId: event.eventId, type: event.providerEventName });
+  return applyPaymentEvent(ctx, event);
+}
+
 async function applyPaymentEvent(ctx: AppContext, event: PaymentWebhookEvent): Promise<WebhookOutcome> {
   if (event.type === 'unknown') {
     log.info('webhook.ignored_event_type', { type: event.providerEventName });
