@@ -6,13 +6,19 @@
     <div class="grid md:grid-cols-2 gap-16 items-center">
       <div class="order-2 md:order-1">
         <div class="aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br from-mango-300 to-spice-500 shadow-2xl shadow-spice-700/30 p-8">
-          <img
-            src="/mango-jar.png"
-            alt="Mother's Gold Spice mango pickle jar"
-            loading="lazy"
-            decoding="async"
-            class="w-full h-full object-contain drop-shadow-2xl"
-          />
+          <!-- 96 KB WebP ahead of the 1.2 MB PNG fallback; see Hero.astro. -->
+          <picture>
+            <source srcset="/mango-jar.webp" type="image/webp" />
+            <img
+              src="/mango-jar.png"
+              alt="Mother's Gold Spice mango pickle jar"
+              width="738"
+              height="1600"
+              loading="lazy"
+              decoding="async"
+              class="w-full h-full object-contain drop-shadow-2xl"
+            />
+          </picture>
         </div>
       </div>
 

@@ -42,13 +42,26 @@
 
     <div class="relative">
       <div class="aspect-[3/4] rounded-3xl overflow-hidden bg-gradient-to-br from-mango-300 to-spice-500 shadow-2xl shadow-spice-700/30 p-6">
-        <img
-          src="/jar.png"
-          alt="A jar of Mother's Gold Spice mango pickle"
-          fetchpriority="high"
-          decoding="async"
-          class="w-full h-full object-contain drop-shadow-2xl"
-        />
+        <!--
+          WebP first, PNG as the fallback. The source photograph is a 1.2 MB PNG
+          — the wrong format for a photograph — and this is the hero image on the
+          landing page. Most of this brand's customers arrive on a phone using
+          mobile data, where a megabyte before anything renders is a bounce. The
+          WebP is 96 KB with the transparency intact; the PNG stays as the
+          fallback so nothing regresses on an old browser.
+        -->
+        <picture>
+          <source srcset="/jar.webp" type="image/webp" />
+          <img
+            src="/jar.png"
+            alt="A jar of Mother's Gold Spice mango pickle"
+            width="738"
+            height="1600"
+            fetchpriority="high"
+            decoding="async"
+            class="w-full h-full object-contain drop-shadow-2xl"
+          />
+        </picture>
       </div>
       <div class="absolute -bottom-6 -left-6 bg-cream rounded-2xl px-5 py-3 shadow-xl border border-mango-100">
         <p class="text-xs uppercase tracking-wider text-ink/60">Made in</p>
