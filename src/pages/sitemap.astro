@@ -9,8 +9,9 @@ const pages = [
   { path: "/shipping",        title: "Shipping",        short: "Shipping",    x: 450, y: 380, desc: "D2C shipping economics + operations playbook" },
   { path: "/trademark",       title: "Trademark",       short: "Trademark",   x: 630, y: 380, desc: "Brand protection · ₹9,000 TM-A filing guide (Class 29 + 30)" },
   { path: "/setup",           title: "Setup",           short: "Setup",       x: 810, y: 380, desc: "Sole Proprietorship registration checklist · 3 weeks, ~₹13k" },
-  { path: "/suppliers",       title: "Suppliers",       short: "Suppliers",   x: 670, y: 510, desc: "Bangalore packaging supplier shortlist · jar+cap+foil+label vendors" },
-  { path: "/risk-mitigation", title: "Risk Mitigation", short: "Risk",        x: 950, y: 510, desc: "Mom's safety net · LLP upgrade + insurance + food-contamination playbook" },
+  { path: "/suppliers",       title: "Suppliers",       short: "Suppliers",   x: 610, y: 510, desc: "Bangalore packaging supplier shortlist · jar+cap+foil+label vendors" },
+  { path: "/registration",    title: "Registration",    short: "Register",    x: 790, y: 510, desc: "Sole Prop quick reference · portals, process order, docs matrix, ₹13k cost breakdown" },
+  { path: "/risk-mitigation", title: "Risk Mitigation", short: "Risk",        x: 970, y: 510, desc: "Mom's safety net · LLP upgrade + insurance + food-contamination playbook" },
 ];
 
 // Edges between pages: { from, to, type: 'primary' | 'cross' }
@@ -24,6 +25,7 @@ const edges = [
   { from: "/plan",          to: "/setup",           type: "primary" },
   { from: "/plan",          to: "/suppliers",       type: "primary" },
   { from: "/plan",          to: "/risk-mitigation", type: "primary" },
+  { from: "/setup",         to: "/registration",    type: "primary" },
   // Cross-links between deep-dive pages
   { from: "/label-preview", to: "/assembly",        type: "cross" },
   { from: "/assembly",      to: "/label-preview",   type: "cross" },
@@ -35,6 +37,9 @@ const edges = [
   { from: "/suppliers",     to: "/setup",           type: "cross" },
   { from: "/setup",         to: "/risk-mitigation", type: "cross" },
   { from: "/risk-mitigation", to: "/setup",         type: "cross" },
+  { from: "/registration",  to: "/setup",           type: "cross" },
+  { from: "/registration",  to: "/trademark",       type: "cross" },
+  { from: "/registration",  to: "/risk-mitigation", type: "cross" },
 ];
 
 const PROD_BASE = "https://mothersgoldspice.com";

@@ -1,0 +1,355 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const registrations = [
+  { num: 1, name: "Udyam (MSME)", portal: "udyamregistration.gov.in", url: "https://udyamregistration.gov.in", fee: "₹0", time: "30 min online" },
+  { num: 2, name: "Shops & Establishments (Karnataka e-Karmika)", portal: "serviceonline.gov.in/karnataka", url: "https://serviceonline.gov.in/karnataka", fee: "₹250 (0 employees)", time: "2–3 days" },
+  { num: 3, name: "Business current account", portal: "Kotak Neo Biz / HDFC SmartUp", url: "https://www.kotak.com", fee: "₹0–2,000 opening", time: "3–7 days" },
+  { num: 4, name: "GST registration", portal: "gst.gov.in", url: "https://www.gst.gov.in", fee: "₹0", time: "3–7 days" },
+  { num: 5, name: "FSSAI Basic Registration", portal: "foscos.fssai.gov.in", url: "https://foscos.fssai.gov.in", fee: "₹100/yr (₹500 / 5 yrs)", time: "3–7 days" },
+  { num: 6, name: "Trademark TM-A × 2 classes", portal: "ipindiaonline.gov.in/eregister", url: "https://ipindiaonline.gov.in/eregister", fee: "₹9,000 (MSME rate)", time: "1 evening to file" },
+  { num: 7, name: "Shiprocket seller account", portal: "shiprocket.in", url: "https://www.shiprocket.in", fee: "₹0 + per shipment", time: "1–2 days KYC" },
+];
+
+// Document × registration matrix. Columns: Udyam, S&E, Bank, GST, FSSAI, TM, Shiprocket
+const docMatrix = [
+  { doc: "Mom's PAN card", cells: ["✓", "✓", "✓", "✓", "✓", "✓", "✓"] },
+  { doc: "Mom's Aadhaar (Bangalore address, mobile-linked)", cells: ["✓", "✓", "✓", "✓", "✓", "✓", ""] },
+  { doc: "Passport-size photo", cells: ["", "✓", "✓", "✓", "✓", "✓", ""] },
+  { doc: "Rental sub-tenancy agreement (mom as co-tenant)", cells: ["", "✓", "✓", "✓", "✓", "✓", "✓"] },
+  { doc: "Electricity bill (son's flat)", cells: ["", "✓", "✓", "✓", "✓", "", ""] },
+  { doc: "Landlord NOC (recommended)", cells: ["", "", "", "△", "△", "", ""] },
+  { doc: "Mom's mobile + email (OTP)", cells: ["✓", "✓", "✓", "✓", "✓", "✓", "✓"] },
+  { doc: "Udyam certificate (from step 1)", cells: ["", "", "✓", "", "", "✓", ""] },
+  { doc: "S&E certificate (from step 2)", cells: ["", "", "✓", "", "", "", ""] },
+  { doc: "Cancelled cheque (from step 3)", cells: ["", "", "", "✓", "", "", "✓"] },
+  { doc: "GST certificate (from step 4)", cells: ["", "", "", "", "", "", "✓"] },
+  { doc: "Trademark image (wordmark + leaf + tagline PNG)", cells: ["", "", "", "", "", "✓", ""] },
+];
+const matrixCols = ["Udyam", "S&E", "Bank", "GST", "FSSAI", "TM", "Shiprocket"];
+---
+
+<Layout title="Registration quick reference — Sole Proprietorship" description="One-page quick reference for registering Mother's Gold Spice as a Sole Proprietorship — official portals, process order, document matrix, and full cost breakdown.">
+  <main class="bg-cream min-h-screen">
+    <!-- HERO -->
+    <header class="border-b border-ink/10">
+      <div class="max-w-5xl mx-auto px-6 py-16">
+        <p class="text-xs uppercase tracking-widest text-spice-500 font-medium mb-4">Quick reference · Sole Proprietorship · Bangalore</p>
+        <h1 class="font-serif text-4xl md:text-5xl text-ink mb-5 leading-tight">Registering the company<br/>as a Sole Prop</h1>
+        <p class="text-ink/70 max-w-2xl text-lg leading-relaxed">
+          A Sole Proprietorship has <strong>no incorporation step</strong> — there is no MCA filing, no certificate of incorporation. The "company" comes into legal existence through a stack of registrations in Mom's name, all tied to her PAN. This page is the one-glance version: <strong>the websites, the order, the documents, the money</strong>.
+        </p>
+        <p class="mt-5 text-sm">
+          <a href="/setup" class="rg-link">Full step-by-step checklist → /setup</a>
+          <span class="text-ink/30 mx-2">·</span>
+          <a href="/plan" class="rg-link">← Back to the launch plan</a>
+        </p>
+      </div>
+    </header>
+
+    <!-- 1. THE WEBSITES -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">1 · The websites</h2>
+      <p class="text-sm text-ink/60 mb-6">Seven registrations, seven portals — all official government or direct-provider sites. No agents or middlemen needed for any of these.</p>
+
+      <div class="rg-table-wrap">
+        <table class="rg-table">
+          <thead>
+            <tr><th>#</th><th>Registration</th><th>Official website</th><th>Fee</th><th>Time</th></tr>
+          </thead>
+          <tbody>
+            {registrations.map((r) => (
+              <tr>
+                <td>{r.num}</td>
+                <td><strong>{r.name}</strong></td>
+                <td><a href={r.url} target="_blank" rel="noopener" class="rg-url">{r.portal}</a></td>
+                <td>{r.fee}</td>
+                <td>{r.time}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rg-callout">
+        <p class="rg-callout-label">Beware lookalike agent sites</p>
+        <p>Searching "Udyam registration" or "FSSAI registration" surfaces paid agent sites (<code>udyamregistration.co.in</code>-style) that charge ₹1,500–3,000 for free government forms. Only use the exact URLs above — every <code>.gov.in</code> portal works directly with Aadhaar OTP.</p>
+      </div>
+    </section>
+
+    <!-- 2. THE PROCESS -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">2 · The process — why this order</h2>
+      <p class="text-sm text-ink/60 mb-6">Each step unlocks the next. Doing them out of order means waiting or paying more. Full detail for every step lives on <a href="/setup" class="rg-link">/setup</a>.</p>
+
+      <ol class="rg-flow">
+        <li><strong>Prep (before any form):</strong> mom's Aadhaar updated to the Bangalore flat address (Aadhaar Seva Kendra visit, ₹50, biometric) + rental sub-tenancy agreement signed (~₹100 stamp paper). Every portal below reuses these two.</li>
+        <li><strong>Udyam (MSME) first</strong> — free, 30 minutes, instant certificate. It cuts the trademark fee from ₹9,000 to ₹4,500 per class, so it must exist before step 6.</li>
+        <li><strong>Shops & Establishments</strong> — Karnataka law requires it for any commercial activity, and <strong>banks ask for this certificate</strong> before opening a business current account.</li>
+        <li><strong>Business current account</strong> — needs the S&E + Udyam certificates. Produces the cancelled cheque that GST and Shiprocket both want. Add son as authorized signatory on day one.</li>
+        <li><strong>GST</strong> — needs the bank details. Mandatory for Amazon/Flipkart/quick-commerce; optional for pure D2C until ₹40L turnover, but get it now so every channel is open. Aadhaar e-KYC path avoids a premises visit.</li>
+        <li><strong>FSSAI Basic Registration</strong> — the legal green light to sell food. ₹500 for 5 years. The 14-digit number goes on every label before the first jar ships.</li>
+        <li><strong>Trademark TM-A</strong> — file Class 29 + Class 30 together in one evening using the Udyam certificate for the MSME rate. Application number arrives same day → start using ™ immediately.</li>
+        <li><strong>Shiprocket</strong> — last, because KYC wants the GST certificate + cancelled cheque. Once approved, courier pickup happens at the registered flat.</li>
+      </ol>
+
+      <div class="rg-outcome">End state: <strong>seven certificates/numbers, all in Mom's name, all tied to her PAN</strong> — Udyam URN, S&E certificate, current account, 15-digit GSTIN, 14-digit FSSAI number, two TM application numbers, active Shiprocket account. ~3 weeks of evening work timed to one of her Bangalore visits.</div>
+    </section>
+
+    <!-- 3. THE DOCUMENTS -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">3 · The documents — one folder, twelve items</h2>
+      <p class="text-sm text-ink/60 mb-6">Which document each registration asks for. Gather the first seven rows before starting; the rest are produced by earlier steps. △ = recommended, rarely demanded.</p>
+
+      <div class="rg-table-wrap">
+        <table class="rg-table rg-matrix">
+          <thead>
+            <tr>
+              <th>Document</th>
+              {matrixCols.map((c) => <th class="rg-matrix-col">{c}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {docMatrix.map((row) => (
+              <tr>
+                <td class="rg-matrix-doc">{row.doc}</td>
+                {row.cells.map((cell) => <td class={`rg-matrix-cell ${cell === "✓" ? "rg-tick" : cell === "△" ? "rg-rec" : ""}`}>{cell}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rg-callout">
+        <p class="rg-callout-label">The pattern</p>
+        <p>PAN + Aadhaar + address proof + OTP covers almost everything. The only documents that take real effort are the <strong>rental sub-tenancy agreement</strong> (one notary visit during mom's stay) and the <strong>Aadhaar address update</strong> (one Seva Kendra visit). Everything else is a download or a photo.</p>
+      </div>
+    </section>
+
+    <!-- 4. THE MONEY -->
+    <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
+      <h2 class="font-serif text-3xl text-ink mb-2">4 · The money — full cost breakdown</h2>
+      <p class="text-sm text-ink/60 mb-6">Registration only — before any jars, ingredients, or inventory.</p>
+
+      <h3 class="font-serif text-xl text-ink mt-2 mb-3">One-time (the registration sprint)</h3>
+      <div class="rg-table-wrap">
+        <table class="rg-table">
+          <thead><tr><th>Item</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Udyam (MSME)</td><td>₹0</td></tr>
+            <tr><td>Aadhaar address update (Seva Kendra, biometric)</td><td>₹50</td></tr>
+            <tr><td>Rental sub-tenancy stamp paper + notary</td><td>₹100–300</td></tr>
+            <tr><td>Shops & Establishments (0 employees)</td><td>₹250</td></tr>
+            <tr><td>Business current account opening</td><td>₹0 fee <span class="rg-muted">(+ ₹10,000 refundable deposit → becomes working capital)</span></td></tr>
+            <tr><td>GST registration</td><td>₹0</td></tr>
+            <tr><td>FSSAI Basic Registration — 5 years upfront</td><td>₹500</td></tr>
+            <tr><td>Trademark TM-A — Class 29 + Class 30, MSME rate (₹4,500 × 2)</td><td>₹9,000</td></tr>
+            <tr><td>Shiprocket signup</td><td>₹0</td></tr>
+            <tr><td>CA retainer advance (ITR + GST filings)</td><td>₹3,000</td></tr>
+            <tr class="rg-table-total"><td><strong>Total cash out</strong></td><td><strong>~₹13,000</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="font-serif text-xl text-ink mt-8 mb-3">Recurring (keeping it alive)</h3>
+      <div class="rg-table-wrap">
+        <table class="rg-table">
+          <thead><tr><th>Item</th><th>Cost</th><th>Frequency</th></tr></thead>
+          <tbody>
+            <tr><td>CA — mom's ITR + quarterly GST filings</td><td>₹5,000–8,000</td><td>Yearly</td></tr>
+            <tr><td>FSSAI renewal</td><td>₹0 until year 5 <span class="rg-muted">(prepaid)</span>, then ₹500 / 5 yrs</td><td>Every 5 years</td></tr>
+            <tr><td>Shops & Establishments renewal</td><td>₹250–1,000</td><td>Every 5 years</td></tr>
+            <tr><td>Bank minimum-balance / maintenance</td><td>₹0–500 <span class="rg-muted">(₹0 on Kotak Neo Biz)</span></td><td>Monthly</td></tr>
+            <tr><td>Trademark renewal (per class)</td><td>₹9,000 standard / MSME rates apply</td><td>Every 10 years</td></tr>
+            <tr><td>Shiprocket</td><td>Pay per shipment (₹70–130/jar)</td><td>Per order</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rg-callout">
+        <p class="rg-callout-label">What a sole prop does NOT cost</p>
+        <p>No MCA incorporation fee, no DIN/DSC tokens, no annual ROC filings, no statutory audit below tax-audit limits, no minimum capital. That's the trade-off vs an LLP or Pvt Ltd — near-zero compliance cost, but no limited liability. The upgrade path when revenue justifies it is covered on <a href="/risk-mitigation" class="rg-link">/risk-mitigation</a>.</p>
+      </div>
+    </section>
+
+    <!-- CROSS-LINKS -->
+    <section class="max-w-5xl mx-auto px-6 py-12">
+      <h2 class="font-serif text-2xl text-ink mb-4">Go deeper</h2>
+      <ul class="rg-bullets">
+        <li><a href="/setup" class="rg-link"><strong>/setup</strong></a> — the full step-by-step checklist: every form field, the 3-week sequence timed to mom's Bangalore visit, and the mom/son split of work</li>
+        <li><a href="/trademark" class="rg-link"><strong>/trademark</strong></a> — the ₹9,000 TM-A filing guide in depth (Class 29 + 30, search strategy, objection handling)</li>
+        <li><a href="/risk-mitigation" class="rg-link"><strong>/risk-mitigation</strong></a> — when and why to upgrade the sole prop to an LLP</li>
+      </ul>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .rg-link {
+    color: #7a1f10;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .rg-link:hover { color: #5a1408; }
+
+  .rg-muted { color: rgba(42, 26, 16, 0.5); font-size: 12px; }
+
+  .rg-table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(42, 26, 16, 0.08);
+    background: #fff;
+  }
+  .rg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .rg-table th,
+  .rg-table td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(42, 26, 16, 0.06);
+    color: rgba(42, 26, 16, 0.85);
+    vertical-align: top;
+  }
+  .rg-table thead th {
+    background: #fff8eb;
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #2a1a10;
+    border-bottom: 2px solid #ffe9c2;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .rg-table tbody tr:last-child td { border-bottom: none; }
+  .rg-table tbody tr:hover { background: #fffbf3; }
+  .rg-table td strong { color: #2a1a10; font-weight: 600; }
+  .rg-table-total td {
+    background: #fff8eb;
+    border-top: 2px solid #ffe9c2;
+    font-size: 14.5px;
+  }
+
+  .rg-url {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #7a1f10;
+    text-decoration: none;
+    word-break: break-all;
+    display: inline-block;
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: rgba(42, 26, 16, 0.04);
+  }
+  .rg-url:hover {
+    background: rgba(122, 31, 16, 0.1);
+    color: #5a1408;
+  }
+
+  .rg-matrix .rg-matrix-col {
+    text-align: center;
+    padding: 12px 8px;
+    font-size: 11px;
+  }
+  .rg-matrix-doc {
+    min-width: 220px;
+    font-size: 13px;
+  }
+  .rg-matrix-cell {
+    text-align: center !important;
+    padding: 10px 8px !important;
+    font-size: 13px;
+  }
+  .rg-tick { color: #1e7a1e; font-weight: 700; }
+  .rg-rec { color: #e08712; font-weight: 700; }
+
+  .rg-callout {
+    margin-top: 18px;
+    padding: 18px 22px;
+    background: rgba(122, 31, 16, 0.06);
+    border-left: 4px solid #7a1f10;
+    border-radius: 0 12px 12px 0;
+    font-size: 14px;
+    color: rgba(42, 26, 16, 0.85);
+    line-height: 1.6;
+  }
+  .rg-callout-label {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #7a1f10;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .rg-callout strong { color: #2a1a10; font-weight: 600; }
+  .rg-callout code {
+    background: rgba(42, 26, 16, 0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .rg-flow {
+    list-style: none;
+    padding: 0;
+    counter-reset: rgstep;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+  }
+  .rg-flow li {
+    padding: 12px 14px 12px 44px;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid rgba(42, 26, 16, 0.06);
+    counter-increment: rgstep;
+    position: relative;
+    font-size: 13.5px;
+    color: rgba(42, 26, 16, 0.8);
+    line-height: 1.55;
+  }
+  .rg-flow li::before {
+    content: counter(rgstep);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    background: #ffe9c2;
+    color: #7a1f10;
+    font-family: "Inter", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    align-items: center;
+    justify-content: center;
+  }
+  .rg-flow li strong { color: #2a1a10; font-weight: 600; }
+
+  .rg-outcome {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(30, 122, 30, 0.08);
+    border-left: 3px solid #1e7a1e;
+    border-radius: 0 8px 8px 0;
+    font-size: 13.5px;
+    color: rgba(42, 26, 16, 0.8);
+  }
+  .rg-outcome strong { color: #2a1a10; }
+
+  .rg-bullets {
+    list-style: disc;
+    padding-left: 22px;
+    font-size: 14px;
+    color: rgba(42, 26, 16, 0.78);
+    line-height: 1.7;
+    margin: 0;
+  }
+  .rg-bullets li { margin-bottom: 6px; }
+  .rg-bullets strong { color: #2a1a10; font-weight: 600; }
+</style>
