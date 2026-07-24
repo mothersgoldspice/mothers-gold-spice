@@ -30,9 +30,12 @@ const migrationsPath = decodeURIComponent(new URL('./migrations', import.meta.ur
 export default defineConfig({
   plugins: [
     cloudflareTest(async () => ({
+      // Keeps one test file's writes out of the next one's database. It does
+      // NOT roll back between individual tests, which is why every test file
+      // starts from `freshDatabase()` in a `beforeEach` rather than trusting it.
       isolatedStorage: true,
-      // One worker for the whole suite. Isolated storage already resets D1
-      // between tests, so a pool of workers would only multiply startup cost.
+      // One worker for the whole suite: files run through it in sequence, so
+      // two of them can never be writing to the same D1 at the same moment.
       singleWorker: true,
       wrangler: { configPath: './wrangler.jsonc' },
       // Overrides wrangler.jsonc's `main`. See tests/worker.ts for why.

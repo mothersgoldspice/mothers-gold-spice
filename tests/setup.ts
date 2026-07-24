@@ -380,7 +380,11 @@ export async function placeOrder(ctx: AppContext, opts: PlaceOrderOptions): Prom
     userId: opts.userId ?? null,
   });
 
-  return createOrder(ctx, {
+  // `return await`, not `return`. `createOrder` rejects synchronously for an
+  // empty cart or a closed store, and returning that promise unawaited leaves it
+  // handler-less for a microtask — long enough for workerd to report it as an
+  // unhandled rejection even though the test is awaiting it.
+  return await createOrder(ctx, {
     cart,
     settings,
     email: opts.email ?? 'asha@example.com',

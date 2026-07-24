@@ -275,7 +275,21 @@ const FACTS: { term: string; detail: string }[] = product
                         type="email"
                         name="alert_email"
                         autocomplete="email"
-                        required
+                        {/*
+                          Deliberately NOT `required`.
+
+                          This input sits in the same <form> as Add to basket and
+                          is hidden whenever the size is in stock. A hidden
+                          `required` field makes the whole form fail HTML5
+                          constraint validation, and the browser cannot focus a
+                          hidden control to complain — so the submit event never
+                          fires and "Add to basket" silently does nothing. It is
+                          invisible in testing because the field you have to fill
+                          in is the one you cannot see.
+
+                          The click handler below already refuses an empty
+                          address with a clearer message than the browser's.
+                        */}
                         placeholder="you@example.com"
                         class="block h-12 w-full rounded-2xl border border-ink/15 bg-white px-4 text-base text-ink placeholder:text-ink/35 focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none"
                       />

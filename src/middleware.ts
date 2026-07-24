@@ -108,14 +108,22 @@ function withSecurityHeaders(response: Response, url: URL): Response {
   const headers = new Headers(response.headers);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) headers.set(key, value);
 
-  // Anything under an authenticated area must not be cached by an intermediary.
-  if (
-    url.pathname.startsWith('/account') ||
-    url.pathname.startsWith('/admin') ||
-    url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/checkout')
-  ) {
+  // Anything personal must not be stored by a browser or an intermediary.
+  // `/cart`, `/track` and `/invoice` are on this list for the same reason as
+  // `/account`: they render one specific person's basket, delivery address and
+  // phone number, and a shared cache holding them is a privacy incident.
+  const PRIVATE_PREFIXES = ['/account', '/admin', '/api/', '/checkout', '/cart', '/track', '/invoice'];
+  const isPrivate = PRIVATE_PREFIXES.some((p) => url.pathname === p || url.pathname.startsWith(p));
+
+  if (isPrivate) {
     headers.set('Cache-Control', 'no-store, must-revalidate');
+  } else if (url.pathname.startsWith('/shop')) {
+    // Product pages carry live price and stock. Without an explicit header a
+    // browser applies heuristic caching and will happily show a sold-out jar at
+    // last week's price — which is how a customer ends up at a checkout that
+    // disagrees with the page they came from. Revalidation is cheap; being
+    // wrong about price is not.
+    headers.set('Cache-Control', 'private, max-age=0, must-revalidate');
   }
 
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
