@@ -22,6 +22,7 @@
  *     after the test ended.
  */
 
+import type { D1Database } from '@cloudflare/workers-types';
 import { applyD1Migrations, env as bindings } from 'cloudflare:test';
 
 import { AppContext, type SessionUser } from '../src/lib/context';

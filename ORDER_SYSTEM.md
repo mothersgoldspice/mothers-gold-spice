@@ -285,6 +285,12 @@ middleware is exempting the webhook path.
 npm test
 ```
 
+207 tests. The integration suite runs on **real workerd against a real local D1**
+via `@cloudflare/vitest-pool-workers`, not a SQLite stand-in — the inventory
+design leans on D1 specifics (`batch()` atomicity, conditional UPDATEs reporting
+`meta.changes`, `RETURNING` on an UPDATE), so a substitute would have happily
+passed code that cannot work on the platform it ships to.
+
 ---
 
 ## 9. Known limits, honestly
@@ -315,6 +321,11 @@ npm test
 - **Serviceability degrades to "yes".** If the courier API is down, checkout
   proceeds using the locally computed zone rather than blocking every order in
   the country. A genuinely unserviceable parcel is caught at booking.
+- **The serviceability cache is keyed by PIN code alone.** `cod_available` is
+  only trusted when `cod_checked = 1`, because a prepaid lookup writes 0 and
+  that used to read back as "no cash on delivery here" — silently refusing COD
+  to everyone in that PIN code for three days. A COD-unavailable PIN code
+  therefore re-queries the courier each time rather than caching the negative.
 - **No GST invoice PDF yet.** The data is all there (`hsn_code`, per-rate tax
   breakdown, legal entity fields in settings); the rendering is not.
 - **Refunds for COD orders** are recorded but have no automatic disbursement

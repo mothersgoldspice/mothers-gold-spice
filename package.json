@@ -21,8 +21,11 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "@cloudflare/vitest-pool-workers": "^0.18.8",
     "@cloudflare/workers-types": "^4.20260702.1",
+    "@types/three": "^0.184.1",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.10",
     "wrangler": "^4.86.0"
   }

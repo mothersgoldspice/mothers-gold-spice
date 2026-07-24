@@ -7,6 +7,12 @@
  * a test constructs an `Env` with mock providers and a scratch D1.
  */
 
+// Imported rather than taken from a global `/// <reference>`. Loading
+// @cloudflare/workers-types globally also loads HTMLRewriter's `Element`, which
+// merges with the DOM's and shadows `append`/`prepend` with signatures that take
+// a Response — breaking every client `<script>` that builds a node. See env.d.ts.
+import type { D1Database, Fetcher } from '@cloudflare/workers-types';
+
 export interface Env {
   DB: D1Database;
   ASSETS?: Fetcher;

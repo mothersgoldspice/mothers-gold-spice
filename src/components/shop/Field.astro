@@ -7,18 +7,28 @@
  * client script paints on later.
  */
 
+import type { HTMLAttributes } from 'astro/types';
+
+// Borrowed from Astro's own JSX definitions rather than typed as `string`. These
+// two attributes are closed sets in HTML, and a plain `string` both hid a real
+// type error where `shared` is spread onto <textarea>/<select> and let a typo
+// like inputmode="number" reach the browser, where it is silently ignored and
+// the phone shows the wrong keyboard.
+type InputType = NonNullable<HTMLAttributes<'input'>['type']>;
+type InputMode = HTMLAttributes<'input'>['inputmode'];
+
 interface Props {
   label: string;
   name: string;
   /** Any HTML input type, plus 'textarea' and 'select'. */
-  type?: string;
+  type?: InputType | 'textarea' | 'select';
   value?: string | number;
   required?: boolean;
   error?: string;
   hint?: string;
   placeholder?: string;
   autocomplete?: string;
-  inputmode?: string;
+  inputmode?: InputMode;
   maxlength?: number;
   /** Overrides the id derived from `name` — needed when the same name appears twice on a page. */
   id?: string;
@@ -94,7 +104,10 @@ const shared = {
   inputmode,
   maxlength,
   'aria-describedby': describedBy,
-  'aria-invalid': error ? 'true' : undefined,
+  // `as const` keeps this "true" | undefined. Without it the ternary widens to
+  // `string`, which does not fit aria-invalid's closed set and made this whole
+  // object unassignable wherever it is spread onto a control below.
+  'aria-invalid': error ? ('true' as const) : undefined,
 };
 ---
 

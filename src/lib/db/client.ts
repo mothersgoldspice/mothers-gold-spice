@@ -9,6 +9,8 @@
  * pattern used for stock.
  */
 
+import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
+
 import { log } from '../log';
 
 export type SqlValue = string | number | null;

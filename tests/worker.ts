@@ -13,8 +13,19 @@
  * making loud rather than silently answering 200.
  */
 
+/*
+ * Deliberately untyped by `ExportedHandler`.
+ *
+ * That type describes its `Response` as the workers-types one, while the
+ * `Response` this file constructs is the ambient DOM/undici class the project
+ * otherwise uses — structurally different (`webSocket`), so `satisfies` fails.
+ * Importing workers-types globally to reconcile them is what env.d.ts explains
+ * we must not do: it also merges HTMLRewriter's `Element` with the DOM's and
+ * breaks every client script that builds a node. A stub with one method is not
+ * worth either compromise.
+ */
 export default {
   fetch(): Response {
     return new Response('Tests drive services directly through AppContext, not over HTTP.', { status: 501 });
   },
-} satisfies ExportedHandler;
+};

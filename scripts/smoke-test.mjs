@@ -180,6 +180,18 @@ async function main() {
     password: CUSTOMER_PASSWORD,
     phone: '9845012345',
   });
+
+  // Registration is deliberately limited to a handful per hour per IP. Running
+  // this script repeatedly WILL hit that, and it is the limiter working rather
+  // than anything broken — so say so and stop, instead of reporting a cascade of
+  // failures that all trace back to having no session.
+  if (register.status === 429) {
+    check('rate limiter refuses repeated sign-ups (this is correct)', true);
+    console.log(`\n  ${register.json?.error?.message ?? 'Rate limited.'}`);
+    console.log('  Skipping the signed-in journey. Re-run after the window, or from another IP.');
+    return finish();
+  }
+
   check('POST /api/auth/register succeeds', register.status === 200, `got ${register.status}: ${register.text.slice(0, 200)}`);
   check('session cookie issued', customer.jar.has('mgs_session'));
 
@@ -348,6 +360,63 @@ async function main() {
     strangerRead.status === 401 || strangerRead.status === 403,
     `got ${strangerRead.status}`,
   );
+
+  // ── 9b. Guest checkout, cash on delivery ─────────────────────────────────
+  // A separate browser with no account, because the guest path has its own
+  // access-control story (a derived token instead of a session) and COD has its
+  // own serviceability question. A prepaid lookup used to poison the cached COD
+  // answer for a PIN code, so this asks for COD on one that was already queried.
+  step('Guest checkout with cash on delivery');
+  const guest = makeClient();
+  // Bootstrap from a DYNAMIC route. The marketing pages are prerendered static
+  // assets served without ever reaching the Worker, so they set no CSRF cookie —
+  // correct, since they contain no forms, but it means "/" is not a place to
+  // pick one up.
+  await guest.get('/api/health');
+  const guestAdd = await guest.post('/api/cart', { variant_id: variant.id, qty: 1 });
+  check('a guest can fill a basket', guestAdd.status === 200, `got ${guestAdd.status}: ${guestAdd.text.slice(0, 160)}`);
+
+  const codCheck = await guest.post('/api/checkout/serviceability', { pincode: '560001', cod: true });
+  check(
+    'COD is offered for a serviceable metro PIN code',
+    codCheck.json?.data?.codAvailable === true,
+    `codAvailable=${codCheck.json?.data?.codAvailable} — a prepaid lookup may have poisoned the cache`,
+  );
+
+  const codOrder = await guest.post('/api/checkout', {
+    email: `guest.${stamp}@mothersgoldspice.test`,
+    shipping_address: {
+      full_name: 'Guest Buyer',
+      phone: '9845099999',
+      line1: '4 Church Street',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560001',
+      country: 'IN',
+    },
+    billing_same_as_shipping: true,
+    payment_method: 'cod',
+    shipping_method: 'surface',
+    idempotency_key: `smoke-cod-${stamp}`,
+  });
+  check('a guest can place a COD order', codOrder.status === 200, `got ${codOrder.status}: ${codOrder.text.slice(0, 250)}`);
+
+  const codOrderId = codOrder.json?.data?.orderId;
+  const guestToken = (codOrder.json?.data?.redirectUrl ?? '').split('t=')[1] ?? '';
+  check('COD needs no online payment', codOrder.json?.data?.paymentRequired === false);
+  check('the guest was given a tracking token', guestToken.length > 32, `token length ${guestToken.length}`);
+
+  if (codOrderId && guestToken) {
+    const withToken = await guest.get(`/track/${codOrderId}?t=${encodeURIComponent(guestToken)}`);
+    check('the guest can open their tracking page', withToken.status === 200, `got ${withToken.status}`);
+
+    const invoice = await guest.get(`/invoice/${codOrderId}?t=${encodeURIComponent(guestToken)}`);
+    check('the guest can open their invoice', invoice.status === 200, `got ${invoice.status}`);
+    check('the invoice splits GST as CGST + SGST within Karnataka', invoice.text.includes('CGST'));
+
+    const withoutToken = await guest.get(`/track/${codOrderId}`);
+    check('tracking without the token is refused', withoutToken.status === 403, `got ${withoutToken.status}`);
+  }
 
   // ── 10. Admin ────────────────────────────────────────────────────────────
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {

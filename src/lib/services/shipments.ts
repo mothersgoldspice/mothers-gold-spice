@@ -49,6 +49,7 @@ export async function checkServiceability(
   const cached = await ctx.db.first<{
     serviceable: number;
     cod_available: number;
+    cod_checked: number;
     zone: string | null;
     city: string | null;
     state: string | null;
@@ -56,7 +57,13 @@ export async function checkServiceability(
     refreshed_at: number;
   }>('SELECT * FROM pincode_cache WHERE pincode = ?', [pincode]);
 
-  if (cached && Date.now() - cached.refreshed_at < PINCODE_CACHE_TTL_MS) {
+  // A cached row answers a COD question only if it was PRODUCED by one. Most
+  // lookups are prepaid and write cod_available = 0, which previously read back
+  // as "no cash on delivery here" and wrongly refused COD to everyone in that
+  // PIN code until the entry aged out three days later.
+  const cacheAnswersThisQuestion = cached && (!opts.cod || cached.cod_checked === 1);
+
+  if (cached && cacheAnswersThisQuestion && Date.now() - cached.refreshed_at < PINCODE_CACHE_TTL_MS) {
     return {
       serviceable: cached.serviceable === 1,
       codAvailable: cached.cod_available === 1,
@@ -94,15 +101,20 @@ export async function checkServiceability(
 
   const cheapest = result.quotes[0];
   await ctx.db.run(
-    `INSERT INTO pincode_cache (pincode, serviceable, cod_available, zone, city, state, etd_days, provider, raw_json, refreshed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}', ?)
-     ON CONFLICT (pincode) DO UPDATE SET serviceable = excluded.serviceable, cod_available = excluded.cod_available,
+    `INSERT INTO pincode_cache (pincode, serviceable, cod_available, cod_checked, zone, city, state, etd_days, provider, raw_json, refreshed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?)
+     ON CONFLICT (pincode) DO UPDATE SET serviceable = excluded.serviceable,
+       -- A prepaid refresh must not erase a known-good COD answer, so both COD
+       -- columns only move when this lookup actually asked about COD.
+       cod_available = CASE WHEN excluded.cod_checked = 1 THEN excluded.cod_available ELSE pincode_cache.cod_available END,
+       cod_checked   = MAX(pincode_cache.cod_checked, excluded.cod_checked),
        zone = excluded.zone, city = excluded.city, state = excluded.state, etd_days = excluded.etd_days,
        provider = excluded.provider, refreshed_at = excluded.refreshed_at`,
     [
       pincode,
       result.serviceable ? 1 : 0,
       result.codAvailable ? 1 : 0,
+      opts.cod ? 1 : 0,
       result.zone,
       result.city ?? null,
       result.state ?? null,
