@@ -10,6 +10,9 @@ dist/
 # Local notes (not for public repo)
 details.md
 chat-with-gemini.md
+# Handover notes: pre-launch state, what is still on mocks, operator to-do list.
+# The repo is public; this is not the place for any of it.
+STATUS.md
 
 # Original large image files kept locally as backup; the optimized JPGs in public/process/ are what we ship
 _raw-images/
