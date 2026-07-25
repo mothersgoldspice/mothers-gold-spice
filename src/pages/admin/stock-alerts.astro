@@ -1,0 +1,243 @@
+---
+/**
+ * What to cook next.
+ *
+ * Everything else in this console reports what has happened. This screen is the
+ * only one that reports what people want and have not been able to buy — five
+ * addresses against the 500 g and none against the 250 g is a clearer
+ * instruction than any sales report, because a sale can only ever tell you about
+ * jars that existed.
+ *
+ * So the list is ordered by how many are waiting, not alphabetically, and the
+ * count is the first number on the row.
+ *
+ * The queries come from `services/stock-alerts.ts` rather than being written
+ * again here, so this page and `/api/admin/stock-alerts` cannot disagree about
+ * what "waiting" means.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin, requireCtx } from '../../lib/api';
+import { listWaiting, waitingSummary } from '../../lib/services/stock-alerts';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const summary = await waitingSummary(ctx);
+
+// One row can be opened to see the actual addresses. Kept behind a click rather
+// than expanded by default: the counts are what you come here for, and a page
+// that prints every customer's email address by default is one you cannot open
+// with somebody standing next to you.
+const openId = Astro.url.searchParams.get('variant_id');
+const open = openId ? (summary.find((row) => row.variantId === openId) ?? null) : null;
+const waiting = open ? await listWaiting(ctx, open.variantId) : [];
+
+const totalWaiting = summary.reduce((sum, row) => sum + row.waiting, 0);
+
+/**
+ * Waiting customers, and jars on the shelf to serve them with.
+ *
+ * Computed in the frontmatter because a `>` or `<=` written inside a template
+ * expression is read by the Astro parser as the start of a JSX tag, and the
+ * build then fails somewhere else entirely with a message about Fragment
+ * shorthand.
+ */
+const canNotify = (row: { waiting: number; available: number }): boolean => row.available > 0 && row.waiting > 0;
+const readyCount = summary.filter(canNotify).length;
+
+const stamp = (ms: number) =>
+  new Date(ms).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+
+const daysWaiting = (ms: number): number => Math.floor((Date.now() - ms) / 86_400_000);
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CARD = 'rounded-md border border-ink/10 bg-white';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+const BTN =
+  'min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium whitespace-nowrap text-cream transition ' +
+  'hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2';
+const BTN_QUIET =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/20 bg-white px-2.5 text-sm font-medium whitespace-nowrap transition ' +
+  'hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+---
+
+<AdminLayout
+  title="Stock alerts"
+  subtitle={`${totalWaiting} ${totalWaiting === 1 ? 'person' : 'people'} waiting on ${summary.length} ${summary.length === 1 ? 'variant' : 'variants'}`}
+>
+  <a slot="actions" href="/admin/inventory" class={BTN_QUIET}>Open inventory</a>
+
+  <section aria-labelledby="waiting-heading" class={CARD}>
+    <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/10 px-3 py-2">
+      <h2 id="waiting-heading" class="font-serif text-sm font-semibold">Who is waiting for what</h2>
+      <p class="text-xs text-ink/55">Most-wanted first. This is the order to cook in.</p>
+    </div>
+
+    {
+      summary.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          Nobody is waiting on anything. The box appears on a product page only when a size is sold out.
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Variant
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Waiting
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Available
+                </th>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.map((row) => {
+                const ready = canNotify(row);
+                const isOpen = open?.variantId === row.variantId;
+                return (
+                  <tr class:list={['border-b border-ink/8 last:border-0', ready && 'bg-amber-50']}>
+                    <td class={TD}>
+                      <span class="block">{row.label}</span>
+                      <span class="block font-mono text-[11px] text-ink/50">{row.sku}</span>
+                    </td>
+
+                    <td class={`${TD} text-right text-base font-semibold tabular-nums`}>{row.waiting}</td>
+
+                    <td class:list={[TD, 'text-right tabular-nums', ready ? 'text-amber-900' : 'text-ink/60']}>
+                      {Math.max(0, row.available)}
+                    </td>
+
+                    <td class={TD}>
+                      <div class="flex flex-wrap justify-end gap-1">
+                        <a
+                          href={isOpen ? '/admin/stock-alerts' : `/admin/stock-alerts?variant_id=${encodeURIComponent(row.variantId)}`}
+                          class={BTN_QUIET}
+                          aria-expanded={isOpen ? 'true' : 'false'}
+                        >
+                          {isOpen ? 'Hide addresses' : 'Show addresses'}
+                        </a>
+
+                        {ready && (
+                          <form
+                            data-api="/api/admin/stock-alerts"
+                            data-method="POST"
+                            data-confirm={`Write to the ${row.waiting} ${row.waiting === 1 ? 'person' : 'people'} waiting on ${row.label}? Each of them is told once, ever.`}
+                            data-success-message="Sent. Everyone who could be served has been told."
+                          >
+                            <input type="hidden" name="action" value="notify" />
+                            <input type="hidden" name="variant_id" value={row.variantId} />
+                            <button type="submit" class={BTN}>
+                              Tell them
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <p class="border-t border-ink/8 px-3 py-2 text-xs leading-relaxed text-ink/55">
+      A restock on <a href="/admin/inventory" class={LINK}>Inventory</a> writes to everyone waiting on its own — this
+      button is for the odd case where jars are already on the shelf and the queue never cleared. Nobody is told
+      twice about the same size, and nobody is told at all if there is nothing to sell them.
+    </p>
+  </section>
+
+  {
+    readyCount > 0 && (
+      <p class="mt-3 rounded-md border border-amber-600/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        {readyCount === 1 ? 'One size has' : `${readyCount} sizes have`} people waiting and stock on the shelf. Either
+        press “Tell them”, or check the count on <a href="/admin/inventory" class="font-medium underline">Inventory</a>{' '}
+        — a jar somebody is waiting for should not be sitting in the cupboard.
+      </p>
+    )
+  }
+
+  {
+    open && (
+      <section aria-labelledby="addresses-heading" class:list={[CARD, 'mt-4']}>
+        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/10 px-3 py-2">
+          <h2 id="addresses-heading" class="font-serif text-sm font-semibold">
+            Waiting on {open.label}
+          </h2>
+          <a href="/admin/stock-alerts" class={`text-xs ${LINK}`}>
+            Back to all
+          </a>
+        </div>
+
+        {waiting.length === 0 ? (
+          <p class="px-3 py-10 text-center text-sm text-ink/55">
+            Everyone waiting on this size has since been told. Nothing to do here.
+          </p>
+        ) : (
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="border-b border-ink/10 bg-cream/60">
+                <tr>
+                  <th scope="col" class={TH}>
+                    Email
+                  </th>
+                  <th scope="col" class={TH}>
+                    Asked
+                  </th>
+                  <th scope="col" class={`${TH} text-right`}>
+                    Waiting
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {waiting.map((row) => {
+                  const days = daysWaiting(row.createdAt);
+                  return (
+                    <tr class="border-b border-ink/8 last:border-0 hover:bg-mango-50">
+                      <td class={`${TD} max-w-64`}>
+                        <a href={`mailto:${row.email}`} class={`block truncate ${LINK}`}>
+                          {row.email}
+                        </a>
+                      </td>
+                      <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>{stamp(row.createdAt)}</td>
+                      <td class={`${TD} text-right text-xs whitespace-nowrap text-ink/70 tabular-nums`}>
+                        {days === 0 ? 'today' : `${days} ${days === 1 ? 'day' : 'days'}`}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p class="border-t border-ink/8 px-3 py-2 text-xs leading-relaxed text-ink/55">
+          Oldest request first — the person at the top has been waiting longest. Anyone who has asked us to stop
+          writing to them has already been taken off this list; see <a href="/admin/newsletter" class={LINK}>Newsletter</a>.
+        </p>
+      </section>
+    )
+  }
+</AdminLayout>

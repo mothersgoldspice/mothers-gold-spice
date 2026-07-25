@@ -14,6 +14,7 @@
  */
 import Alert from '../../components/shop/Alert.astro';
 import Button from '../../components/shop/Button.astro';
+import Field from '../../components/shop/Field.astro';
 import Money from '../../components/shop/Money.astro';
 import Price from '../../components/shop/Price.astro';
 import ShopLayout from '../../components/shop/ShopLayout.astro';
@@ -49,6 +50,49 @@ const reviews = product
 
 const averageRating =
   reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : null;
+
+/*
+ * May this customer write about this jar?
+ *
+ * Two facts in one round trip: a delivered order of theirs containing this
+ * product, and whether they have already written about it. Both are needed,
+ * because the form is rendered only for somebody who can actually use it. A
+ * visitor who has not bought this is shown nothing at all — a disabled form only
+ * invites the question of why, and answering it in a tooltip on a product page
+ * is worse than staying quiet.
+ *
+ * `/api/reviews` re-checks all of this. Nothing here is a permission; it decides
+ * what to draw, not what is allowed.
+ */
+const eligibility =
+  product && ctx.user
+    ? await ctx.db.first<{ delivered_order_id: string | null; my_review_status: string | null }>(
+        `SELECT
+           (SELECT o.id
+              FROM orders o
+              JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered'
+             LIMIT 1) AS delivered_order_id,
+           (SELECT r.status
+              FROM product_reviews r
+             WHERE r.product_id = ? AND r.user_id = ?
+             LIMIT 1) AS my_review_status`,
+        [ctx.user.id, product.id, product.id, ctx.user.id],
+      )
+    : null;
+
+const canReview =
+  eligibility !== null && eligibility.delivered_order_id !== null && eligibility.my_review_status === null;
+
+/*
+ * Their own review, still with us. Worth one line: somebody who wrote last week
+ * and sees no trace of it assumes it was lost and writes it again.
+ *
+ * Only `pending` is announced. An approved review is already in the list above,
+ * and a rejection is never reported — telling somebody their words were refused
+ * starts an argument the product page is the wrong place to have.
+ */
+const myReviewPending = eligibility?.my_review_status === 'pending';
 
 /** Filled and hollow stars, so a rating survives being read aloud or printed. */
 const stars = (rating: number) => '★★★★★'.slice(0, rating) + '☆☆☆☆☆'.slice(0, 5 - rating);
@@ -372,8 +416,8 @@ const FACTS: { term: string; detail: string }[] = product
 
           {reviews.length === 0 ? (
             <p class="mt-4 rounded-2xl border border-mango-100 bg-white/60 px-4 py-6 text-sm leading-relaxed text-ink/65">
-              No reviews yet. If you have had a jar, we would love to hear what you thought — the invitation arrives by
-              email a week after your order is delivered.
+              No reviews yet. Only customers we have actually delivered this to can write one, so the first will come
+              from somebody who has eaten it.
             </p>
           ) : (
             <ul class="mt-4 list-none space-y-4 p-0">
@@ -394,6 +438,74 @@ const FACTS: { term: string; detail: string }[] = product
                 </li>
               ))}
             </ul>
+          )}
+
+          {myReviewPending && (
+            <p class="mt-6 rounded-2xl border border-mango-100 bg-mango-50/70 px-4 py-4 text-sm leading-relaxed text-ink/75">
+              Thank you — your review is with us. We read every one before it goes up, so give us a day or two.
+            </p>
+          )}
+
+          {canReview && (
+            <form
+              class="mt-6 rounded-2xl border border-mango-100 bg-white/60 p-4 sm:p-5"
+              data-review-form
+              data-product-id={product.id}
+            >
+              <h3 class="font-serif text-xl text-ink">You have had this one. How was it?</h3>
+              <p class="mt-1.5 text-sm leading-relaxed text-ink/65">
+                We only ask people we have actually delivered to, which is why there are so few reviews here and why the
+                ones there are can be trusted. Yours goes up under your account name once we have read it.
+              </p>
+
+              <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Your rating" name="rating" type="select" required class="sm:col-span-1">
+                  <option value="">Choose a rating</option>
+                  <option value="5">5 — as good as it gets</option>
+                  <option value="4">4 — very good</option>
+                  <option value="3">3 — it was fine</option>
+                  <option value="2">2 — not for me</option>
+                  <option value="1">1 — something was wrong</option>
+                </Field>
+
+                <Field
+                  label="A headline"
+                  name="title"
+                  maxlength={120}
+                  placeholder="Tastes like my grandmother's"
+                  hint="Optional."
+                  class="sm:col-span-1"
+                />
+              </div>
+
+              <Field
+                label="What did you think?"
+                name="body"
+                type="textarea"
+                rows={4}
+                maxlength={2000}
+                placeholder="How it tasted, how you ate it, whether the jar arrived in one piece."
+                hint="Optional, and up to 2,000 characters. Please leave out anything you would not want a stranger to read."
+                class="mt-4"
+              />
+
+              <div class="mt-4 flex flex-wrap items-center gap-3">
+                <Button type="submit" size="lg" data-review-button>Send my review</Button>
+                <p class="text-xs text-ink/55">Nothing appears on this page until we have read it.</p>
+              </div>
+
+              <p class="mt-3 text-sm font-medium" data-review-message role="status" aria-live="polite" hidden></p>
+
+              <noscript>
+                <p class="mt-3 rounded-2xl border border-amber-600/30 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  Sending a review needs JavaScript. If it is switched off, write to
+                  <a href="mailto:mothersgoldspice@gmail.com" class="font-medium underline">
+                    mothersgoldspice@gmail.com
+                  </a>
+                  and we will add it by hand.
+                </p>
+              </noscript>
+            </form>
           )}
         </section>
       </article>
@@ -518,6 +630,77 @@ const FACTS: { term: string; detail: string }[] = product
         say(err instanceof Error ? err.message : 'We could not save that just now. Please try again.', 'bad');
       } finally {
         alertButton.disabled = false;
+      }
+    });
+  }
+
+  /**
+   * Sending a review.
+   *
+   * A separate form and a separate handler: it is rendered only for a customer
+   * the server has already decided is eligible, and it has nothing to do with
+   * choosing a size. The server re-checks the delivered order on every POST, so
+   * this is presentation and nothing more.
+   *
+   * The submit event only fires once the browser's own validation has passed,
+   * which is what enforces the rating — every field here is visible whenever the
+   * form is, so there is no hidden `required` control to silently swallow the
+   * submission the way one does in the buy form above.
+   */
+  const reviewForm = document.querySelector<HTMLFormElement>('[data-review-form]');
+
+  if (reviewForm) {
+    const reviewCsrf = document.querySelector<HTMLMetaElement>('meta[name=csrf-token]')?.content ?? '';
+    const reviewMessage = reviewForm.querySelector<HTMLElement>('[data-review-message]');
+    const reviewButton = reviewForm.querySelector<HTMLButtonElement>('[data-review-button]');
+    const productId = reviewForm.dataset.productId ?? '';
+
+    const sayReview = (text: string, tone: 'ok' | 'bad') => {
+      if (!reviewMessage) return;
+      reviewMessage.textContent = text;
+      reviewMessage.className = `mt-3 text-sm font-medium ${tone === 'ok' ? 'text-emerald-800' : 'text-red-700'}`;
+      reviewMessage.hidden = false;
+    };
+
+    reviewForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!reviewButton) return;
+
+      const data = new FormData(reviewForm);
+      const rating = Number.parseInt(String(data.get('rating') ?? ''), 10);
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        sayReview('Choose a rating from one to five stars.', 'bad');
+        return;
+      }
+
+      reviewButton.disabled = true;
+      try {
+        const response = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': reviewCsrf },
+          body: JSON.stringify({
+            product_id: productId,
+            rating,
+            title: String(data.get('title') ?? ''),
+            body: String(data.get('body') ?? ''),
+          }),
+        });
+        const payload = (await response.json()) as { ok: true } | { ok: false; error: { message: string } };
+        if (!payload.ok) throw new Error(payload.error.message);
+
+        // The form is gone for good once it has been used: a second review from
+        // the same person for the same jar is refused by the server, and leaving
+        // the box on screen would only invite one.
+        const done = document.createElement('p');
+        done.className =
+          'mt-6 rounded-2xl border border-mango-100 bg-mango-50/70 px-4 py-4 text-sm leading-relaxed text-ink/75';
+        done.setAttribute('role', 'status');
+        done.textContent = 'Thank you — your review is with us. We read every one before it goes up, so give us a day or two.';
+        reviewForm.replaceWith(done);
+        done.scrollIntoView({ block: 'nearest' });
+      } catch (err) {
+        sayReview(err instanceof Error ? err.message : 'We could not send that just now. Please try again.', 'bad');
+        reviewButton.disabled = false;
       }
     });
   }

@@ -553,8 +553,9 @@ async function recordRefund(
   ]);
 
   // A fully refunded order that never shipped puts its stock back.
+  let lines: Awaited<ReturnType<typeof orderStockLines>> = [];
   if (fullyRefunded && ['confirmed', 'processing', 'packed'].includes(order.status)) {
-    const lines = await orderStockLines(ctx.db, order.id);
+    lines = await orderStockLines(ctx.db, order.id);
     await ctx.db.batch(
       lines.flatMap((line) => [
         ctx.db.stmt('UPDATE inventory SET on_hand = on_hand + ?, updated_at = ? WHERE variant_id = ?', [
@@ -569,6 +570,13 @@ async function recordRefund(
         ),
       ]),
     );
+  }
+
+  // Those units are buyable again, so anyone waiting on them should hear.
+  // Never allowed to fail the refund: the money has already moved.
+  if (fullyRefunded && lines.length > 0) {
+    const { notifyBackInStock } = await import('./stock-alerts');
+    await notifyBackInStock(ctx, lines.map((l) => l.variantId)).catch(() => {});
   }
 
   log.info('payments.refund_recorded', { orderId: order.id, amountPaise, fullyRefunded });

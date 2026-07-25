@@ -27,6 +27,9 @@ export const GET: APIRoute = ({ locals }) => {
     'Disallow: /track/',
     'Disallow: /admin/',
     'Disallow: /api/',
+    // The unsubscribe link carries the address in `?e=`, and it travels in
+    // email, which is exactly where crawlers find URLs.
+    'Disallow: /unsubscribe',
     '',
     '# Internal working documents, not products.',
     'Disallow: /sitemap',

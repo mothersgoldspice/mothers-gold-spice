@@ -1,0 +1,640 @@
+---
+/**
+ * Coupons — what exists, what it is worth, and whether anyone has used it.
+ *
+ * Everything on this screen is in HUMAN units. The `value` column underneath
+ * means three different things depending on the type — basis points for a
+ * percentage, paise for a fixed amount, nothing at all for free delivery — and
+ * the single most expensive mistake available here is typing a number that is
+ * right for one of those and wrong for the others. So the form never shows a
+ * field called "value": it shows "Discount (%)" or "Discount (₹)", one at a
+ * time, and the API does the conversion.
+ *
+ * The status column deliberately does not just echo `status`. A coupon can be
+ * `active` and still refuse every basket because it expired last week or has
+ * been claimed the maximum number of times, and a screen that reported that as
+ * "Active" would send somebody hunting through checkout for a bug that is not
+ * there. `effectiveState` mirrors the order of the checks in `validateCoupon`,
+ * so what this page says is what a customer would be told.
+ *
+ * Codes are permanent once created. They get printed on flyers and pasted into
+ * WhatsApp, so renaming one silently breaks every copy already out there —
+ * disable it and issue a new one instead.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin, requireCtx } from '../../lib/api';
+import type { CouponRow } from '../../lib/db/types';
+import { formatPaise } from '../../lib/money';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+interface CouponUsageRow extends CouponRow {
+  redemption_count: number;
+  discount_given_paise: number;
+  last_redeemed_at: number | null;
+}
+
+// One query with the usage totals joined on, not a count per coupon: a lookup
+// per row is fine at five codes and is exactly the shape that stops loading once
+// one of them has been in a newsletter. LEFT JOIN, because a coupon nobody has
+// used yet is the row most worth looking at.
+const coupons = await ctx.db.all<CouponUsageRow>(
+  `SELECT c.*,
+          COUNT(r.id) AS redemption_count,
+          COALESCE(SUM(r.amount_paise), 0) AS discount_given_paise,
+          MAX(r.created_at) AS last_redeemed_at
+     FROM coupons c
+     LEFT JOIN coupon_redemptions r ON r.coupon_id = c.id
+    GROUP BY c.id
+    ORDER BY CASE c.status WHEN 'active' THEN 0 ELSE 1 END, c.created_at DESC`,
+);
+
+// The edit form is the create form with a row loaded into it. The coupon is
+// already in the list above, so opening one costs no second query.
+const editId = (Astro.url.searchParams.get('edit') ?? '').trim();
+const editing = coupons.find((c) => c.id === editId) ?? null;
+
+const now = Date.now();
+
+/**
+ * India is UTC+05:30 all year — no daylight saving since 1945 — so the offset is
+ * a constant rather than something that has to be looked up per date. Used to
+ * turn a stored instant back into the IST calendar day the operator picked; the
+ * API does the same arithmetic in reverse, and an end date there means the END
+ * of that day so a code advertised "until the 30th" survives the 30th.
+ */
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+/** Epoch ms → `YYYY-MM-DD` in IST, which is what a date input wants. */
+const dayInput = (ms: number | null): string =>
+  ms === null ? '' : new Date(ms + IST_OFFSET_MS).toISOString().slice(0, 10);
+
+const dayLabel = (ms: number | null): string | null =>
+  ms === null
+    ? null
+    : new Date(ms).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Kolkata',
+      });
+
+const stamp = (ms: number | null): string =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+/** Paise → the rupee figure that goes in an input. 49900 → "499", 4950 → "49.5". */
+const rupees = (paise: number): string => String(paise / 100);
+
+/** Basis points → the percentage a person would say. 1000 → "10", 1050 → "10.5". */
+const percent = (bps: number): string => String(bps / 100);
+
+type EffectiveState = 'live' | 'scheduled' | 'expired' | 'exhausted' | 'disabled';
+
+/**
+ * What a customer would actually experience, in the order `validateCoupon`
+ * checks it. `status` alone is not the answer: an active code that expired
+ * yesterday rejects every basket, and reporting that as "Active" sends somebody
+ * looking for a checkout bug that does not exist.
+ */
+function effectiveState(row: CouponUsageRow): EffectiveState {
+  if (row.status !== 'active') return 'disabled';
+  if (row.starts_at !== null && now < row.starts_at) return 'scheduled';
+  if (row.ends_at !== null && now > row.ends_at) return 'expired';
+  if (row.usage_limit !== null && row.used_count >= row.usage_limit) return 'exhausted';
+  return 'live';
+}
+
+const STATE_LABEL: Record<EffectiveState, string> = {
+  live: 'Live',
+  scheduled: 'Scheduled',
+  expired: 'Expired',
+  exhausted: 'Fully claimed',
+  disabled: 'Disabled',
+};
+
+const STATE_TONE: Record<EffectiveState, string> = {
+  live: 'bg-emerald-100 text-emerald-900',
+  scheduled: 'bg-sky-100 text-sky-900',
+  expired: 'bg-amber-100 text-amber-900',
+  exhausted: 'bg-amber-100 text-amber-900',
+  disabled: 'bg-ink/8 text-ink/70',
+};
+
+const TYPE_LABEL: Record<CouponRow['type'], string> = {
+  percent: 'Percentage',
+  fixed: 'Fixed amount',
+  free_shipping: 'Free delivery',
+};
+
+/** The discount as a person would read it aloud. */
+function humanValue(row: CouponUsageRow): string {
+  if (row.type === 'percent') return `${percent(row.value)}% off`;
+  if (row.type === 'fixed') return `${formatPaise(row.value)} off`;
+  return 'Delivery waived';
+}
+
+function windowLabel(row: CouponUsageRow): string {
+  const from = dayLabel(row.starts_at);
+  const to = dayLabel(row.ends_at);
+  if (from && to) return `${from} — ${to}`;
+  if (from) return `From ${from}`;
+  if (to) return `Until ${to}`;
+  return 'No dates set';
+}
+
+const usageLabel = (row: CouponUsageRow): string =>
+  `${row.used_count} of ${row.usage_limit === null ? 'unlimited' : row.usage_limit}`;
+
+/**
+ * `used_count` is a counter bumped alongside the redemption row; the two are
+ * written in the same batch, so they agree unless something went wrong. Showing
+ * the divergence is the only way anyone would ever find out.
+ */
+const countsDisagree = (row: CouponUsageRow): boolean => row.used_count !== row.redemption_count;
+
+const perCustomerLabel = (row: CouponUsageRow): string =>
+  row.per_user_limit === 0 ? 'No per-customer limit' : `${row.per_user_limit} per customer`;
+
+const states = coupons.map(effectiveState);
+const liveCount = states.filter((s) => s === 'live').length;
+const givenAwayPaise = coupons.reduce((sum, row) => sum + row.discount_given_paise, 0);
+
+// Pre-fill values for the form. A new coupon starts as the commonest shape: a
+// percentage, live now, one redemption per customer, no spend floor.
+const form = {
+  id: editing?.id ?? '',
+  code: editing?.code ?? '',
+  description: editing?.description ?? '',
+  type: editing?.type ?? 'percent',
+  percentOff: editing && editing.type === 'percent' ? percent(editing.value) : '',
+  amountOff: editing && editing.type === 'fixed' ? rupees(editing.value) : '',
+  minSubtotal: editing ? rupees(editing.min_subtotal_paise) : '0',
+  maxDiscount: editing && editing.max_discount_paise !== null ? rupees(editing.max_discount_paise) : '',
+  startsOn: dayInput(editing?.starts_at ?? null),
+  endsOn: dayInput(editing?.ends_at ?? null),
+  usageLimit: editing && editing.usage_limit !== null ? String(editing.usage_limit) : '',
+  perUserLimit: String(editing?.per_user_limit ?? 1),
+  firstOrderOnly: editing ? editing.first_order_only === 1 : false,
+  status: editing?.status ?? 'active',
+};
+
+/** Which value fields belong to which type; the script below keeps this in step. */
+const showPercentFields = form.type === 'percent';
+const showAmountField = form.type === 'fixed';
+
+const API = '/api/admin/coupons';
+
+const SECTION = 'rounded-md border border-ink/10 bg-white';
+const SECTION_HEAD = 'border-b border-ink/10 px-3 py-2';
+const SECTION_TITLE = 'font-serif text-sm font-semibold';
+const SECTION_NOTE = 'mt-0.5 text-xs text-ink/60';
+const LABEL = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase';
+const HINT = 'mt-1 text-xs text-ink/55';
+const CONTROL =
+  'block w-full min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none ' +
+  'disabled:bg-ink/5 disabled:text-ink/60';
+const CHECKBOX = 'size-4 shrink-0 rounded border-ink/30 text-spice-500 focus:ring-2 focus:ring-spice-500/30';
+const SAVE =
+  'min-h-9 rounded-md bg-spice-500 px-4 text-sm font-medium text-cream transition hover:bg-spice-700 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2';
+const BTN_QUIET =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/20 bg-white px-2.5 text-xs font-medium ' +
+  'whitespace-nowrap transition hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none ' +
+  'focus-visible:ring-2 focus-visible:ring-spice-500';
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const TAG = 'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+---
+
+<AdminLayout
+  title="Coupons"
+  subtitle={`${coupons.length} codes · ${liveCount} live right now · ${formatPaise(givenAwayPaise)} given away so far`}
+>
+  <a slot="actions" href="/admin/coupons#coupon-form" class={BTN_QUIET}>New coupon</a>
+
+  <section class={SECTION} aria-labelledby="list-heading">
+    <h2 id="list-heading" class="border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold">
+      Every code
+    </h2>
+
+    {
+      coupons.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          No coupons yet. The form below makes the first one.
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Code
+                </th>
+                <th scope="col" class={TH}>
+                  Discount
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Minimum spend
+                </th>
+                <th scope="col" class={TH}>
+                  Window
+                </th>
+                <th scope="col" class={TH}>
+                  Used
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Given away
+                </th>
+                <th scope="col" class={TH}>
+                  Status
+                </th>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {coupons.map((row) => {
+                // Computed in a helper rather than inline: a comparison written
+                // inside a template expression is read by the Astro parser as
+                // the start of a JSX tag, and the build then fails somewhere
+                // else entirely with a message about Fragment shorthand.
+                const state = effectiveState(row);
+                const mismatch = countsDisagree(row);
+                return (
+                  <tr class:list={['border-b border-ink/8 last:border-0', row.id === editId && 'bg-mango-50']}>
+                    <td class={TD}>
+                      <span class="block font-mono text-sm font-semibold">{row.code}</span>
+                      {row.description && <span class="block text-[11px] text-ink/60">{row.description}</span>}
+                      <span class="mt-0.5 block text-[11px] text-ink/45">
+                        {perCustomerLabel(row)}
+                        {row.first_order_only === 1 ? ' · first order only' : ''}
+                      </span>
+                    </td>
+
+                    <td class={TD}>
+                      <span class="block font-medium">{humanValue(row)}</span>
+                      <span class="block text-[11px] text-ink/50">{TYPE_LABEL[row.type]}</span>
+                      {row.type === 'percent' && row.max_discount_paise !== null && (
+                        <span class="block text-[11px] text-ink/50">capped at {formatPaise(row.max_discount_paise)}</span>
+                      )}
+                    </td>
+
+                    <td class={`${TD} text-right tabular-nums`}>
+                      {row.min_subtotal_paise === 0 ? (
+                        <span class="text-ink/45">None</span>
+                      ) : (
+                        formatPaise(row.min_subtotal_paise)
+                      )}
+                    </td>
+
+                    <td class={`${TD} text-xs whitespace-nowrap text-ink/70`}>{windowLabel(row)}</td>
+
+                    <td class={`${TD} text-xs tabular-nums`}>
+                      {usageLabel(row)}
+                      {mismatch && (
+                        <span class="mt-0.5 block text-[11px] text-red-800">
+                          {row.redemption_count} redemption rows — the counter and the ledger disagree
+                        </span>
+                      )}
+                    </td>
+
+                    <td class={`${TD} text-right tabular-nums`}>
+                      {formatPaise(row.discount_given_paise)}
+                      {row.last_redeemed_at !== null && (
+                        <span class="block text-[11px] text-ink/45">last {stamp(row.last_redeemed_at)}</span>
+                      )}
+                    </td>
+
+                    <td class={TD}>
+                      <span class:list={[TAG, STATE_TONE[state]]}>{STATE_LABEL[state]}</span>
+                    </td>
+
+                    <td class={TD}>
+                      <div class="flex flex-wrap items-center gap-1">
+                        <a href={`?edit=${row.id}#coupon-form`} class={BTN_QUIET}>
+                          Edit
+                        </a>
+                        <form
+                          data-api={API}
+                          data-method="PATCH"
+                          data-success-message={
+                            row.status === 'active' ? `${row.code} disabled.` : `${row.code} switched back on.`
+                          }
+                          data-confirm={
+                            row.status === 'active'
+                              ? `Disable ${row.code}? Anyone typing it at checkout will be told it is no longer available.`
+                              : undefined
+                          }
+                        >
+                          <input type="hidden" name="id" value={row.id} />
+                          <input
+                            type="hidden"
+                            name="status"
+                            value={row.status === 'active' ? 'disabled' : 'active'}
+                          />
+                          <button type="submit" class={BTN_QUIET}>
+                            {row.status === 'active' ? 'Disable' : 'Enable'}
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <p class="border-t border-ink/8 px-3 py-2 text-xs text-ink/55">
+      A code that has been used cannot be deleted — the orders that claimed it still refer to it. Disable it instead.
+    </p>
+  </section>
+
+  <!-- ── Create / edit ────────────────────────────────────────────────── -->
+  <section id="coupon-form" class:list={[SECTION, 'mt-4 scroll-mt-20']} aria-labelledby="form-heading">
+    <div class={SECTION_HEAD}>
+      <h2 id="form-heading" class={SECTION_TITLE}>
+        {editing ? `Editing ${editing.code}` : 'New coupon'}
+      </h2>
+      <p class={SECTION_NOTE}>
+        {
+          editing
+            ? 'The code itself cannot be changed — it is already printed on things. Disable it and make a new one if the code is wrong.'
+            : 'The code is uppercased and must be unique. Money is entered in rupees; the percentage is entered as a percentage.'
+        }
+      </p>
+    </div>
+
+    <form
+      id="coupon-fields"
+      data-api={API}
+      data-method={editing ? 'PATCH' : 'POST'}
+      data-success-message={editing ? 'Coupon saved.' : 'Coupon created.'}
+      data-success-redirect={editing ? '/admin/coupons' : undefined}
+    >
+      {editing && <input type="hidden" name="id" value={form.id} />}
+
+      <div class="grid gap-3 px-3 py-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div>
+          <label for="field-code" class={LABEL}>Code</label>
+          <input
+            id="field-code"
+            name="code"
+            type="text"
+            maxlength="40"
+            required
+            disabled={editing !== null}
+            value={form.code}
+            placeholder="DIWALI20"
+            pattern="[A-Za-z0-9_-]+"
+            class:list={[CONTROL, 'font-mono uppercase']}
+          />
+          <p class={HINT}>Letters, numbers, hyphens and underscores. Permanent once saved.</p>
+        </div>
+
+        <div class="sm:col-span-1 xl:col-span-2">
+          <label for="field-description" class={LABEL}>What it is for</label>
+          <input
+            id="field-description"
+            name="description"
+            type="text"
+            maxlength="200"
+            value={form.description}
+            placeholder="10% off the first order of ₹499 or more."
+            class={CONTROL}
+          />
+          <p class={HINT}>Internal note. Customers never see this — it is here so next month you know why it exists.</p>
+        </div>
+
+        <div>
+          <label for="coupon-type" class={LABEL}>Discount type</label>
+          <select id="coupon-type" name="type" class={CONTROL}>
+            <option value="percent" selected={form.type === 'percent'}>Percentage off the basket</option>
+            <option value="fixed" selected={form.type === 'fixed'}>Fixed amount off the basket</option>
+            <option value="free_shipping" selected={form.type === 'free_shipping'}>Free delivery</option>
+          </select>
+          <p class={HINT}>Free delivery waives whatever the courier charge works out to — it carries no amount.</p>
+        </div>
+
+        {/*
+          Only the field that belongs to the chosen type is shown, and the others
+          are DISABLED rather than merely hidden: a hidden input still serialises,
+          so leaving them enabled would send a rupee amount with a percentage
+          coupon and the API would rightly refuse it.
+        */}
+        <div data-for-type="percent" class:list={[!showPercentFields && 'hidden']}>
+          <label for="field-percent" class={LABEL}>Discount (%)</label>
+          <input
+            id="field-percent"
+            name="percent_off"
+            data-json="number"
+            type="number"
+            min="0.01"
+            max="100"
+            step="0.01"
+            inputmode="decimal"
+            required
+            disabled={!showPercentFields}
+            value={form.percentOff}
+            placeholder="10"
+            class:list={[CONTROL, 'tabular-nums']}
+          />
+          <p class={HINT}>Type 10 for ten percent. Stored as basis points, which the API converts for you.</p>
+        </div>
+
+        <div data-for-type="fixed" class:list={[!showAmountField && 'hidden']}>
+          <label for="field-amount" class={LABEL}>Discount (₹)</label>
+          <input
+            id="field-amount"
+            name="amount_off_paise"
+            data-json="paise"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="decimal"
+            required
+            disabled={!showAmountField}
+            value={form.amountOff}
+            placeholder="100"
+            class:list={[CONTROL, 'tabular-nums']}
+          />
+          <p class={HINT}>A basket worth less than this is taken to zero, never below it.</p>
+        </div>
+
+        <div data-for-type="percent" class:list={[!showPercentFields && 'hidden']}>
+          <label for="field-cap" class={LABEL}>Maximum discount (₹)</label>
+          <input
+            id="field-cap"
+            name="max_discount_paise"
+            data-json="paise-or-null"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="decimal"
+            disabled={!showPercentFields}
+            value={form.maxDiscount}
+            placeholder="No cap"
+            class:list={[CONTROL, 'tabular-nums']}
+          />
+          <p class={HINT}>Blank means no ceiling. Worth setting on a percentage — a large basket is otherwise unbounded.</p>
+        </div>
+
+        <div>
+          <label for="field-min" class={LABEL}>Minimum spend (₹)</label>
+          <input
+            id="field-min"
+            name="min_subtotal_paise"
+            data-json="paise"
+            type="number"
+            min="0"
+            step="1"
+            inputmode="decimal"
+            value={form.minSubtotal}
+            class:list={[CONTROL, 'tabular-nums']}
+          />
+          <p class={HINT}>Judged on the basket before delivery. A shopper who is short is told how much more to add.</p>
+        </div>
+
+        <div>
+          <label for="field-starts" class={LABEL}>Starts on</label>
+          <input id="field-starts" name="starts_on" type="date" value={form.startsOn} class={CONTROL} />
+          <p class={HINT}>Blank starts immediately. From 00:00 IST on this day.</p>
+        </div>
+
+        <div>
+          <label for="field-ends" class={LABEL}>Ends on</label>
+          <input id="field-ends" name="ends_on" type="date" value={form.endsOn} class={CONTROL} />
+          <p class={HINT}>Blank never expires. Valid through the whole of this day — it dies at 23:59 IST, not at dawn.</p>
+        </div>
+
+        <div>
+          <label for="field-usage" class={LABEL}>Total redemptions allowed</label>
+          <input
+            id="field-usage"
+            name="usage_limit"
+            data-json="number-or-null"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            value={form.usageLimit}
+            placeholder="No limit"
+            class:list={[CONTROL, 'tabular-nums']}
+          />
+          <p class={HINT}>Blank means unlimited. Counted across every customer.</p>
+        </div>
+
+        <div>
+          <label for="field-per-user" class={LABEL}>Redemptions per customer</label>
+          <input
+            id="field-per-user"
+            name="per_user_limit"
+            data-json="number"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            inputmode="numeric"
+            required
+            value={form.perUserLimit}
+            class:list={[CONTROL, 'tabular-nums']}
+          />
+          <p class={HINT}>0 means no per-customer limit. Matched on the account, or on the email for a guest.</p>
+        </div>
+
+        <div>
+          <label for="field-status" class={LABEL}>Status</label>
+          <select id="field-status" name="status" class={CONTROL}>
+            <option value="active" selected={form.status === 'active'}>Active</option>
+            <option value="disabled" selected={form.status === 'disabled'}>Disabled</option>
+          </select>
+          <p class={HINT}>Disabled codes are refused at checkout but keep their history.</p>
+        </div>
+
+        <div class="sm:col-span-2 xl:col-span-3">
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="first_order_only"
+              data-json="boolean"
+              checked={form.firstOrderOnly}
+              class:list={[CHECKBOX, 'mt-0.5']}
+            />
+            <span>
+              First order only
+              <span class="block text-xs text-ink/55">
+                Checked against order history rather than redemptions, so a guest who registers later still cannot use it
+                twice.
+              </span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-3 border-t border-ink/10 px-3 py-2">
+        {editing && <a href="/admin/coupons" class={`text-xs ${LINK}`}>Cancel and start a new one</a>}
+        <button type="submit" class={SAVE}>{editing ? 'Save changes' : 'Create coupon'}</button>
+      </div>
+    </form>
+  </section>
+
+  <p class="mt-3 text-xs text-ink/55">
+    Redemption counts come from <code class="rounded bg-ink/5 px-1">coupon_redemptions</code>, written in the same batch
+    as the order. Nothing on this screen can edit them — a code that has been claimed twenty times says twenty until the
+    orders that claimed it say otherwise.
+  </p>
+
+  <script>
+    /*
+     * Show only the amount field that matches the chosen type.
+     *
+     * The others are DISABLED, not merely hidden. The console's shared
+     * serialiser skips disabled fields, and browsers skip disabled fields when
+     * enforcing `required` — hiding alone would both send a rupee amount along
+     * with a percentage coupon and block submission on a box nobody can see.
+     */
+    const couponForm = document.getElementById('coupon-fields');
+    const typeField = document.getElementById('coupon-type');
+
+    if (couponForm instanceof HTMLFormElement && typeField instanceof HTMLSelectElement) {
+      const groups = Array.from(couponForm.querySelectorAll<HTMLElement>('[data-for-type]'));
+
+      const sync = (): void => {
+        for (const group of groups) {
+          const applies = (group.dataset.forType ?? '').split(' ').includes(typeField.value);
+          group.classList.toggle('hidden', !applies);
+          for (const field of Array.from(group.querySelectorAll('input'))) {
+            field.disabled = !applies;
+          }
+        }
+      };
+
+      typeField.addEventListener('change', sync);
+      // The server already rendered the right state; running it once keeps it
+      // correct after a back-forward restore, where the select holds its old
+      // value but the markup is freshly rendered.
+      sync();
+    }
+  </script>
+</AdminLayout>
+</AdminLayout>

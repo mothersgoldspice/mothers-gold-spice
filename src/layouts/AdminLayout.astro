@@ -27,6 +27,7 @@
 
 import '../styles/global.css';
 import { requireCtx } from '../lib/api';
+import { errMessage, log } from '../lib/log';
 
 interface Props {
   title: string;
@@ -68,12 +69,48 @@ const providers: ProviderStatus[] = [
 ];
 const simulated = providers.filter((p) => !p.live);
 
-const NAV = [
+/**
+ * Reviews waiting on a person.
+ *
+ * Read in the shell rather than on the reviews page so the count is visible from
+ * every screen: a queue you only see once you have gone looking for it is a
+ * queue that never gets emptied, and an unread review is a customer who took the
+ * trouble to write and got nothing back.
+ *
+ * Guarded like the provider probes above. A count that fails must not take down
+ * the order screen somebody opened to answer a customer on the phone.
+ */
+let pendingReviews = 0;
+try {
+  pendingReviews =
+    (await ctx.db.scalar<number>("SELECT COUNT(*) FROM product_reviews WHERE status = 'pending'")) ?? 0;
+} catch (err) {
+  log.warn('admin.review_badge_unavailable', { error: errMessage(err) });
+}
+
+interface NavItem {
+  href: string;
+  label: string;
+  /** Rendered as a badge only when above zero — a nav full of grey noughts reads as broken. */
+  badge?: number;
+}
+
+const NAV: NavItem[] = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/shipments', label: 'Shipments' },
+  { href: '/admin/products', label: 'Products' },
   { href: '/admin/inventory', label: 'Inventory' },
+  // Next to Inventory rather than next to Emails: it is a stock screen that
+  // happens to send mail, and the question it answers — what should we cook
+  // next — is the one you have in your hand when you are looking at stock.
+  { href: '/admin/stock-alerts', label: 'Stock alerts' },
+  { href: '/admin/reviews', label: 'Reviews', badge: pendingReviews },
+  // With the selling tools rather than under Settings: a coupon is a campaign
+  // somebody runs for a fortnight, not a rail that gets set once and left.
+  { href: '/admin/coupons', label: 'Coupons' },
   { href: '/admin/customers', label: 'Customers' },
+  { href: '/admin/newsletter', label: 'Newsletter' },
   { href: '/admin/emails', label: 'Emails' },
   { href: '/admin/webhooks', label: 'Webhooks' },
   { href: '/admin/settings', label: 'Settings' },
@@ -90,8 +127,12 @@ const SKIP =
   'font-medium text-ink transition-all focus:top-3';
 
 const NAV_LINK =
-  'block rounded-md px-3 py-2 text-sm whitespace-nowrap transition focus-visible:outline-none ' +
-  'focus-visible:ring-2 focus-visible:ring-mango-300 focus-visible:ring-inset';
+  'flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap transition ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango-300 focus-visible:ring-inset';
+
+const NAV_BADGE =
+  'inline-flex min-w-5 items-center justify-center rounded-full bg-spice-500 px-1.5 py-0.5 text-[11px] ' +
+  'font-semibold text-cream tabular-nums';
 ---
 
 <!doctype html>
@@ -137,7 +178,13 @@ const NAV_LINK =
                         : 'text-cream/75 hover:bg-cream/10 hover:text-cream',
                     ]}
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span class={NAV_BADGE}>
+                        {item.badge}
+                        <span class="sr-only"> waiting</span>
+                      </span>
+                    )}
                   </a>
                 </li>
               ))
@@ -326,6 +373,20 @@ const NAV_LINK =
           } else if (kind === 'number') {
             if (element.value.trim() === '') continue;
             value = Number(element.value);
+          } else if (kind === 'bps') {
+            // A rate is typed as a PERCENTAGE and stored in basis points: 12 →
+            // 1200. Kept distinct from 'paise' even though the arithmetic is the
+            // same, because a GST rate labelled "paise" is how the next person
+            // to read this deletes the conversion.
+            if (element.value.trim() === '') continue;
+            value = Math.round(Number(element.value) * 100);
+          } else if (kind === 'paise-or-null' || kind === 'number-or-null') {
+            // Blank travels as an explicit null rather than being dropped.
+            // "No cap" and "no usage limit" are real edits to a nullable column,
+            // and in a partial PATCH an omitted key means "leave it alone" — the
+            // two are opposite instructions, so they cannot share a wire shape.
+            if (element.value.trim() === '') value = null;
+            else value = kind === 'paise-or-null' ? Math.round(Number(element.value) * 100) : Number(element.value);
           } else if (kind === 'optional') {
             // Left out entirely when blank. "No preference" has to be the
             // absence of the field, not an empty string a `min(1)` will reject.

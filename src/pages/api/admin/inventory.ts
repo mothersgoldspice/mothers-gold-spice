@@ -20,6 +20,7 @@ import { handle, ok, readJson } from '../../../lib/http';
 import { newId } from '../../../lib/ids';
 import { log } from '../../../lib/log';
 import { adjustStock, lowStockVariants } from '../../../lib/services/inventory';
+import { notifyBackInStock } from '../../../lib/services/stock-alerts';
 import { parseOrThrow } from '../../../lib/validate';
 
 export const prerender = false;
@@ -145,6 +146,14 @@ export const POST: APIRoute = async ({ locals, request }) =>
       const { delta, reason, note } = input;
       await adjustStock(ctx.db, variantId, delta, reason, user.id, note ?? undefined);
       audit = { action: 'adjust', variantId, sku: variant.sku, delta, reason, note: note ?? null };
+
+      // Putting jars back on the shelf is the moment the people who asked to be
+      // told should be told. Availability is re-checked inside, so a restock that
+      // is immediately bought out again promises nothing it cannot deliver.
+      if (delta > 0) {
+        const { notified } = await notifyBackInStock(ctx, [variantId]);
+        if (notified > 0) audit = { ...audit, backInStockNotified: notified };
+      }
     }
 
     await ctx.db.run(

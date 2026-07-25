@@ -1,0 +1,319 @@
+---
+/**
+ * Who has asked to hear from us.
+ *
+ * The number that matters is at the top and it is "subscribed", not "total" —
+ * a list of 400 rows of which 180 have left is a list of 220 people, and
+ * reporting the bigger number is how a shop talks itself into believing it has
+ * an audience it does not have.
+ *
+ * Reading works with JavaScript off: the filters are a plain GET form and the
+ * CSV button is an ordinary link. Only the unsubscribe action needs scripting,
+ * which is the same trade the rest of the console makes.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { readPaging, requireAdmin, requireCtx } from '../../lib/api';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const STATUSES = ['subscribed', 'unsubscribed'] as const;
+type Status = (typeof STATUSES)[number];
+
+const rawStatus = Astro.url.searchParams.get('status') ?? '';
+const status: Status | null = STATUSES.find((s) => s === rawStatus) ?? null;
+const search = (Astro.url.searchParams.get('search') ?? '').trim().slice(0, 120);
+
+const { limit, offset } = readPaging(Astro.url, 50, 200);
+const page = Math.max(Number.parseInt(Astro.url.searchParams.get('page') ?? '', 10) || 1, 1);
+
+const where: string[] = [];
+const params: (string | number)[] = [];
+if (status) {
+  where.push('status = ?');
+  params.push(status);
+}
+if (search) {
+  where.push('LOWER(email) LIKE ?');
+  params.push(`%${search.toLowerCase()}%`);
+}
+const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+interface SubscriberRow {
+  id: string;
+  email: string;
+  status: string;
+  source: string | null;
+  created_at: number;
+  unsubscribed_at: number | null;
+}
+
+const [total, counts, rows] = await Promise.all([
+  ctx.db.scalar<number>(`SELECT COUNT(*) FROM newsletter_subscribers ${clause}`, params),
+  // Counts are of the whole list rather than the filtered view: they answer
+  // "how many people can we write to", which must not move when someone types
+  // in the search box.
+  ctx.db.all<{ status: string; count: number }>(
+    'SELECT status, COUNT(*) AS count FROM newsletter_subscribers GROUP BY status',
+  ),
+  ctx.db.all<SubscriberRow>(
+    `SELECT id, email, status, source, created_at, unsubscribed_at
+       FROM newsletter_subscribers ${clause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?`,
+    [...params, limit, offset],
+  ),
+]);
+
+const matched = total ?? 0;
+const countFor = (value: string): number => counts.find((c) => c.status === value)?.count ?? 0;
+const subscribed = countFor('subscribed');
+const unsubscribed = countFor('unsubscribed');
+
+const from = matched === 0 ? 0 : offset + 1;
+const to = offset + rows.length;
+
+/** The active filters as a query string, with the page number optional. */
+function query(target = 1): URLSearchParams {
+  const next = new URLSearchParams();
+  if (status) next.set('status', status);
+  if (search) next.set('search', search);
+  if (target > 1) next.set('page', String(target));
+  return next;
+}
+
+const pageHref = (target: number): string => {
+  const q = query(target).toString();
+  return q ? `/admin/newsletter?${q}` : '/admin/newsletter';
+};
+
+// The export honours the filters on screen, so "everyone still subscribed" is
+// one click rather than a spreadsheet edit. Never the page number — an export
+// of page 3 of a mailing list is an export of nothing.
+const exportQuery = query();
+exportQuery.set('format', 'csv');
+const exportHref = `/api/admin/newsletter?${exportQuery.toString()}`;
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: '2-digit',
+        timeZone: 'Asia/Kolkata',
+      });
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CARD = 'rounded-md border border-ink/10 bg-white';
+const CONTROL =
+  'min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const PAGER =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/15 bg-white px-3 text-sm transition ' +
+  'hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+const TAG = 'rounded px-1.5 py-0.5 text-[11px] font-medium';
+---
+
+<AdminLayout
+  title="Newsletter"
+  subtitle={`${subscribed} subscribed · ${unsubscribed} unsubscribed${search ? ` · matching “${search}”` : ''}`}
+>
+  <a
+    slot="actions"
+    href={exportHref}
+    class="min-h-9 rounded-md border border-ink/20 bg-white px-3 py-2 text-sm font-medium transition hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+  >
+    Export CSV
+  </a>
+
+  <section aria-label="List size" class="grid gap-3 sm:grid-cols-3">
+    <a href="/admin/newsletter?status=subscribed" class:list={[CARD, 'block px-4 py-3 transition hover:border-ink/25']}>
+      <p class="text-[11px] font-semibold tracking-wide text-ink/55 uppercase">Subscribed</p>
+      <p class="mt-1 font-serif text-2xl font-semibold tabular-nums">{subscribed}</p>
+      <p class="mt-0.5 text-xs text-ink/60">People we may write to</p>
+    </a>
+
+    <a href="/admin/newsletter?status=unsubscribed" class:list={[CARD, 'block px-4 py-3 transition hover:border-ink/25']}>
+      <p class="text-[11px] font-semibold tracking-wide text-ink/55 uppercase">Unsubscribed</p>
+      <p class="mt-1 font-serif text-2xl font-semibold tabular-nums">{unsubscribed}</p>
+      <p class="mt-0.5 text-xs text-ink/60">Kept on record so they stay off the list</p>
+    </a>
+
+    <a href="/admin/newsletter" class:list={[CARD, 'block px-4 py-3 transition hover:border-ink/25']}>
+      <p class="text-[11px] font-semibold tracking-wide text-ink/55 uppercase">Ever signed up</p>
+      <p class="mt-1 font-serif text-2xl font-semibold tabular-nums">{subscribed + unsubscribed}</p>
+      <p class="mt-0.5 text-xs text-ink/60">Show everyone</p>
+    </a>
+  </section>
+
+  <form method="get" action="/admin/newsletter" class="mt-4 flex flex-wrap items-end gap-2">
+    <div>
+      <label for="filter-search" class="mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase">
+        Search
+      </label>
+      <input
+        id="filter-search"
+        name="search"
+        type="search"
+        value={search}
+        maxlength="120"
+        placeholder="Part of an email address"
+        class:list={[CONTROL, 'w-56']}
+      />
+    </div>
+
+    <div>
+      <label for="filter-status" class="mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase">
+        Status
+      </label>
+      <select id="filter-status" name="status" class={CONTROL}>
+        <option value="">Everyone</option>
+        {
+          STATUSES.map((value) => (
+            <option value={value} selected={status === value}>
+              {value}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2"
+    >
+      Apply
+    </button>
+
+    {
+      (search || status) && (
+        <a
+          href="/admin/newsletter"
+          class="min-h-9 px-1 py-2 text-sm text-ink/60 underline underline-offset-2 hover:text-spice-500"
+        >
+          Clear
+        </a>
+      )
+    }
+  </form>
+
+  <div class:list={[CARD, 'mt-4']}>
+    {
+      rows.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          {subscribed + unsubscribed === 0 ? (
+            <>Nobody has signed up yet. The form is in the footer of every shop page.</>
+          ) : (
+            <>
+              Nobody matches that.{' '}
+              <a href="/admin/newsletter" class="underline underline-offset-2">
+                Show everyone
+              </a>
+              .
+            </>
+          )}
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Email
+                </th>
+                <th scope="col" class={TH}>
+                  Status
+                </th>
+                <th scope="col" class={TH}>
+                  Came from
+                </th>
+                <th scope="col" class={TH}>
+                  Signed up
+                </th>
+                <th scope="col" class={TH}>
+                  Left
+                </th>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Action</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr class="border-b border-ink/8 last:border-0 hover:bg-mango-50">
+                  <td class={`${TD} max-w-64`}>
+                    <a href={`mailto:${row.email}`} class={`block truncate ${LINK}`}>
+                      {row.email}
+                    </a>
+                  </td>
+
+                  <td class={TD}>
+                    <span
+                      class:list={[
+                        TAG,
+                        row.status === 'subscribed'
+                          ? 'bg-emerald-100 text-emerald-900'
+                          : 'bg-ink/8 text-ink/70',
+                      ]}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+
+                  <td class={`${TD} text-xs text-ink/60`}>{row.source ?? '—'}</td>
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>{stamp(row.created_at)}</td>
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>
+                    {stamp(row.unsubscribed_at)}
+                  </td>
+
+                  <td class={`${TD} text-right`}>
+                    {row.status === 'subscribed' ? (
+                      <form
+                        data-api="/api/admin/newsletter"
+                        data-method="PATCH"
+                        data-confirm={`Take ${row.email} off the newsletter? They can sign up again from the footer whenever they like.`}
+                        data-success-message="Taken off the newsletter."
+                      >
+                        <input type="hidden" name="email" value={row.email} />
+                        <button
+                          type="submit"
+                          class="min-h-9 rounded-md border border-ink/20 bg-white px-2.5 text-sm font-medium whitespace-nowrap transition hover:border-ink/40 hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                        >
+                          Unsubscribe
+                        </button>
+                      </form>
+                    ) : (
+                      <span class="text-xs text-ink/45">Off the list</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <p class="border-t border-ink/8 px-3 py-2 text-xs leading-relaxed text-ink/55">
+      Unsubscribing here stops newsletter mail only. It does not touch a customer's back-in-stock reminders — those
+      are on <a href="/admin/stock-alerts" class={LINK}>Stock alerts</a> — and it is not the same as suppressing an
+      address, which stops receipts and delivery updates too and lives on <a href="/admin/emails" class={LINK}>Emails</a>.
+    </p>
+  </div>
+
+  <nav aria-label="Pagination" class="mt-3 flex items-center justify-between gap-3 text-sm">
+    <p class="text-ink/60 tabular-nums">{from}–{to} of {matched}</p>
+    <div class="flex gap-2">
+      {page > 1 && <a href={pageHref(page - 1)} class={PAGER} rel="prev">← Previous</a>}
+      {offset + rows.length < matched && <a href={pageHref(page + 1)} class={PAGER} rel="next">Next →</a>}
+    </div>
+  </nav>
+</AdminLayout>

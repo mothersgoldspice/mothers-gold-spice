@@ -1,0 +1,381 @@
+---
+/**
+ * The moderation queue.
+ *
+ * Pending sits at the top whatever the filter, because a queue ordered purely by
+ * date buries the only rows that need a person under months of decisions already
+ * made. The default view is everything, so approving something and immediately
+ * losing sight of it is not possible.
+ *
+ * Every row carries its receipt: which order the review came from and whether
+ * that order genuinely reached `delivered`. The API refuses a review without a
+ * delivered order, so a "not verified" tag here means the order was cancelled or
+ * returned AFTER the review was written — worth seeing before approving, and
+ * invisible if the column were left off.
+ *
+ * The full body is printed, never truncated. A moderator deciding from the first
+ * forty characters of a review is not moderating.
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { readPaging, requireAdmin, requireCtx } from '../../lib/api';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const STATUSES = ['pending', 'approved', 'rejected'] as const;
+type ReviewStatus = (typeof STATUSES)[number];
+
+const rawStatus = Astro.url.searchParams.get('status') ?? '';
+const status = STATUSES.find((s) => s === rawStatus) ?? null;
+
+const { limit, offset } = readPaging(Astro.url, 25, 100);
+const page = Math.max(Number.parseInt(Astro.url.searchParams.get('page') ?? '', 10) || 1, 1);
+
+const where: string[] = [];
+const params: (string | number)[] = [];
+if (status) {
+  where.push('r.status = ?');
+  params.push(status);
+}
+const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+interface QueueRow {
+  id: string;
+  product_id: string;
+  order_id: string | null;
+  user_id: string | null;
+  author_name: string;
+  rating: number;
+  title: string;
+  body: string;
+  status: ReviewStatus;
+  created_at: number;
+  updated_at: number;
+  product_name: string;
+  product_slug: string;
+  user_name: string | null;
+  user_email: string | null;
+  order_number: string | null;
+  order_status: string | null;
+  delivered_at: number | null;
+}
+
+const [total, rows, tallies] = await Promise.all([
+  ctx.db.scalar<number>(`SELECT COUNT(*) FROM product_reviews r ${clause}`, params),
+  // LEFT JOIN on users and orders: `user_id` is set to NULL when an account is
+  // deleted, and dropping those rows would strand a pending review where nobody
+  // can ever act on it.
+  ctx.db.all<QueueRow>(
+    `SELECT r.id, r.product_id, r.order_id, r.user_id, r.author_name, r.rating, r.title, r.body,
+            r.status, r.created_at, r.updated_at,
+            p.name AS product_name, p.slug AS product_slug,
+            u.name AS user_name, u.email AS user_email,
+            o.order_number, o.status AS order_status, o.delivered_at
+       FROM product_reviews r
+       JOIN products p ON p.id = r.product_id
+       LEFT JOIN users u ON u.id = r.user_id
+       LEFT JOIN orders o ON o.id = r.order_id
+       ${clause}
+      ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, r.created_at DESC
+      LIMIT ? OFFSET ?`,
+    [...params, limit, offset],
+  ),
+  // Unfiltered: these counts are how you decide which filter to switch to, so
+  // they must not move when the filter does.
+  ctx.db.all<{ status: ReviewStatus; n: number }>(
+    'SELECT status, COUNT(*) AS n FROM product_reviews GROUP BY status',
+  ),
+]);
+
+const counts: Record<ReviewStatus, number> = { pending: 0, approved: 0, rejected: 0 };
+for (const row of tallies) counts[row.status] = row.n;
+
+const found = total ?? 0;
+const from = found === 0 ? 0 : offset + 1;
+const to = offset + rows.length;
+
+const STATUS_LABEL: Record<ReviewStatus, string> = {
+  pending: 'Needs a decision',
+  approved: 'Approved — live on the shop',
+  rejected: 'Rejected — never shown',
+};
+
+function pageHref(target: number, forStatus: ReviewStatus | null = status): string {
+  const query = new URLSearchParams();
+  if (forStatus) query.set('status', forStatus);
+  if (target > 1) query.set('page', String(target));
+  const q = query.toString();
+  return q ? `/admin/reviews?${q}` : '/admin/reviews';
+}
+
+const stamp = (ms: number | null) =>
+  ms === null
+    ? '—'
+    : new Date(ms).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
+
+/** Filled and hollow stars, so a rating survives being read aloud or printed. */
+const stars = (rating: number) => '★★★★★'.slice(0, rating) + '☆☆☆☆☆'.slice(0, 5 - rating);
+
+/**
+ * Was the order behind this review still a delivered order when the page
+ * loaded? Computed in the frontmatter rather than inline because a comparison
+ * inside an Astro template expression is read by the parser as the start of a
+ * JSX tag.
+ */
+const isVerified = (row: QueueRow): boolean => row.order_status === 'delivered';
+
+const STATUS_TAG: Record<ReviewStatus, string> = {
+  pending: 'bg-amber-100 text-amber-900',
+  approved: 'bg-emerald-100 text-emerald-900',
+  rejected: 'bg-ink/10 text-ink/70',
+};
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-top';
+const CONTROL =
+  'min-h-9 rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const PAGER =
+  'inline-flex min-h-9 items-center rounded-md border border-ink/15 bg-white px-3 text-sm transition ' +
+  'hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LINK = 'underline decoration-ink/25 underline-offset-2 hover:text-spice-500 hover:decoration-spice-500';
+const TAG = 'rounded px-1.5 py-0.5 text-[11px] font-medium';
+const BTN_OK =
+  'min-h-9 rounded-md bg-emerald-700 px-3 text-sm font-medium whitespace-nowrap text-white transition ' +
+  'hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2';
+const BTN_NO =
+  'min-h-9 rounded-md border border-ink/20 bg-white px-3 text-sm font-medium whitespace-nowrap transition ' +
+  'hover:border-red-700/50 hover:bg-red-50 hover:text-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700';
+---
+
+<AdminLayout
+  title="Reviews"
+  subtitle={`${counts.pending} awaiting a decision · ${counts.approved} live on the shop · ${counts.rejected} rejected`}
+>
+  <form method="get" action="/admin/reviews" class="flex flex-wrap items-end gap-2">
+    <div>
+      <label for="filter-status" class="mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase">
+        Status
+      </label>
+      <select id="filter-status" name="status" class={CONTROL}>
+        <option value="">Everything ({counts.pending + counts.approved + counts.rejected})</option>
+        {
+          STATUSES.map((value) => (
+            <option value={value} selected={status === value}>
+              {STATUS_LABEL[value]} ({counts[value]})
+            </option>
+          ))
+        }
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="min-h-9 rounded-md bg-spice-500 px-3 text-sm font-medium text-cream transition hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-offset-2"
+    >
+      Apply
+    </button>
+
+    {
+      status && (
+        <a href="/admin/reviews" class="min-h-9 px-1 py-2 text-sm text-ink/60 underline underline-offset-2 hover:text-spice-500">
+          Clear
+        </a>
+      )
+    }
+
+    {
+      counts.pending > 0 && status !== 'pending' && (
+        <a href={pageHref(1, 'pending')} class="min-h-9 px-1 py-2 text-sm text-ink/60 underline underline-offset-2 hover:text-spice-500">
+          Show the {counts.pending} waiting
+        </a>
+      )
+    }
+  </form>
+
+  <div class="mt-4 rounded-md border border-ink/10 bg-white">
+    {
+      rows.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          {status ? (
+            <>
+              Nothing is {status}. <a href="/admin/reviews" class="underline underline-offset-2">Show everything</a>.
+            </>
+          ) : (
+            'Nobody has written a review yet. Only customers with a delivered order can, so the first one arrives after the first delivery.'
+          )}
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  Rating
+                </th>
+                <th scope="col" class={TH}>
+                  What they wrote
+                </th>
+                <th scope="col" class={TH}>
+                  Product
+                </th>
+                <th scope="col" class={TH}>
+                  Author
+                </th>
+                <th scope="col" class={TH}>
+                  Purchase
+                </th>
+                <th scope="col" class={TH}>
+                  Written
+                </th>
+                <th scope="col" class={TH}>
+                  Decision
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const verified = isVerified(row);
+                return (
+                  <tr class:list={['border-b border-ink/8 last:border-0', row.status === 'pending' && 'bg-amber-50/60']}>
+                    <td class={`${TD} whitespace-nowrap`}>
+                      <span class="text-mango-500" aria-hidden="true">
+                        {stars(row.rating)}
+                      </span>
+                      <span class="block text-[11px] text-ink/55">{row.rating} out of 5</span>
+                    </td>
+
+                    <td class={`${TD} max-w-96 min-w-64`}>
+                      {row.title ? (
+                        <p class="font-medium">{row.title}</p>
+                      ) : (
+                        <p class="text-xs text-ink/45">No headline</p>
+                      )}
+                      {row.body ? (
+                        <p class="mt-1 text-xs leading-relaxed whitespace-pre-line text-ink/75">{row.body}</p>
+                      ) : (
+                        <p class="mt-1 text-xs text-ink/45">Rating only — nothing written.</p>
+                      )}
+                    </td>
+
+                    <td class={`${TD} text-xs`}>
+                      <a href={`/shop/${row.product_slug}`} class={LINK}>
+                        {row.product_name}
+                      </a>
+                    </td>
+
+                    <td class={`${TD} max-w-56 text-xs`}>
+                      <span class="block truncate font-medium">{row.author_name}</span>
+                      {row.user_email ? (
+                        <a href={`/admin/customers?search=${encodeURIComponent(row.user_email)}`} class={`block truncate ${LINK}`}>
+                          {row.user_email}
+                        </a>
+                      ) : (
+                        <span class="block text-ink/45">Account since deleted</span>
+                      )}
+                      {row.user_name && row.user_name !== row.author_name && (
+                        <span class="block truncate text-ink/45">Account name: {row.user_name}</span>
+                      )}
+                    </td>
+
+                    <td class={`${TD} text-xs whitespace-nowrap`}>
+                      {row.order_id && row.order_number ? (
+                        <a href={`/admin/orders/${row.order_id}`} class={`block ${LINK}`}>
+                          {row.order_number}
+                        </a>
+                      ) : (
+                        <span class="block text-ink/45">No order on file</span>
+                      )}
+                      {verified ? (
+                        <span class:list={[TAG, 'mt-1 inline-block bg-emerald-100 text-emerald-900']}>
+                          delivered {stamp(row.delivered_at)}
+                        </span>
+                      ) : (
+                        // Only reachable if the order changed after the review was
+                        // accepted — a return or a cancellation. Worth seeing.
+                        <span class:list={[TAG, 'mt-1 inline-block bg-red-100 text-red-900']}>
+                          {row.order_status ?? 'unverified'} — check before approving
+                        </span>
+                      )}
+                    </td>
+
+                    <td class={`${TD} text-xs whitespace-nowrap text-ink/70 tabular-nums`}>
+                      {stamp(row.created_at)}
+                      <span class:list={[TAG, 'mt-1 block w-fit', STATUS_TAG[row.status]]}>{row.status}</span>
+                      {row.updated_at !== row.created_at && (
+                        <span class="mt-1 block text-[11px] text-ink/45">decided {stamp(row.updated_at)}</span>
+                      )}
+                    </td>
+
+                    <td class={TD}>
+                      <div class="flex flex-wrap gap-1">
+                        {row.status !== 'approved' && (
+                          <form
+                            data-api="/api/admin/reviews"
+                            data-method="PATCH"
+                            data-success-message={`Approved — ${row.author_name}'s review is now on the shop.`}
+                          >
+                            <input type="hidden" name="id" value={row.id} />
+                            <input type="hidden" name="status" value="approved" />
+                            <button type="submit" class={BTN_OK}>
+                              Approve
+                            </button>
+                          </form>
+                        )}
+
+                        {row.status !== 'rejected' && (
+                          <form
+                            data-api="/api/admin/reviews"
+                            data-method="PATCH"
+                            data-confirm={
+                              row.status === 'approved'
+                                ? 'This review is live on the shop. Reject it and it comes down. Continue?'
+                                : 'Reject this review? It will never be shown.'
+                            }
+                            data-success-message="Rejected. It will not be shown."
+                          >
+                            <input type="hidden" name="id" value={row.id} />
+                            <input type="hidden" name="status" value="rejected" />
+                            <button type="submit" class={BTN_NO}>
+                              Reject
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <p class="border-t border-ink/8 px-3 py-2 text-xs text-ink/55">
+      Only customers with a delivered order containing that product can write here, so every row is a real buyer. Approve
+      puts it on the product page under their name; reject keeps it off the shop for good. Both are reversible.
+    </p>
+  </div>
+
+  <nav aria-label="Pagination" class="mt-3 flex items-center justify-between gap-3 text-sm">
+    <p class="text-ink/60 tabular-nums">{from}–{to} of {found}</p>
+    <div class="flex gap-2">
+      {page > 1 && <a href={pageHref(page - 1)} class={PAGER} rel="prev">← Previous</a>}
+      {offset + rows.length < found && <a href={pageHref(page + 1)} class={PAGER} rel="next">Next →</a>}
+    </div>
+  </nav>
+</AdminLayout>

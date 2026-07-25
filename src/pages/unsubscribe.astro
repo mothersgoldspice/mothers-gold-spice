@@ -1,0 +1,192 @@
+---
+/**
+ * The way out.
+ *
+ * Every marketing email we send carries a link to this page, so it has to work
+ * for somebody with no account, no session and no interest in creating either.
+ * That is the whole reason it is public.
+ *
+ * It confirms before it acts, and the confirmation is a POST. A bare GET must
+ * never unsubscribe anyone, because a link in an email is not only clicked by
+ * people: Gmail, Outlook and every corporate scanner in the country fetch the
+ * URLs in a message to check them, and a GET that acts would quietly remove
+ * customers who never touched the link. This is the same reason the whole web
+ * agreed that GET is safe.
+ *
+ * What it stops is stated in full rather than implied. Somebody who arrives from
+ * a back-in-stock email is asking us to stop writing to them, so the pending
+ * stock alerts go as well — leaving those in place would mean the unsubscribe
+ * link in that exact email did nothing, which is the rudeness this page exists
+ * to prevent.
+ */
+
+import Alert from '../components/shop/Alert.astro';
+import Button from '../components/shop/Button.astro';
+import Field from '../components/shop/Field.astro';
+import ShopLayout from '../components/shop/ShopLayout.astro';
+import { rateKey, requireCtx } from '../lib/api';
+import { isAppError, publicMessage } from '../lib/errors';
+import { newId } from '../lib/ids';
+import { errMessage, log, maskEmail } from '../lib/log';
+import { RATE_LIMITS, enforceRateLimit } from '../lib/rate-limit';
+import { getCart } from '../lib/services/cart';
+import { emailSchema } from '../lib/validate';
+
+export const prerender = false;
+
+const ctx = requireCtx(Astro.locals);
+
+/** The address the email link carried, if it carried a usable one. */
+const fromLink = emailSchema.safeParse(Astro.url.searchParams.get('e') ?? '');
+const suggested = fromLink.success ? fromLink.data : '';
+
+let done = false;
+let error = '';
+/** Echoed back into the field so a typo does not have to be retyped in full. */
+let typed = suggested;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  typed = String(form.get('email') ?? '').trim();
+  const parsed = emailSchema.safeParse(typed);
+
+  if (!parsed.success) {
+    Astro.response.status = 422;
+    error = parsed.error.issues[0]?.message ?? 'Enter a valid email address.';
+  } else {
+    const email = parsed.data;
+    try {
+      // An unsubscribe is one press per person in a lifetime. A ceiling this low
+      // never troubles a real customer and it does stop somebody working through
+      // a list of addresses they guessed.
+      await enforceRateLimit(ctx.db, rateKey(ctx, 'unsubscribe'), RATE_LIMITS.contact);
+
+      const now = Date.now();
+
+      // Recorded even when they were never on the newsletter. The row IS the
+      // record that this address asked not to be written to, and without it a
+      // later import or a well-meaning export puts them straight back on.
+      await ctx.db.run(
+        `INSERT INTO newsletter_subscribers (id, email, status, source, created_at, unsubscribed_at)
+         VALUES (?, ?, 'unsubscribed', 'unsubscribe_page', ?, ?)
+         ON CONFLICT (email) DO UPDATE SET
+           status = 'unsubscribed',
+           unsubscribed_at = COALESCE(newsletter_subscribers.unsubscribed_at, excluded.unsubscribed_at)`,
+        [newId('sub'), email, now, now],
+      );
+
+      // Deleted rather than marked: `stock_alerts` records a request, and the
+      // request has been withdrawn. An alert already sent has `notified_at` set
+      // and is left alone — that is history, not a pending mail.
+      const cancelledAlerts = await ctx.db.run('DELETE FROM stock_alerts WHERE email = ? AND notified_at IS NULL', [
+        email,
+      ]);
+
+      await ctx.db.run(
+        `INSERT INTO audit_log (id, actor_type, actor_id, action, entity_type, entity_id, data_json, ip, created_at)
+         VALUES (?, 'customer', NULL, 'newsletter.unsubscribe', 'newsletter_subscriber', ?, ?, ?, ?)`,
+        [newId('aud'), email, JSON.stringify({ cancelledAlerts, source: 'unsubscribe_page' }), ctx.clientIp, now],
+      );
+
+      log.info('newsletter.unsubscribed', { email: maskEmail(email), cancelledAlerts });
+      done = true;
+    } catch (err) {
+      if (!isAppError(err) || err.status >= 500) {
+        log.error('unsubscribe.page_error', { error: errMessage(err) });
+      }
+      Astro.response.status = isAppError(err) ? err.status : 500;
+      error = publicMessage(err);
+    }
+  }
+}
+
+const cart = await getCart(ctx.db, ctx.cartId, await ctx.settings(), { userId: ctx.user?.id ?? null });
+---
+
+<ShopLayout
+  title="Unsubscribe"
+  description="Stop receiving batch notes and back-in-stock reminders from Mother's Gold Spice."
+  user={ctx.user}
+  cartCount={cart.itemCount}
+>
+  {
+    done ? (
+      <>
+        <h1 class="font-serif text-3xl text-ink sm:text-4xl">Done — you are off the list</h1>
+
+        <Alert kind="success" class="mt-6">
+          We will not send batch notes or back-in-stock reminders to that address again.
+        </Alert>
+
+        <div class="mt-6 space-y-3 text-sm leading-relaxed text-ink/70">
+          <p>
+            Two things this does not stop, because they are not marketing and you would want them: the receipt and
+            the delivery updates for an order you have already placed. If an order is on its way, those still
+            arrive.
+          </p>
+          <p>
+            Changed your mind later? The sign-up form is in the footer of every page — nothing here stops you
+            joining again.
+          </p>
+        </div>
+
+        <p class="mt-8">
+          <Button href="/shop" variant="secondary">Back to the shop</Button>
+        </p>
+      </>
+    ) : (
+      <>
+        <h1 class="font-serif text-3xl text-ink sm:text-4xl">Unsubscribe</h1>
+        <p class="mt-3 max-w-lg text-sm leading-relaxed text-ink/70">
+          Confirm the address below and we will stop writing. We ask rather than acting on the link itself because
+          mail apps open links on their own to check them, and that must not take anybody off the list by accident.
+        </p>
+
+        {error && (
+          <Alert kind="error" class="mt-6">
+            {error}
+          </Alert>
+        )}
+
+        {!suggested && !error && (
+          <Alert kind="info" class="mt-6">
+            That link did not carry an email address we could read. Type the address you want removed and we will
+            take it off.
+          </Alert>
+        )}
+
+        <form method="post" class="mt-6 max-w-md rounded-3xl border border-mango-100 bg-white/70 p-5">
+          <input type="hidden" name="_csrf" value={Astro.locals.csrfToken} />
+
+          <Field
+            label="Email address"
+            name="email"
+            type="email"
+            value={typed}
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+            hint="This stops batch notes and back-in-stock reminders. Order receipts and delivery updates are not affected."
+          />
+
+          <p class="mt-5">
+            <Button type="submit" size="lg" class="w-full">
+              Unsubscribe this address
+            </Button>
+          </p>
+        </form>
+
+        <p class="mt-6 max-w-lg text-sm leading-relaxed text-ink/65">
+          Something else on your mind? Write to
+          <a
+            href="mailto:mothersgoldspice@gmail.com"
+            class="font-medium text-spice-500 underline underline-offset-4 hover:text-spice-700"
+          >
+            mothersgoldspice@gmail.com
+          </a>
+          and a person will read it.
+        </p>
+      </>
+    )
+  }
+</ShopLayout>

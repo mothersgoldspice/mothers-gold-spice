@@ -226,3 +226,218 @@ export async function getSellableVariant(db: Db, variantId: string): Promise<Sel
   if (!found) throw notFound('That item is no longer available.');
   return found;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin catalogue
+//
+// The storefront views above hide archived rows and blur stock on purpose. The
+// console needs the opposite — every status, exact counts — so it gets its own
+// views rather than a flag threaded through the ones customers see.
+//
+// They are built on `toVariantView` rather than beside it, which is the point:
+// "does this render as sold out on /shop" has to be answered by the same code
+// that decides it on /shop, or the console will reassure an operator about a
+// product the shop is quietly refusing to sell.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AdminVariantView extends VariantView {
+  status: VariantRow['status'];
+  sortOrder: number;
+  /** Exact shelf counts. `tracked` is false when no inventory row exists at all. */
+  onHand: number;
+  reserved: number;
+  reorderLevel: number;
+  tracked: boolean;
+  /** Rows in order_items pointing here. Only ever grows — see the archive rule. */
+  orderLineCount: number;
+  /** Active AND buyable right now. This is what the shop keys "sold out" off. */
+  sellable: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AdminProductView {
+  id: string;
+  slug: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  category: string;
+  status: ProductRow['status'];
+  heroImage: string | null;
+  images: string[];
+  ingredients: string;
+  allergens: string;
+  shelfLifeMonths: number | null;
+  storageNote: string;
+  isVeg: boolean;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+  /** Every variant, archived ones included, in the order the editor shows them. */
+  variants: AdminVariantView[];
+  activeVariantCount: number;
+  /** Cheapest and dearest ACTIVE variant — an archived price is not on sale. */
+  minPricePaise: number | null;
+  maxPricePaise: number | null;
+  /** on_hand summed over active variants; archived jars are not sellable stock. */
+  totalOnHand: number;
+  orderLineCount: number;
+  /**
+   * Live on /shop with nothing buyable on it — a card that is permanently sold
+   * out. Almost always a mistake (variants archived, or stock never counted in),
+   * and invisible from the shop side because the page renders perfectly.
+   */
+  showsAsSoldOut: boolean;
+}
+
+/** One row of `GROUP BY product_id, variant_id` over order_items. */
+interface OrderLineCountRow {
+  product_id: string;
+  variant_id: string;
+  n: number;
+}
+
+function toAdminVariantView(v: VariantRow, inv: InventoryRow | undefined, orderLineCount: number): AdminVariantView {
+  const base = toVariantView(v, inv);
+  const tracked = inv ? inv.track === 1 : false;
+  return {
+    ...base,
+    status: v.status,
+    sortOrder: v.sort_order,
+    onHand: inv?.on_hand ?? 0,
+    reserved: inv?.reserved ?? 0,
+    reorderLevel: inv?.reorder_level ?? 0,
+    tracked,
+    orderLineCount,
+    // `inStock` already accounts for untracked variants reading as infinite.
+    sellable: v.status === 'active' && base.inStock,
+    createdAt: v.created_at,
+    updatedAt: v.updated_at,
+  };
+}
+
+function toAdminProductView(
+  p: ProductRow,
+  variants: VariantRow[],
+  invByVariant: Map<string, InventoryRow>,
+  countsByVariant: Map<string, number>,
+  orderLineCount: number,
+): AdminProductView {
+  const views = variants.map((v) => toAdminVariantView(v, invByVariant.get(v.id), countsByVariant.get(v.id) ?? 0));
+  const active = views.filter((v) => v.status === 'active');
+  const prices = active.map((v) => v.pricePaise);
+
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    subtitle: p.subtitle,
+    description: p.description,
+    category: p.category,
+    status: p.status,
+    heroImage: p.hero_image,
+    images: parseJson<string[]>(p.images_json, []),
+    ingredients: p.ingredients,
+    allergens: p.allergens,
+    shelfLifeMonths: p.shelf_life_months,
+    storageNote: p.storage_note,
+    isVeg: p.is_veg === 1,
+    sortOrder: p.sort_order,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
+    variants: views,
+    activeVariantCount: active.length,
+    minPricePaise: prices.length > 0 ? Math.min(...prices) : null,
+    maxPricePaise: prices.length > 0 ? Math.max(...prices) : null,
+    totalOnHand: active.reduce((sum, v) => sum + v.onHand, 0),
+    orderLineCount,
+    showsAsSoldOut: p.status === 'active' && !views.some((v) => v.sellable),
+  };
+}
+
+/**
+ * The whole catalogue for the console: every product, every status, with stock
+ * and how many order lines already reference each row.
+ *
+ * Four reads regardless of catalogue size. The order counts come from one
+ * `GROUP BY` over order_items rather than a correlated subquery per product —
+ * order_items carries an index on order_id only, so a per-product COUNT would
+ * rescan the entire table once per row in the list.
+ */
+export async function listAdminCatalogue(db: Db): Promise<AdminProductView[]> {
+  const [products, variants, inventory, counts] = await Promise.all([
+    db.all<ProductRow>('SELECT * FROM products ORDER BY sort_order, name COLLATE NOCASE'),
+    db.all<VariantRow>('SELECT * FROM product_variants ORDER BY sort_order, price_paise'),
+    db.all<InventoryRow>('SELECT * FROM inventory'),
+    db.all<OrderLineCountRow>(
+      'SELECT product_id, variant_id, COUNT(*) AS n FROM order_items GROUP BY product_id, variant_id',
+    ),
+  ]);
+  if (products.length === 0) return [];
+
+  const invByVariant = new Map(inventory.map((i) => [i.variant_id, i]));
+  const countsByVariant = new Map(counts.map((c) => [c.variant_id, c.n]));
+
+  const countsByProduct = new Map<string, number>();
+  for (const c of counts) countsByProduct.set(c.product_id, (countsByProduct.get(c.product_id) ?? 0) + c.n);
+
+  const variantsByProduct = new Map<string, VariantRow[]>();
+  for (const v of variants) {
+    const list = variantsByProduct.get(v.product_id) ?? [];
+    list.push(v);
+    variantsByProduct.set(v.product_id, list);
+  }
+
+  return products.map((p) =>
+    toAdminProductView(
+      p,
+      variantsByProduct.get(p.id) ?? [],
+      invByVariant,
+      countsByVariant,
+      countsByProduct.get(p.id) ?? 0,
+    ),
+  );
+}
+
+/** One product for the editor, in the same shape as the list. */
+export async function getAdminProduct(db: Db, productId: string): Promise<AdminProductView | null> {
+  const product = await db.first<ProductRow>('SELECT * FROM products WHERE id = ?', [productId]);
+  if (!product) return null;
+
+  const [variants, inventory, counts] = await Promise.all([
+    db.all<VariantRow>('SELECT * FROM product_variants WHERE product_id = ? ORDER BY sort_order, price_paise', [
+      productId,
+    ]),
+    db.all<InventoryRow>(
+      'SELECT i.* FROM inventory i JOIN product_variants v ON v.id = i.variant_id WHERE v.product_id = ?',
+      [productId],
+    ),
+    db.all<OrderLineCountRow>(
+      'SELECT product_id, variant_id, COUNT(*) AS n FROM order_items WHERE product_id = ? GROUP BY product_id, variant_id',
+      [productId],
+    ),
+  ]);
+
+  return toAdminProductView(
+    product,
+    variants,
+    new Map(inventory.map((i) => [i.variant_id, i])),
+    new Map(counts.map((c) => [c.variant_id, c.n])),
+    counts.reduce((sum, c) => sum + c.n, 0),
+  );
+}
+
+/**
+ * Categories already in use, for the editor's suggestion list.
+ *
+ * Read from the data rather than kept as a constant on purpose: the brand grows
+ * into chutneys, cookies and whatever comes next, and a hard-coded enum would
+ * mean a deploy every time somebody names a new shelf.
+ */
+export async function listCategories(db: Db): Promise<string[]> {
+  const rows = await db.all<{ category: string }>(
+    'SELECT DISTINCT category FROM products ORDER BY category COLLATE NOCASE',
+  );
+  return rows.map((r) => r.category);
+}

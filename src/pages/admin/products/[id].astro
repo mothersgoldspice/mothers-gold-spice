@@ -1,0 +1,986 @@
+---
+/**
+ * The product editor.
+ *
+ * Two forms of very different temperament share this screen. The product form at
+ * the top is copy — names, notes, photographs — where a mistake is embarrassing
+ * and fixable. The variants table below is money: price, GST rate and HSN code,
+ * where a mistake is charged to a real customer and then reported to a real tax
+ * authority. So the two are visually and structurally separate, and the variants
+ * table states its units in every heading.
+ *
+ * Prices are typed in RUPEES and sent as integer paise — the conversion is the
+ * `data-json="paise"` attribute, handled once in AdminLayout's submit handler.
+ * The GST rate is typed as a PERCENTAGE and sent as basis points the same way
+ * (`data-json="bps"`, 12 → 1200), and the API refuses anything that is not a
+ * real GST slab, so a form that loses its conversion fails loudly rather than
+ * pricing every jar at 0.12% tax.
+ *
+ * Each variant row is one form. The inputs sit in their own cells and are bound
+ * to it by the HTML `form` attribute, because a <form> cannot span table cells —
+ * which is also what keeps the table a table on a phone.
+ */
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import StatusBadge from '../../../components/shop/StatusBadge.astro';
+import { requireAdmin, requireCtx } from '../../../lib/api';
+import { paiseToRupees } from '../../../lib/money';
+import { getAdminProduct, listCategories, type AdminVariantView } from '../../../lib/services/catalog';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const productId = Astro.params.id ?? '';
+const [product, categories] = await Promise.all([getAdminProduct(ctx.db, productId), listCategories(ctx.db)]);
+
+if (!product) {
+  Astro.response.status = 404;
+}
+
+/**
+ * The GST slabs the API will accept, as percentages, with what each one is for.
+ * A closed select rather than a free number field: the slabs are a fixed set,
+ * and a typed "1.2" is a wrong price on every jar with nothing on the site to
+ * show it.
+ */
+const GST_OPTIONS = [
+  { percent: 0, label: '0% — exempt' },
+  { percent: 5, label: '5%' },
+  { percent: 12, label: '12% — pickles, chutneys' },
+  { percent: 18, label: '18% — biscuits, bakery' },
+  { percent: 28, label: '28%' },
+];
+
+/** The HSN codes this kitchen actually ships, offered as suggestions. */
+const HSN_SUGGESTIONS = [
+  { code: '20019000', note: 'Pickles in vinegar or acetic acid — 12%' },
+  { code: '21039040', note: 'Chutneys and sauces — 12%' },
+  { code: '19053100', note: 'Sweet biscuits and cookies — 18%' },
+  { code: '09109100', note: 'Mixed spices and masalas — 5%' },
+];
+
+// Comparisons live in the frontmatter: a `<` or `>` inside an Astro template
+// expression is parsed as the start of a JSX tag and the build fails elsewhere
+// with a message about Fragment shorthand.
+const isArchived = (v: AdminVariantView): boolean => v.status === 'archived';
+const wasOrdered = (v: AdminVariantView): boolean => v.orderLineCount > 0;
+const isOutOfStock = (v: AdminVariantView): boolean => v.status === 'active' && !v.sellable;
+
+const activeVariants = product?.variants.filter((v) => !isArchived(v)) ?? [];
+const soldOut = product?.showsAsSoldOut ?? false;
+
+/** Rupees for a text input. 29900 → "299.00", so the field never shows 299.0000001. */
+const rupeeValue = (p: number): string => paiseToRupees(p).toFixed(2);
+
+const stamp = (ms: number) =>
+  new Date(ms).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+
+const archiveProductPrompt = product
+  ? product.orderLineCount > 0
+    ? `Archive "${product.name}"? It comes off the shop immediately. It stays on the ${product.orderLineCount} order ${product.orderLineCount === 1 ? 'line' : 'lines'} that already reference it, and on every invoice. You can bring it back later.`
+    : `Archive "${product.name}"? It comes off the shop immediately. It has never been ordered. You can bring it back later.`
+  : '';
+
+const TH = 'px-2 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-2 py-2 align-top';
+const CONTROL =
+  'min-h-9 w-full rounded-md border border-ink/15 bg-white px-2 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const BTN =
+  'inline-flex min-h-9 items-center justify-center rounded-md bg-spice-500 px-3 text-sm font-medium whitespace-nowrap ' +
+  'text-cream transition hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 ' +
+  'focus-visible:ring-spice-500 focus-visible:ring-offset-2';
+const BTN_QUIET =
+  'inline-flex min-h-9 items-center justify-center rounded-md border border-ink/20 bg-white px-2.5 text-sm ' +
+  'font-medium whitespace-nowrap no-underline transition hover:border-ink/40 hover:bg-ink/5 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const BTN_DANGER =
+  'inline-flex min-h-9 items-center justify-center rounded-md border border-red-700/30 bg-white px-2.5 text-sm ' +
+  'font-medium whitespace-nowrap text-red-800 transition hover:border-red-700/60 hover:bg-red-50 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600';
+const LABEL = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase';
+const HINT = 'mt-1 text-[11px] leading-relaxed text-ink/55';
+const CARD = 'rounded-md border border-ink/10 bg-white';
+const CARD_HEAD = 'border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold';
+---
+
+<AdminLayout
+  title={product ? product.name : 'Product not found'}
+  subtitle={product
+    ? `/${product.slug} · ${product.category} · ${product.activeVariantCount} active ${product.activeVariantCount === 1 ? 'variant' : 'variants'} · updated ${stamp(product.updatedAt)}`
+    : 'No product with that id.'}
+>
+  <a slot="actions" href="/admin/products" class={BTN_QUIET}>Back to products</a>
+  {
+    product && (
+      <a slot="actions" href={`/shop/${product.slug}`} class={BTN_QUIET}>
+        View on shop
+      </a>
+    )
+  }
+
+  {
+    !product ? (
+      <div class={CARD}>
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          No product with that id.{' '}
+          <a href="/admin/products" class="underline decoration-ink/25 underline-offset-2 hover:text-spice-500">
+            Back to the catalogue
+          </a>
+          .
+        </p>
+      </div>
+    ) : (
+      <div class="space-y-4">
+        {soldOut && (
+          <div class="rounded-md border border-amber-600/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p class="font-semibold">This product is live on the shop with nothing buyable on it.</p>
+            <p class="mt-0.5 text-amber-900">
+              It renders as a permanently sold-out card. Either every variant is archived, or none has stock — add
+              jars on <a href="/admin/inventory" class="font-medium underline">Inventory</a>, or set the product back
+              to draft until it is ready.
+            </p>
+          </div>
+        )}
+
+        {/* ── Product ───────────────────────────────────────────────────── */}
+        <section class={CARD} aria-labelledby="product-heading">
+          <h2 id="product-heading" class={CARD_HEAD}>
+            Product details
+          </h2>
+
+          <form
+            class="grid gap-3 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3"
+            data-api="/api/admin/products"
+            data-method="PATCH"
+            data-success-message="Product saved."
+          >
+            <input type="hidden" name="product_id" value={product.id} />
+
+            <div>
+              <label for="p-name" class={LABEL}>
+                Name
+              </label>
+              <input
+                id="p-name"
+                name="name"
+                type="text"
+                value={product.name}
+                required
+                minlength="2"
+                maxlength="120"
+                class={CONTROL}
+              />
+            </div>
+
+            <div>
+              <label for="p-slug" class={LABEL}>
+                Slug
+              </label>
+              <input
+                id="p-slug"
+                name="slug"
+                type="text"
+                value={product.slug}
+                required
+                maxlength="80"
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                aria-describedby="p-slug-hint"
+                class={CONTROL}
+              />
+              <p id="p-slug-hint" class={HINT}>
+                The shop URL is /shop/{product.slug}. Changing it breaks every existing link, QR code and printed
+                label pointing at the old one.
+              </p>
+            </div>
+
+            <div>
+              <label for="p-category" class={LABEL}>
+                Category
+              </label>
+              <input
+                id="p-category"
+                name="category"
+                type="text"
+                value={product.category}
+                list="known-categories"
+                required
+                maxlength="40"
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                class={CONTROL}
+              />
+              <datalist id="known-categories">
+                {categories.map((value) => (
+                  <option value={value} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label for="p-status" class={LABEL}>
+                Status
+              </label>
+              <select id="p-status" name="status" aria-describedby="p-status-hint" class={CONTROL}>
+                <option value="draft" selected={product.status === 'draft'}>
+                  Draft — not on the shop
+                </option>
+                <option value="active" selected={product.status === 'active'}>
+                  Active — on the shop
+                </option>
+                <option value="archived" selected={product.status === 'archived'}>
+                  Archived — retired
+                </option>
+              </select>
+              <p id="p-status-hint" class={HINT}>
+                Currently <StatusBadge status={product.status} kind="catalog" />
+              </p>
+            </div>
+
+            <div>
+              <label for="p-subtitle" class={LABEL}>
+                Subtitle
+              </label>
+              <input
+                id="p-subtitle"
+                name="subtitle"
+                type="text"
+                value={product.subtitle}
+                maxlength="160"
+                placeholder="Hand-made in Bangalore · Small Batch"
+                class={CONTROL}
+              />
+            </div>
+
+            <div>
+              <label for="p-sort" class={LABEL}>
+                Sort order
+              </label>
+              <input
+                id="p-sort"
+                name="sort_order"
+                type="number"
+                value={product.sortOrder}
+                min="0"
+                max="100000"
+                step="1"
+                inputmode="numeric"
+                data-json="number"
+                aria-describedby="p-sort-hint"
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+              <p id="p-sort-hint" class={HINT}>Lower sorts first on the shop.</p>
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label for="p-description" class={LABEL}>
+                Description
+              </label>
+              <textarea
+                id="p-description"
+                name="description"
+                rows="4"
+                maxlength="4000"
+                class:list={[CONTROL, 'resize-y leading-relaxed']}
+              >{product.description}</textarea>
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label for="p-ingredients" class={LABEL}>
+                Ingredients
+              </label>
+              <textarea
+                id="p-ingredients"
+                name="ingredients"
+                rows="3"
+                maxlength="2000"
+                aria-describedby="p-ingredients-hint"
+                class:list={[CONTROL, 'resize-y leading-relaxed']}
+              >{product.ingredients}</textarea>
+              <p id="p-ingredients-hint" class={HINT}>
+                Must match the printed label exactly. The label and the product page disagreeing is an FSSAI problem,
+                not a copy problem.
+              </p>
+            </div>
+
+            <div>
+              <label for="p-allergens" class={LABEL}>
+                Allergens
+              </label>
+              <input
+                id="p-allergens"
+                name="allergens"
+                type="text"
+                value={product.allergens}
+                maxlength="500"
+                placeholder="Contains Mustard."
+                class={CONTROL}
+              />
+            </div>
+
+            <div>
+              <label for="p-shelf" class={LABEL}>
+                Shelf life (months)
+              </label>
+              <input
+                id="p-shelf"
+                name="shelf_life_months"
+                type="number"
+                value={product.shelfLifeMonths ?? ''}
+                min="1"
+                max="120"
+                step="1"
+                inputmode="numeric"
+                data-json="number-or-null"
+                aria-describedby="p-shelf-hint"
+                class:list={[CONTROL, 'tabular-nums']}
+              />
+              <p id="p-shelf-hint" class={HINT}>Blank clears it.</p>
+            </div>
+
+            <div class="flex items-start gap-2 pt-5">
+              <input
+                id="p-veg"
+                name="is_veg"
+                type="checkbox"
+                checked={product.isVeg}
+                data-json="boolean"
+                class="mt-0.5 size-4 rounded border-ink/30 text-spice-500 focus:ring-2 focus:ring-spice-500/30"
+              />
+              <label for="p-veg" class="text-sm">
+                Vegetarian
+                <span class="block text-[11px] text-ink/55">Drives the green mark on the label and the shop.</span>
+              </label>
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label for="p-storage" class={LABEL}>
+                Storage note
+              </label>
+              <textarea
+                id="p-storage"
+                name="storage_note"
+                rows="2"
+                maxlength="1000"
+                class:list={[CONTROL, 'resize-y leading-relaxed']}
+              >{product.storageNote}</textarea>
+            </div>
+
+            <div>
+              <label for="p-hero" class={LABEL}>
+                Hero image
+              </label>
+              <input
+                id="p-hero"
+                name="hero_image"
+                type="text"
+                value={product.heroImage ?? ''}
+                maxlength="300"
+                placeholder="/mango-jar.webp"
+                aria-describedby="p-hero-hint"
+                class={CONTROL}
+              />
+              <p id="p-hero-hint" class={HINT}>A site path or a full https:// URL. Blank removes it.</p>
+            </div>
+
+            <div class="sm:col-span-2">
+              <label for="p-images" class={LABEL}>
+                Extra images
+              </label>
+              <textarea
+                id="p-images"
+                name="images"
+                rows="3"
+                aria-describedby="p-images-hint"
+                class:list={[CONTROL, 'resize-y font-mono text-xs']}
+              >{product.images.join('\n')}</textarea>
+              <p id="p-images-hint" class={HINT}>One path per line, up to twelve.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-3">
+              <button type="submit" class={BTN}>
+                Save product
+              </button>
+              {product.heroImage && (
+                <img
+                  src={product.heroImage}
+                  alt=""
+                  width="36"
+                  height="36"
+                  loading="lazy"
+                  decoding="async"
+                  class="size-9 rounded object-cover ring-1 ring-ink/10"
+                />
+              )}
+              <span class="text-xs text-ink/55">
+                Created {stamp(product.createdAt)}
+                {product.orderLineCount > 0
+                  ? ` · on ${product.orderLineCount} order ${product.orderLineCount === 1 ? 'line' : 'lines'}`
+                  : ' · never ordered'}
+              </span>
+            </div>
+          </form>
+        </section>
+
+        {/* ── Variants ──────────────────────────────────────────────────── */}
+        <section class={CARD} aria-labelledby="variants-heading">
+          <h2 id="variants-heading" class={CARD_HEAD}>
+            Variants and pricing
+          </h2>
+
+          <p class="border-b border-ink/8 px-3 py-2 text-xs text-ink/60">
+            Prices are typed in <strong>rupees</strong> and stored as paise. GST is typed as a{' '}
+            <strong>percentage</strong> and stored in basis points — 12% is 1200. Changing a price here never touches
+            an order that already exists: orders copy the price, tax rate and HSN code onto their own lines when they
+            are placed.
+          </p>
+
+          {product.variants.length === 0 ? (
+            <p class="px-3 py-8 text-center text-sm text-ink/55">
+              No variants yet. Add the first one below — until then this product cannot be bought.
+            </p>
+          ) : (
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-ink/10 bg-cream/60">
+                  <tr>
+                    <th scope="col" class={TH}>
+                      Variant
+                    </th>
+                    <th scope="col" class={TH}>
+                      SKU
+                    </th>
+                    <th scope="col" class={TH}>
+                      Net g
+                    </th>
+                    <th scope="col" class={TH}>
+                      Ship g
+                    </th>
+                    <th scope="col" class={TH}>
+                      Price ₹
+                    </th>
+                    <th scope="col" class={TH}>
+                      Compare at ₹
+                    </th>
+                    <th scope="col" class={TH}>
+                      HSN
+                    </th>
+                    <th scope="col" class={TH}>
+                      GST %
+                    </th>
+                    <th scope="col" class={TH}>
+                      Status
+                    </th>
+                    <th scope="col" class={TH}>
+                      Sort
+                    </th>
+                    <th scope="col" class={TH}>
+                      Stock
+                    </th>
+                    <th scope="col" class={TH}>
+                      <span class="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {product.variants.map((v) => {
+                    const formId = `variant-${v.id}`;
+                    const archived = isArchived(v);
+                    const ordered = wasOrdered(v);
+                    const outOfStock = isOutOfStock(v);
+                    return (
+                      <tr class:list={['border-b border-ink/8 last:border-0', archived && 'bg-ink/[0.03]']}>
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-name-${v.id}`}>
+                            Name for {v.sku}
+                          </label>
+                          <input
+                            id={`v-name-${v.id}`}
+                            form={formId}
+                            name="name"
+                            type="text"
+                            value={v.name}
+                            required
+                            maxlength="60"
+                            class:list={[CONTROL, 'w-24']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-sku-${v.id}`}>
+                            SKU for {v.name}
+                          </label>
+                          <input
+                            id={`v-sku-${v.id}`}
+                            form={formId}
+                            name="sku"
+                            type="text"
+                            value={v.sku}
+                            required
+                            maxlength="40"
+                            class:list={[CONTROL, 'w-32 font-mono text-xs uppercase']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-net-${v.id}`}>
+                            Net weight in grams for {v.sku}
+                          </label>
+                          <input
+                            id={`v-net-${v.id}`}
+                            form={formId}
+                            name="weight_grams"
+                            type="number"
+                            value={v.weightGrams}
+                            required
+                            min="1"
+                            max="50000"
+                            step="1"
+                            inputmode="numeric"
+                            data-json="number"
+                            class:list={[CONTROL, 'w-20 text-right tabular-nums']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-ship-${v.id}`}>
+                            Packed shipping weight in grams for {v.sku}
+                          </label>
+                          <input
+                            id={`v-ship-${v.id}`}
+                            form={formId}
+                            name="shipping_weight_grams"
+                            type="number"
+                            value={v.shippingWeightGrams}
+                            required
+                            min="1"
+                            max="50000"
+                            step="1"
+                            inputmode="numeric"
+                            data-json="number"
+                            class:list={[CONTROL, 'w-20 text-right tabular-nums']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-price-${v.id}`}>
+                            Selling price in rupees for {v.sku}
+                          </label>
+                          <input
+                            id={`v-price-${v.id}`}
+                            form={formId}
+                            name="price_paise"
+                            type="number"
+                            value={rupeeValue(v.pricePaise)}
+                            required
+                            min="0"
+                            max="100000"
+                            step="0.01"
+                            inputmode="decimal"
+                            data-json="paise"
+                            class:list={[CONTROL, 'w-24 text-right font-semibold tabular-nums']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-compare-${v.id}`}>
+                            Compare-at price in rupees for {v.sku}
+                          </label>
+                          <input
+                            id={`v-compare-${v.id}`}
+                            form={formId}
+                            name="compare_at_price_paise"
+                            type="number"
+                            value={v.compareAtPricePaise === null ? '' : rupeeValue(v.compareAtPricePaise)}
+                            min="0"
+                            max="100000"
+                            step="0.01"
+                            inputmode="decimal"
+                            placeholder="—"
+                            data-json="paise-or-null"
+                            class:list={[CONTROL, 'w-24 text-right tabular-nums']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-hsn-${v.id}`}>
+                            HSN code for {v.sku}
+                          </label>
+                          <input
+                            id={`v-hsn-${v.id}`}
+                            form={formId}
+                            name="hsn_code"
+                            type="text"
+                            value={v.hsnCode}
+                            required
+                            list="known-hsn"
+                            maxlength="8"
+                            pattern="[0-9]{4}([0-9]{2}([0-9]{2})?)?"
+                            inputmode="numeric"
+                            class:list={[CONTROL, 'w-28 font-mono text-xs']}
+                          />
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-gst-${v.id}`}>
+                            GST rate per cent for {v.sku}
+                          </label>
+                          <select
+                            id={`v-gst-${v.id}`}
+                            form={formId}
+                            name="gst_rate_bps"
+                            data-json="bps"
+                            class:list={[CONTROL, 'w-20']}
+                          >
+                            {GST_OPTIONS.map((option) => (
+                              <option value={option.percent} selected={v.gstRateBps === option.percent * 100}>
+                                {option.percent}%
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-status-${v.id}`}>
+                            Status for {v.sku}
+                          </label>
+                          <select id={`v-status-${v.id}`} form={formId} name="status" class:list={[CONTROL, 'w-24']}>
+                            <option value="active" selected={v.status === 'active'}>
+                              Active
+                            </option>
+                            <option value="archived" selected={v.status === 'archived'}>
+                              Archived
+                            </option>
+                          </select>
+                        </td>
+
+                        <td class={TD}>
+                          <label class="sr-only" for={`v-sort-${v.id}`}>
+                            Sort position for {v.sku}
+                          </label>
+                          <input
+                            id={`v-sort-${v.id}`}
+                            form={formId}
+                            name="sort_order"
+                            type="number"
+                            value={v.sortOrder}
+                            min="0"
+                            max="100000"
+                            step="1"
+                            inputmode="numeric"
+                            data-json="number"
+                            class:list={[CONTROL, 'w-16 text-right tabular-nums']}
+                          />
+                        </td>
+
+                        <td class={`${TD} text-xs whitespace-nowrap`}>
+                          <span class="block tabular-nums">
+                            {v.tracked ? `${v.onHand} on hand` : 'not tracked'}
+                          </span>
+                          {v.tracked && v.reserved > 0 && (
+                            <span class="block text-[11px] text-ink/50 tabular-nums">{v.reserved} reserved</span>
+                          )}
+                          {outOfStock && <span class="block text-[11px] font-medium text-amber-900">sold out</span>}
+                          {ordered && (
+                            <span class="block text-[11px] text-ink/45">
+                              {v.orderLineCount} order {v.orderLineCount === 1 ? 'line' : 'lines'}
+                            </span>
+                          )}
+                        </td>
+
+                        <td class={TD}>
+                          {/*
+                            The row's form lives in this cell and owns the inputs
+                            in the cells to its left through their `form`
+                            attribute — a <form> element cannot span table cells,
+                            and splitting the row into separate forms per cell
+                            would mean saving a price without its GST rate.
+                          */}
+                          <div class="flex flex-col gap-1">
+                            <form
+                              id={formId}
+                              data-api="/api/admin/products"
+                              data-method="PATCH"
+                              data-success-message={`${v.sku} saved.`}
+                            >
+                              <input type="hidden" name="variant_id" value={v.id} />
+                              <button type="submit" class:list={[BTN, 'w-full']}>
+                                Save
+                              </button>
+                            </form>
+
+                            {!archived && (
+                              <form
+                                data-api="/api/admin/products"
+                                data-method="DELETE"
+                                data-success-message={`${v.sku} archived.`}
+                                data-confirm={
+                                  ordered
+                                    ? `Archive ${v.sku}? It comes off the shop immediately but stays on the ${v.orderLineCount} order ${v.orderLineCount === 1 ? 'line' : 'lines'} that already reference it.`
+                                    : `Archive ${v.sku}? It comes off the shop immediately. It has never been ordered.`
+                                }
+                              >
+                                <input type="hidden" name="variant_id" value={v.id} />
+                                <button type="submit" class:list={[BTN_DANGER, 'w-full']}>
+                                  Archive
+                                </button>
+                              </form>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <datalist id="known-hsn">
+            {HSN_SUGGESTIONS.map((entry) => (
+              <option value={entry.code}>{entry.note}</option>
+            ))}
+          </datalist>
+
+          <p class="border-t border-ink/8 px-3 py-2 text-xs text-ink/55">
+            HSN and GST travel together: 20019000 is 12%, 19053100 is 18%. The code goes on the invoice, so a pickle
+            filed as a biscuit is a tax problem rather than a display one.
+          </p>
+        </section>
+
+        {/* ── Add a variant ─────────────────────────────────────────────── */}
+        <section class={CARD} aria-labelledby="add-variant-heading">
+          <h2 id="add-variant-heading" class={CARD_HEAD}>
+            Add a variant
+          </h2>
+
+          <form
+            class="grid gap-3 px-3 py-3 sm:grid-cols-3 lg:grid-cols-6"
+            data-api="/api/admin/products"
+            data-method="POST"
+            data-success-message="Variant added, tracked and at zero stock. Count jars in on Inventory."
+          >
+            <input type="hidden" name="product_id" value={product.id} />
+
+            <div>
+              <label for="nv-name" class={LABEL}>
+                Name
+              </label>
+              <input
+                id="nv-name"
+                name="name"
+                type="text"
+                required
+                maxlength="60"
+                placeholder="250 g"
+                class={CONTROL}
+              />
+            </div>
+
+            <div>
+              <label for="nv-sku" class={LABEL}>
+                SKU
+              </label>
+              <input
+                id="nv-sku"
+                name="sku"
+                type="text"
+                required
+                maxlength="40"
+                placeholder="MGS-MMP-250"
+                class:list={[CONTROL, 'font-mono text-xs uppercase']}
+              />
+            </div>
+
+            <div>
+              <label for="nv-net" class={LABEL}>
+                Net weight (g)
+              </label>
+              <input
+                id="nv-net"
+                name="weight_grams"
+                type="number"
+                required
+                min="1"
+                max="50000"
+                step="1"
+                inputmode="numeric"
+                placeholder="250"
+                data-json="number"
+                class:list={[CONTROL, 'text-right tabular-nums']}
+              />
+            </div>
+
+            <div>
+              <label for="nv-ship" class={LABEL}>
+                Packed weight (g)
+              </label>
+              <input
+                id="nv-ship"
+                name="shipping_weight_grams"
+                type="number"
+                required
+                min="1"
+                max="50000"
+                step="1"
+                inputmode="numeric"
+                placeholder="500"
+                data-json="number"
+                aria-describedby="nv-ship-hint"
+                class:list={[CONTROL, 'text-right tabular-nums']}
+              />
+              <p id="nv-ship-hint" class={HINT}>Jar plus box. Couriers bill on 500 g slabs.</p>
+            </div>
+
+            <div>
+              <label for="nv-price" class={LABEL}>
+                Price (₹)
+              </label>
+              <input
+                id="nv-price"
+                name="price_paise"
+                type="number"
+                required
+                min="0"
+                max="100000"
+                step="0.01"
+                inputmode="decimal"
+                placeholder="299.00"
+                data-json="paise"
+                class:list={[CONTROL, 'text-right font-semibold tabular-nums']}
+              />
+            </div>
+
+            <div>
+              <label for="nv-compare" class={LABEL}>
+                Compare at (₹)
+              </label>
+              <input
+                id="nv-compare"
+                name="compare_at_price_paise"
+                type="number"
+                min="0"
+                max="100000"
+                step="0.01"
+                inputmode="decimal"
+                placeholder="optional"
+                data-json="paise-or-null"
+                class:list={[CONTROL, 'text-right tabular-nums']}
+              />
+            </div>
+
+            <div>
+              <label for="nv-hsn" class={LABEL}>
+                HSN code
+              </label>
+              <input
+                id="nv-hsn"
+                name="hsn_code"
+                type="text"
+                value="20019000"
+                required
+                list="known-hsn"
+                maxlength="8"
+                pattern="[0-9]{4}([0-9]{2}([0-9]{2})?)?"
+                inputmode="numeric"
+                class:list={[CONTROL, 'font-mono text-xs']}
+              />
+            </div>
+
+            <div>
+              <label for="nv-gst" class={LABEL}>
+                GST rate
+              </label>
+              <select id="nv-gst" name="gst_rate_bps" data-json="bps" class={CONTROL}>
+                {GST_OPTIONS.map((option) => (
+                  <option value={option.percent} selected={option.percent === 12}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label for="nv-sort" class={LABEL}>
+                Sort order
+              </label>
+              <input
+                id="nv-sort"
+                name="sort_order"
+                type="number"
+                value={(activeVariants.length + 1) * 10}
+                min="0"
+                max="100000"
+                step="1"
+                inputmode="numeric"
+                data-json="number"
+                class:list={[CONTROL, 'text-right tabular-nums']}
+              />
+            </div>
+
+            <div class="flex items-end">
+              <button type="submit" class:list={[BTN, 'w-full']}>
+                Add variant
+              </button>
+            </div>
+
+            <p class="text-xs text-ink/55 sm:col-span-3 lg:col-span-6">
+              A new variant starts stock-tracked at zero jars, so it is out of stock until somebody counts stock in on
+              <a href="/admin/inventory" class="underline decoration-ink/25 underline-offset-2 hover:text-spice-500">
+                {' '}
+                Inventory
+              </a>
+              . That is deliberate — an untracked variant would be sellable before a single jar existed.
+            </p>
+          </form>
+        </section>
+
+        {/* ── Archive ───────────────────────────────────────────────────── */}
+        <section class={CARD} aria-labelledby="archive-heading">
+          <h2 id="archive-heading" class={CARD_HEAD}>
+            Archive
+          </h2>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 px-3 py-3">
+            <p class="max-w-2xl text-xs leading-relaxed text-ink/65">
+              Archiving takes the product off the shop and out of the stock screen. It is never deleted: the
+              {product.orderLineCount > 0
+                ? ` ${product.orderLineCount} order ${product.orderLineCount === 1 ? 'line' : 'lines'} already referencing it`
+                : ' order lines that may one day reference it'}{' '}
+              must keep resolving, so that an invoice regenerated in two years still renders. Set the status back to
+              draft or active to bring it back.
+            </p>
+
+            {product.status === 'archived' ? (
+              <span class="text-xs font-medium text-ink/55">Already archived.</span>
+            ) : (
+              <form
+                data-api="/api/admin/products"
+                data-method="DELETE"
+                data-success-message="Product archived."
+                data-success-redirect="/admin/products"
+                data-confirm={archiveProductPrompt}
+              >
+                <input type="hidden" name="product_id" value={product.id} />
+                <button type="submit" class={BTN_DANGER}>
+                  Archive this product
+                </button>
+              </form>
+            )}
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AdminLayout>

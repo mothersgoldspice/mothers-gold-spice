@@ -10,7 +10,7 @@
  * to spot a status we forgot to map.
  */
 
-type Kind = 'order' | 'payment' | 'shipment' | 'email';
+type Kind = 'order' | 'payment' | 'shipment' | 'email' | 'catalog';
 type Tone = 'amber' | 'green' | 'red' | 'blue' | 'grey';
 
 interface Props {
@@ -87,6 +87,14 @@ const BY_KIND: Record<Kind, Record<string, Entry>> = {
   email: {
     failed: { label: 'Send failed', tone: 'red' },
     cancelled: { label: 'Send cancelled', tone: 'grey' },
+  },
+  // Products and variants. Kept off the shared map because 'active' and
+  // 'archived' are also user and coupon states, and a customer badge reading
+  // "On the shop" next to somebody's account would be nonsense.
+  catalog: {
+    draft: { label: 'Draft', tone: 'grey' },
+    active: { label: 'On the shop', tone: 'green' },
+    archived: { label: 'Archived', tone: 'amber' },
   },
 };
 

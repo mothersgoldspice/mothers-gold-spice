@@ -71,6 +71,18 @@ const FOOTER_LINK =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango-300 focus-visible:ring-offset-2 ' +
   'focus-visible:ring-offset-ink';
 
+// Sits on the dark footer, so the field is a light wash on ink rather than the
+// white card used everywhere else. min-h-11 on both halves: this is the last
+// thing on a phone screen and it still has to be thumbable.
+const SIGNUP_INPUT =
+  'min-h-11 w-full flex-1 rounded-full border border-cream/25 bg-cream/10 px-4 text-sm text-cream ' +
+  'placeholder:text-cream/45 focus:border-mango-300 focus:outline-none focus:ring-2 focus:ring-mango-300/40';
+
+const SIGNUP_BUTTON =
+  'min-h-11 shrink-0 rounded-full bg-mango-300 px-5 text-sm font-medium text-ink transition hover:bg-mango-100 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mango-300 focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-ink disabled:cursor-not-allowed disabled:opacity-60';
+
 const NAV = [
   { href: '/shop', label: 'Shop' },
   { href: '/track', label: 'Track order' },
@@ -222,6 +234,65 @@ const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`)
           </div>
         </div>
 
+        {/*
+          A fourth block under the three columns rather than a fourth column.
+          At 390px the grid is already stacked so it costs nothing there, and at
+          `sm` and above a fourth column would squeeze the three that carry the
+          navigation down to about 90px each — the email address in "Get in
+          touch" wraps mid-word at that width.
+        */}
+        <section class="mt-10 border-t border-cream/10 pt-8" aria-labelledby="newsletter-heading">
+          <p id="newsletter-heading" class="text-xs tracking-widest uppercase text-mango-300">Batch notes</p>
+          <p class="mt-1 max-w-md text-sm leading-relaxed text-cream/75">
+            One email when a new batch or a new product lands. That is the whole list — we do not run offers, and
+            your address goes nowhere else.
+          </p>
+
+          <form id="newsletter-form" class="mt-4 flex w-full max-w-md flex-col gap-2 sm:flex-row">
+            <label for="newsletter-email" class="sr-only">Email address</label>
+            <input
+              id="newsletter-email"
+              name="email"
+              type="email"
+              required
+              autocomplete="email"
+              maxlength="254"
+              placeholder="you@example.com"
+              class={SIGNUP_INPUT}
+            />
+            <button type="submit" class={SIGNUP_BUTTON}>Tell me</button>
+          </form>
+
+          {/*
+            In the DOM from the start, empty, so the live region is already being
+            watched when the first message lands. A region inserted at the same
+            moment as its text is frequently never announced. min-h-5 keeps the
+            footer from jumping when it fills.
+          */}
+          <p id="newsletter-message" role="status" aria-live="polite" class="mt-2 min-h-5 max-w-md text-sm"></p>
+
+          {/*
+            No JavaScript, no form. There is no honest fallback: a plain GET post
+            would put the address in the query string and in every access log,
+            and a plain POST fails the CSRF check because the token only reaches
+            the page as a meta tag. `is:inline` is load-bearing — without it
+            Astro hoists this rule into the head and hides the form for everyone.
+          */}
+          <noscript>
+            <style is:inline>
+              #newsletter-form,
+              #newsletter-message {
+                display: none;
+              }
+            </style>
+            <p class="mt-4 max-w-md text-sm leading-relaxed text-cream/75">
+              This sign-up needs JavaScript. Write to
+              <a href="mailto:mothersgoldspice@gmail.com" class="font-medium underline">mothersgoldspice@gmail.com</a>
+              instead and we will add you to the list.
+            </p>
+          </noscript>
+        </section>
+
         <div
           class="mt-10 flex flex-col justify-between gap-2 border-t border-cream/10 pt-6 text-xs text-cream/60 sm:flex-row"
         >
@@ -230,5 +301,87 @@ const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`)
         </div>
       </div>
     </footer>
+
+    <script>
+      /*
+       * Footer newsletter sign-up.
+       *
+       * Posted with fetch rather than as a form navigation so somebody halfway
+       * down a product page is not thrown back to the top of it. The API answers
+       * identically whether the address is new, already on the list, or coming
+       * back after an unsubscribe — so this script must not claim to know which
+       * of the three happened.
+       */
+
+      const signupForm = document.getElementById('newsletter-form');
+      const signupInput = document.getElementById('newsletter-email');
+      const signupMessage = document.getElementById('newsletter-message');
+
+      if (
+        signupForm instanceof HTMLFormElement &&
+        signupInput instanceof HTMLInputElement &&
+        signupMessage instanceof HTMLElement
+      ) {
+        const signupButton = signupForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+
+        const say = (text: string, tone: 'ok' | 'bad'): void => {
+          signupMessage.className = `mt-2 min-h-5 max-w-md text-sm font-medium ${
+            tone === 'ok' ? 'text-mango-300' : 'text-red-300'
+          }`;
+          signupMessage.textContent = text;
+        };
+
+        signupForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+
+          const email = signupInput.value.trim();
+          if (!email) {
+            signupInput.focus();
+            say('Enter your email address and we will write to you.', 'bad');
+            return;
+          }
+
+          const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+          const originalLabel = signupButton?.textContent ?? '';
+          if (signupButton) {
+            signupButton.disabled = true;
+            signupButton.textContent = 'Sending…';
+          }
+
+          void (async () => {
+            try {
+              const response = await fetch('/api/newsletter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-csrf-token': token },
+                body: JSON.stringify({ email, source: 'footer' }),
+              });
+              const payload = (await response.json().catch(() => null)) as
+                | { ok: true }
+                | { ok: false; error: { message: string } }
+                | null;
+
+              if (response.ok && payload?.ok) {
+                signupInput.value = '';
+                say('Thank you. We will write when the next batch is ready.', 'ok');
+              } else {
+                say(
+                  payload && !payload.ok
+                    ? payload.error.message
+                    : 'We could not save that just now. Please try again.',
+                  'bad',
+                );
+              }
+            } catch {
+              say('Could not reach us just now. Check the connection and try again.', 'bad');
+            }
+
+            if (signupButton) {
+              signupButton.disabled = false;
+              signupButton.textContent = originalLabel;
+            }
+          })();
+        });
+      }
+    </script>
   </body>
 </html>

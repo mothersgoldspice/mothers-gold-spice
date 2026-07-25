@@ -1,0 +1,340 @@
+---
+/**
+ * The catalogue.
+ *
+ * This screen exists so that changing a price is a form field rather than a
+ * hand-written UPDATE. Everything on it is therefore about being able to answer,
+ * at a glance, "is this product actually sellable" — status, how many variants
+ * are live, what it costs, and how many jars are behind it.
+ *
+ * The one row highlighted in amber is the failure this page is really for: a
+ * product that is `active` with nothing buyable on it. That renders on /shop as
+ * a permanently sold-out card, looks completely normal from the customer's side,
+ * and is invisible from every other screen in the console.
+ *
+ * Filtering is a plain GET form, so the whole list works with scripting off and
+ * every view is a URL somebody can bookmark. Creating is a real POST to
+ * /api/admin/products, which is where the slug rules and the audit trail live.
+ */
+
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import StatusBadge from '../../../components/shop/StatusBadge.astro';
+import { requireAdmin, requireCtx } from '../../../lib/api';
+import type { ProductStatus } from '../../../lib/db/types';
+import { formatPaise } from '../../../lib/money';
+import { listAdminCatalogue, listCategories, type AdminProductView } from '../../../lib/services/catalog';
+
+export const prerender = false;
+
+if (!requireCtx(Astro.locals).isAdmin) {
+  return Astro.redirect(`/account/login?next=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
+const { ctx } = requireAdmin(Astro.locals);
+
+const [all, categories] = await Promise.all([listAdminCatalogue(ctx.db), listCategories(ctx.db)]);
+
+// Checked against the known set rather than passed through: a bogus status would
+// otherwise match nothing and show an empty catalogue as if there were no
+// products at all.
+const STATUSES: ProductStatus[] = ['draft', 'active', 'archived'];
+const rawStatus = Astro.url.searchParams.get('status') ?? '';
+const status = STATUSES.find((s) => s === rawStatus) ?? null;
+
+const products = status ? all.filter((p) => p.status === status) : all;
+
+const soldOutCount = all.filter((p) => p.showsAsSoldOut).length;
+const activeCount = all.filter((p) => p.status === 'active').length;
+
+/**
+ * Price range over active variants.
+ *
+ * Built in the frontmatter rather than inline because a comparison inside an
+ * Astro template expression is read by the parser as the start of a JSX tag, and
+ * the build then fails somewhere else entirely complaining about Fragment
+ * shorthand. Every comparison in this file lives up here for that reason.
+ */
+function priceRange(p: AdminProductView): string {
+  if (p.minPricePaise === null || p.maxPricePaise === null) return '—';
+  if (p.minPricePaise === p.maxPricePaise) return formatPaise(p.minPricePaise);
+  return `${formatPaise(p.minPricePaise)} – ${formatPaise(p.maxPricePaise)}`;
+}
+
+const variantSummary = (p: AdminProductView): string => {
+  const archived = p.variants.length - p.activeVariantCount;
+  if (p.variants.length === 0) return 'none';
+  return archived === 0 ? `${p.activeVariantCount}` : `${p.activeVariantCount} + ${archived} archived`;
+};
+
+const statusHref = (value: ProductStatus | null): string =>
+  value ? `/admin/products?status=${value}` : '/admin/products';
+
+const TH = 'px-3 py-2 text-left text-[11px] font-semibold tracking-wide text-ink/55 uppercase whitespace-nowrap';
+const TD = 'px-3 py-2 align-middle';
+const CONTROL =
+  'min-h-9 w-full rounded-md border border-ink/15 bg-white px-2.5 py-1.5 text-sm text-ink transition ' +
+  'focus:border-spice-500 focus:ring-2 focus:ring-spice-500/20 focus:outline-none';
+const BTN =
+  'inline-flex min-h-9 items-center justify-center rounded-md bg-spice-500 px-3 text-sm font-medium whitespace-nowrap ' +
+  'text-cream transition hover:bg-spice-700 focus-visible:outline-none focus-visible:ring-2 ' +
+  'focus-visible:ring-spice-500 focus-visible:ring-offset-2';
+const BTN_QUIET =
+  'inline-flex min-h-9 items-center justify-center rounded-md border border-ink/20 bg-white px-2.5 text-sm ' +
+  'font-medium whitespace-nowrap no-underline transition hover:border-ink/40 hover:bg-ink/5 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const FILTER_LINK =
+  'inline-flex min-h-9 items-center rounded-md border px-3 text-sm no-underline transition ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500';
+const LABEL = 'mb-1 block text-[11px] font-semibold tracking-wide text-ink/55 uppercase';
+---
+
+<AdminLayout
+  title="Products"
+  subtitle={`${all.length} in the catalogue · ${activeCount} active · ${soldOutCount} showing as sold out`}
+>
+  {
+    soldOutCount > 0 && (
+      <div class="mb-4 rounded-md border border-amber-600/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <p class="font-semibold">
+          {soldOutCount === 1 ? 'One active product has' : `${soldOutCount} active products have`} nothing buyable on
+          them.
+        </p>
+        <p class="mt-0.5 text-amber-900">
+          They are live on the shop as permanently sold-out cards. Either every variant is archived, or the stock has
+          never been counted in on <a href="/admin/inventory" class="font-medium underline">Inventory</a>. The rows are
+          marked below.
+        </p>
+      </div>
+    )
+  }
+
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <nav aria-label="Filter by status" class="flex flex-wrap gap-1.5">
+      <a
+        href={statusHref(null)}
+        aria-current={status === null ? 'page' : undefined}
+        class:list={[
+          FILTER_LINK,
+          status === null ? 'border-ink bg-ink text-cream' : 'border-ink/15 bg-white hover:border-ink/35',
+        ]}
+      >
+        All <span class="ml-1.5 text-xs opacity-60">{all.length}</span>
+      </a>
+      {
+        STATUSES.map((value) => {
+          const count = all.filter((p) => p.status === value).length;
+          const current = status === value;
+          return (
+            <a
+              href={statusHref(value)}
+              aria-current={current ? 'page' : undefined}
+              class:list={[
+                FILTER_LINK,
+                current ? 'border-ink bg-ink text-cream' : 'border-ink/15 bg-white hover:border-ink/35',
+              ]}
+            >
+              <span class="capitalize">{value}</span>
+              <span class="ml-1.5 text-xs opacity-60">{count}</span>
+            </a>
+          );
+        })
+      }
+    </nav>
+  </div>
+
+  <details class="mb-4 rounded-md border border-ink/10 bg-white">
+    <summary
+      class="cursor-pointer list-none px-3 py-2.5 text-sm font-medium marker:content-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 focus-visible:ring-inset"
+    >
+      <span class="inline-flex items-center gap-2">
+        <span
+          class="inline-flex size-5 items-center justify-center rounded-full bg-spice-500 text-cream"
+          aria-hidden="true">+</span
+        >
+        New product
+      </span>
+    </summary>
+
+    <form
+      class="grid gap-3 border-t border-ink/10 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4"
+      data-api="/api/admin/products"
+      data-method="POST"
+      data-success-message="Product created as a draft. Open it to add variants and pricing."
+    >
+      <div>
+        <label for="new-name" class={LABEL}>Name</label>
+        <input
+          id="new-name"
+          name="name"
+          type="text"
+          required
+          minlength="2"
+          maxlength="120"
+          placeholder="Lemon Pickle"
+          class={CONTROL}
+        />
+      </div>
+
+      <div>
+        <label for="new-slug" class={LABEL}>Slug</label>
+        <input
+          id="new-slug"
+          name="slug"
+          type="text"
+          maxlength="80"
+          pattern="[a-z0-9]+(-[a-z0-9]+)*"
+          placeholder="lemon-pickle"
+          data-json="optional"
+          aria-describedby="new-slug-hint"
+          class={CONTROL}
+        />
+        <p id="new-slug-hint" class="mt-1 text-[11px] text-ink/55">Leave blank to build it from the name.</p>
+      </div>
+
+      <div>
+        <label for="new-category" class={LABEL}>Category</label>
+        <input
+          id="new-category"
+          name="category"
+          type="text"
+          list="known-categories"
+          maxlength="40"
+          pattern="[a-z0-9]+(-[a-z0-9]+)*"
+          placeholder="pickle"
+          data-json="optional"
+          class={CONTROL}
+        />
+        <datalist id="known-categories">
+          {categories.map((value) => <option value={value} />)}
+        </datalist>
+      </div>
+
+      <div class="flex items-end">
+        <button type="submit" class:list={[BTN, 'w-full']}>Create draft</button>
+      </div>
+
+      <p class="text-xs text-ink/55 sm:col-span-2 lg:col-span-4">
+        Created as a draft — invisible to the shop until it has variants, a price and a photograph.
+      </p>
+    </form>
+  </details>
+
+  <section class="rounded-md border border-ink/10 bg-white" aria-labelledby="catalogue-heading">
+    <h2 id="catalogue-heading" class="border-b border-ink/10 px-3 py-2 font-serif text-sm font-semibold">
+      {status ? `${status[0].toUpperCase()}${status.slice(1)} products` : 'Every product'}
+    </h2>
+
+    {
+      products.length === 0 ? (
+        <p class="px-3 py-10 text-center text-sm text-ink/55">
+          {all.length === 0
+            ? 'Nothing in the catalogue yet. Create the first product above.'
+            : 'No products with that status.'}
+        </p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-ink/10 bg-cream/60">
+              <tr>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Image</span>
+                </th>
+                <th scope="col" class={TH}>
+                  Product
+                </th>
+                <th scope="col" class={TH}>
+                  Category
+                </th>
+                <th scope="col" class={TH}>
+                  Status
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Variants
+                </th>
+                <th scope="col" class={TH}>
+                  Price
+                </th>
+                <th scope="col" class={`${TH} text-right`}>
+                  Stock
+                </th>
+                <th scope="col" class={TH}>
+                  <span class="sr-only">Edit</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((p) => (
+                <tr class:list={['border-b border-ink/8 last:border-0', p.showsAsSoldOut && 'bg-amber-50']}>
+                  <td class={`${TD} w-12`}>
+                    {p.heroImage ? (
+                      <img
+                        src={p.heroImage}
+                        alt=""
+                        width="40"
+                        height="40"
+                        loading="lazy"
+                        decoding="async"
+                        class="size-10 rounded object-cover ring-1 ring-ink/10"
+                      />
+                    ) : (
+                      <span
+                        class="flex size-10 items-center justify-center rounded bg-ink/5 text-[10px] text-ink/40 ring-1 ring-ink/10"
+                        title="No hero image"
+                      >
+                        none
+                      </span>
+                    )}
+                  </td>
+
+                  <td class={TD}>
+                    <a
+                      href={`/admin/products/${p.id}`}
+                      class="font-medium underline decoration-ink/25 underline-offset-2 hover:text-spice-500"
+                    >
+                      {p.name}
+                    </a>
+                    <span class="block font-mono text-[11px] text-ink/50">/{p.slug}</span>
+                    {p.showsAsSoldOut && (
+                      <span class="mt-0.5 block text-[11px] font-medium text-amber-900">
+                        Live on the shop with nothing buyable
+                      </span>
+                    )}
+                    {p.orderLineCount > 0 && (
+                      <span class="block text-[11px] text-ink/45">
+                        {p.orderLineCount} order {p.orderLineCount === 1 ? 'line' : 'lines'}
+                      </span>
+                    )}
+                  </td>
+
+                  <td class={`${TD} text-xs whitespace-nowrap text-ink/70`}>{p.category}</td>
+
+                  <td class={TD}>
+                    <StatusBadge status={p.status} kind="catalog" />
+                  </td>
+
+                  <td class={`${TD} text-right text-xs whitespace-nowrap tabular-nums`}>{variantSummary(p)}</td>
+
+                  <td class={`${TD} whitespace-nowrap tabular-nums`}>{priceRange(p)}</td>
+
+                  <td class={`${TD} text-right tabular-nums`}>{p.totalOnHand}</td>
+
+                  <td class={`${TD} text-right`}>
+                    <a href={`/admin/products/${p.id}`} class={BTN_QUIET}>
+                      Edit
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <p class="border-t border-ink/8 px-3 py-2 text-xs text-ink/55">
+      Stock counts active variants only, and is changed on <a
+        href="/admin/inventory"
+        class="underline decoration-ink/25 underline-offset-2 hover:text-spice-500">Inventory</a
+      >, never here — every movement needs a reason written to the ledger.
+    </p>
+  </section>
+</AdminLayout>

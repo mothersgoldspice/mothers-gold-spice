@@ -18,7 +18,10 @@ const pages = [
   { path: "/checkout",        title: "Checkout",        short: "Checkout",    x: 500, y: 650, desc: "Address, payment method (online/COD), place order" },
   { path: "/track",           title: "Track Order",     short: "Track",       x: 680, y: 650, desc: "Guest order lookup by order number + email" },
   { path: "/account",         title: "Account",         short: "Account",     x: 860, y: 650, desc: "Orders, addresses, profile, notifications" },
-  { path: "/admin",           title: "Admin Console",   short: "Admin",       x: 1040, y: 650, desc: "Staff only — orders, fulfilment, inventory, emails, settings" },
+  { path: "/admin",           title: "Admin Console",   short: "Admin",       x: 1040, y: 650, desc: "Staff only — orders, fulfilment, inventory, reviews, emails, settings" },
+  // Reached from an email footer rather than from the site's own navigation,
+  // which is exactly why it needs listing here — nothing else links to it.
+  { path: "/unsubscribe",     title: "Unsubscribe",     short: "Unsub",       x: 140, y: 790, desc: "Public opt-out · confirms before acting, stops batch notes + back-in-stock mail" },
 ];
 
 // Edges between pages: { from, to, type: 'primary' | 'cross' }
@@ -51,6 +54,9 @@ const edges = [
   // customer arrives at "/" and buys, they never see /plan.
   { from: "/",              to: "/shop",            type: "primary" },
   { from: "/shop",          to: "/cart",            type: "cross" },
+  // The newsletter sign-up is in the footer of every shop page; the way back out
+  // is /unsubscribe, so the two belong on the same thread.
+  { from: "/shop",          to: "/unsubscribe",     type: "primary" },
   { from: "/cart",          to: "/checkout",        type: "cross" },
   { from: "/checkout",      to: "/track",           type: "cross" },
   { from: "/checkout",      to: "/account",         type: "cross" },
@@ -110,8 +116,8 @@ function edgePath(from: { x: number; y: number }, to: { x: number; y: number }, 
       <p class="text-sm text-ink/60 mb-6">Solid lines = primary navigation. Dashed lines = cross-references between pages.</p>
 
       <div class="sm-svg-wrap">
-        {/* Widened and lengthened when the shop tier was added at y=650. */}
-        <svg viewBox="0 0 1130 700" preserveAspectRatio="xMidYMid meet" class="sm-svg">
+        {/* Widened when the shop tier was added at y=650, lengthened again for /unsubscribe at y=790. */}
+        <svg viewBox="0 0 1130 840" preserveAspectRatio="xMidYMid meet" class="sm-svg">
           <defs>
             <marker id="sm-arrow-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a1f10"/>

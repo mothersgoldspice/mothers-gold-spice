@@ -16,6 +16,7 @@
 
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
+import { notifyBackInStock } from '../../../../lib/services/stock-alerts';
 import { requireAdmin } from '../../../../lib/api';
 import type { AppContext } from '../../../../lib/context';
 import type { OrderRow, PaymentRow, RefundRow, ShipmentEventRow } from '../../../../lib/db/types';
@@ -34,6 +35,7 @@ import {
   confirmOrder,
   loadOrderView,
   orderEventStatement,
+  orderStockLines,
   transitionOrder,
   type OrderView,
 } from '../../../../lib/services/orders';
@@ -130,7 +132,10 @@ export const PATCH: APIRoute = async ({ locals, params, request }) =>
           // order is in — held, or already sold — has to be handed back, and
           // only `cancelOrder` knows which.
           const reason = note?.trim() || 'Cancelled by our team.';
+          const cancelledLines = await orderStockLines(ctx.db, id);
           const cancelled = await cancelOrder(ctx.db, id, reason, { type: 'admin', id: user.id });
+          // Cancelling puts jars back, so anyone waiting on them should hear.
+          await notifyBackInStock(ctx, cancelledLines.map((l) => l.variantId)).catch(() => {});
           // The customer is told what was already refunded, not what might be:
           // an admin refund sends its own email when it is actually issued.
           await onOrderCancelled(ctx, id, cancelled.refunded_paise);

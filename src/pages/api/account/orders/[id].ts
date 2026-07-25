@@ -27,7 +27,9 @@ import {
   getOrderById,
   isCustomerCancellable,
   loadOrderView,
+  orderStockLines,
 } from '../../../../lib/services/orders';
+import { notifyBackInStock } from '../../../../lib/services/stock-alerts';
 import { refundOrder } from '../../../../lib/services/payments';
 import { getShipmentForOrder, listShipmentEvents } from '../../../../lib/services/shipments';
 
@@ -150,7 +152,9 @@ export const POST: APIRoute = async ({ locals, params, request, url }) =>
 
     // Cancel first. It is the part the customer asked for, it puts the stock
     // back, and it must not be held hostage by a payment gateway being slow.
+    const cancelledLines = await orderStockLines(ctx.db, order.id);
     await cancelOrder(ctx.db, order.id, reason, { type: 'customer', id: actorId });
+    await notifyBackInStock(ctx, cancelledLines.map((l) => l.variantId)).catch(() => {});
 
     let refundPaise = 0;
     let refundPending = false;
