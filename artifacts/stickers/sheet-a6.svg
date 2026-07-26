@@ -1,0 +1,476 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 105 148" width="105mm" height="148mm">
+  <rect width="105" height="148" fill="#fbf6ec"/>
+  <g transform="translate(9 10)">
+  <title id="barniTitle">Mother's Gold Spice — barni sticker (42 mm circle)</title>
+  <desc id="barniDesc">A traditional Indian ceramic pickling jar with a cloth tied over its mouth, standing in front of the sun. The words "set in the sun" curve along the bottom of the circle.</desc>
+
+  <!-- ============================================================
+       42 x 42 mm. All coordinates below are millimetres.
+       Die-cut circle: cx 21, cy 21, r 21. The sheet cuts it; this
+       file must not draw that outline.
+       Safe area: everything stays within r 18 of (21, 21).
+       Furthest mark from centre is the sun's crown at r 16.4.
+       ============================================================ -->
+
+  <defs>
+    <!-- the jar silhouette, reused to clip the glaze bands so they
+         stop exactly on the pot's edge rather than near it -->
+    <clipPath id="barni-body">
+      <path d="M 16.6 14.6
+               L 25.4 14.6
+               L 25.4 15.4
+               C 25.4 15.9, 24.6 15.75, 24.6 16.3
+               L 24.6 18.4
+               C 26.7 19.4, 28.7 21.1, 29.4 23.8
+               C 29.5 26.3, 28.1 28.6, 26.2 29.9
+               L 15.8 29.9
+               C 13.9 28.6, 12.5 26.3, 12.6 23.8
+               C 13.3 21.1, 15.3 19.4, 17.4 18.4
+               L 17.4 16.3
+               C 17.4 15.75, 16.6 15.9, 16.6 15.4
+               Z"/>
+    </clipPath>
+
+    <!-- baseline for the curved line of type: the lower 120 degrees of
+         a circle of radius 16.4, running left to right through the
+         bottom so the letters sit upright -->
+    <path id="barni-arc" fill="none"
+          d="M 6.798 29.2 A 16.4 16.4 0 0 0 35.202 29.2"/>
+  </defs>
+
+  <!-- ============================================================
+       BODY — fills the whole die-cut circle.
+       ============================================================ -->
+  <circle cx="21" cy="21" r="21" fill="#fbf6ec"/>
+
+  <!-- ============================================================
+       THE SUN — one flat disc, sat high so a band of cream is left
+       at the bottom for the type. The jar's base finishes just
+       inside its lower edge, so the pot reads as standing on it.
+       ============================================================ -->
+  <circle cx="21" cy="18.3" r="13.7" fill="#f6b94a"/>
+
+  <!-- ============================================================
+       THE BARNI — belly 16.8 mm across, short neck, flared lip.
+       The lip and neck sit under the cloth and are drawn anyway, so
+       the shape beneath the cloth is a real pot.
+       ============================================================ -->
+  <path d="M 16.6 14.6
+           L 25.4 14.6
+           L 25.4 15.4
+           C 25.4 15.9, 24.6 15.75, 24.6 16.3
+           L 24.6 18.4
+           C 26.7 19.4, 28.7 21.1, 29.4 23.8
+           C 29.5 26.3, 28.1 28.6, 26.2 29.9
+           L 15.8 29.9
+           C 13.9 28.6, 12.5 26.3, 12.6 23.8
+           C 13.3 21.1, 15.3 19.4, 17.4 18.4
+           L 17.4 16.3
+           C 17.4 15.75, 16.6 15.9, 16.6 15.4
+           Z"
+        fill="#e08712" stroke="#7a1f10" stroke-width="0.5" stroke-linejoin="round"/>
+
+  <!-- glaze banding: one hairline on the shoulder, one broad band on
+       the belly. Both sag in the middle so the pot reads as round.
+       Clipped to the body, so they end on the outline. -->
+  <g clip-path="url(#barni-body)">
+    <path d="M 11.0 21.4 C 15.0 22.2, 27.0 22.2, 31.0 21.4"
+          fill="none" stroke="#b8341d" stroke-width="0.55"/>
+    <path d="M 11.0 23.4 C 15.0 24.2, 27.0 24.2, 31.0 23.4
+             L 31.0 25.6 C 27.0 26.4, 15.0 26.4, 11.0 25.6 Z"
+          fill="#b8341d"/>
+  </g>
+
+  <!-- ============================================================
+       THE CLOTH — a square of muslin dropped over the mouth and
+       pulled in at the neck. Three corners hang below the swags:
+       left at x 14.6, front at x 21, right at x 27.4. The outer two
+       hang clear of the pot, which is what says "cloth" at 42 mm.
+       ============================================================ -->
+  <path d="M 14.6 19.9
+           C 15.1 18.5, 16.3 17.3, 17.0 16.3
+           C 16.2 15.4, 15.5 14.8, 15.5 13.6
+           C 15.5 11.9, 17.9 10.8, 21.0 10.8
+           C 24.1 10.8, 26.5 11.9, 26.5 13.6
+           C 26.5 14.8, 25.8 15.4, 25.0 16.3
+           C 25.7 17.3, 26.9 18.5, 27.4 19.9
+           C 26.3 19.0, 25.2 18.6, 24.2 18.6
+           C 23.2 18.6, 22.0 19.2, 21.0 19.9
+           C 20.0 19.2, 18.8 18.6, 17.8 18.6
+           C 16.8 18.6, 15.7 19.0, 14.6 19.9
+           Z"
+        fill="#fbf6ec" stroke="#7a1f10" stroke-width="0.45" stroke-linejoin="round"/>
+
+  <!-- two gathers running up out of the tie -->
+  <g fill="none" stroke="#7a1f10" stroke-width="0.38" stroke-linecap="round">
+    <path d="M 19.2 15.6 C 18.9 14.3, 19.1 12.9, 19.9 11.8"/>
+    <path d="M 22.9 15.7 C 23.2 14.5, 23.0 13.3, 22.4 12.4"/>
+  </g>
+
+  <!-- ============================================================
+       THE STRING — one turn round the neck, a knot on the right and
+       two short ends left hanging.
+       ============================================================ -->
+  <g stroke="#b8341d" fill="none" stroke-linecap="round">
+    <path d="M 17.0 16.05 C 18.7 16.9, 23.3 16.9, 25.0 16.05" stroke-width="0.85"/>
+    <path d="M 25.1 16.6 C 25.9 17.3, 26.2 18.0, 26.0 18.8" stroke-width="0.6"/>
+    <path d="M 25.0 16.6 C 25.5 17.3, 25.4 17.9, 24.95 18.35" stroke-width="0.6"/>
+  </g>
+  <circle cx="25.0" cy="16.35" r="0.62" fill="#b8341d"/>
+
+  <!-- ============================================================
+       TYPE — 3.5 mm, letterspaced, on the bottom arc. It names what
+       the picture is doing and nothing else.
+       ============================================================ -->
+  <text font-family="'Inter', sans-serif" font-size="3.5" font-weight="500"
+        letter-spacing="0.24" fill="#7a1f10">
+    <textPath href="#barni-arc" startOffset="50%" text-anchor="middle">SET IN THE SUN</textPath>
+  </text>
+</g>
+  <g transform="translate(54 10)">
+  <title id="stickerTitle">Made in a kitchen, not a factory</title>
+  <desc id="stickerDesc">Mother's Gold Spice — round 42 mm seal sticker, typographic only.</desc>
+
+  <!-- body: fills the whole die-cut circle -->
+  <circle cx="21" cy="21" r="21" fill="#fbf6ec"/>
+
+  <!-- seal ring, 4mm clear of the cut edge -->
+  <circle cx="21" cy="21" r="17" fill="none" stroke="#7a1f10" stroke-width="0.7"/>
+
+  <!-- mango leaf mark -->
+  <g transform="rotate(-13 21 8.3)">
+    <path d="M18.3 8.3 Q21 5.95 23.7 8.3 Q21 10.5 18.3 8.3 Z" fill="#e08712"/>
+    <path d="M18.85 8.45 H23.15" stroke="#fbf6ec" stroke-width="0.34" stroke-linecap="butt"/>
+  </g>
+
+  <!-- the claim -->
+  <text x="21" y="13.8" text-anchor="middle" textLength="24.3" lengthAdjust="spacing"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="3.8" font-weight="600"
+        fill="#2a1a10">MADE IN A</text>
+
+  <text x="21" y="20.5" text-anchor="middle" textLength="30" lengthAdjust="spacing"
+        font-family="Fraunces, Georgia, serif" font-size="6.3" font-weight="700"
+        fill="#7a1f10">KITCHEN</text>
+
+  <path d="M6 23.6 H12.3 M29.7 23.6 H36" stroke="#7a1f10" stroke-width="0.45" stroke-linecap="butt"/>
+
+  <text x="21" y="24.9" text-anchor="middle" textLength="14.1" lengthAdjust="spacing"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="3.8" font-weight="600"
+        fill="#2a1a10">NOT A</text>
+
+  <text x="21" y="30" text-anchor="middle" textLength="25.6" lengthAdjust="spacing"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="4.4" font-weight="500"
+        fill="#2a1a10">FACTORY</text>
+
+  <!-- full stop -->
+  <path d="M21 33.2 L21.9 34.1 L21 35 L20.1 34.1 Z" fill="#e08712"/>
+</g>
+  <g transform="translate(9 56)">
+  <title id="roundelTitle">Mother's Gold Spice — the spice roundel</title>
+  <desc id="roundelDesc">A 42 mm round die-cut sticker. A gold band carries the words FOUR THINGS above and MOTHER'S GOLD SPICE below. Inside, drawn as an old seed-packet plate, the four things themselves: a raw mango with one leaf at the top, a dried red chilli down the left, a fenugreek sprig on the right, and mustard seeds gathered at the foot.</desc>
+
+  <!-- ================================================================
+       Artboard 42 x 42 mm, all coordinates in millimetres.
+       Circle centre 21,21   radius 21
+       Cutter safe line      r 18   (nothing beyond it)
+       Gold band             r 13.8 .. 17.6
+       Inner field           r 13.8, artwork kept inside r 12.8
+       Die-cut outline is added by the sheet, not drawn here.
+       Palette: cream #fbf6ec, ink #2a1a10, spice-700 #7a1f10,
+                spice-500 #b8341d, mango-300 #f6b94a, mango-500 #e08712
+       ================================================================ -->
+
+  <defs>
+    <!-- baseline for the top word: glyphs stand outward from it -->
+    <path id="arcTop" fill="none"
+          d="M 6.819,18.5 A 14.4,14.4 0 0,1 35.181,18.5"/>
+    <!-- baseline for the bottom words: run anticlockwise so they sit upright,
+         glyphs hang inward from it -->
+    <path id="arcBottom" fill="none"
+          d="M 4.258,23.951 A 17,17 0 0,0 37.742,23.951"/>
+  </defs>
+
+  <!-- body of the sticker -->
+  <circle cx="21" cy="21" r="21" fill="#fbf6ec"/>
+
+  <!-- the gold band, then the field punched back out of it -->
+  <circle cx="21" cy="21" r="17.6" fill="#f6b94a"/>
+  <circle cx="21" cy="21" r="13.8" fill="#fbf6ec"/>
+  <circle cx="21" cy="21" r="13.35" fill="none" stroke="#7a1f10" stroke-width="0.35"/>
+
+  <!-- lettering on the band -->
+  <text font-family="'Inter', sans-serif" font-weight="600" font-size="3.6"
+        letter-spacing="0.55" fill="#7a1f10">
+    <textPath href="#arcTop" startOffset="50%" text-anchor="middle">FOUR THINGS</textPath>
+  </text>
+  <text font-family="'Inter', sans-serif" font-weight="600" font-size="3.4"
+        letter-spacing="0.2" fill="#7a1f10">
+    <textPath href="#arcBottom" startOffset="50%" text-anchor="middle">MOTHER&#8217;S GOLD SPICE</textPath>
+  </text>
+
+  <!-- lozenges closing the band at three and nine o'clock -->
+  <path d="M 5.3,20.1 L 6.2,21 L 5.3,21.9 L 4.4,21 Z" fill="#7a1f10"/>
+  <path d="M 36.7,20.1 L 37.6,21 L 36.7,21.9 L 35.8,21 Z" fill="#7a1f10"/>
+
+  <!-- ================================================================
+       THE FOUR THINGS. Line work spice-700, fills from the mango range.
+       Each is drawn as the silhouette that names it and nothing more.
+       ================================================================ -->
+
+  <g stroke="#7a1f10" stroke-width="0.42" stroke-linejoin="round" stroke-linecap="round">
+
+    <!-- RAW MANGO — top. Asymmetric: full right shoulder, beak at the foot. -->
+    <g transform="translate(21,17.2) rotate(-6)">
+      <path d="M -2.1,-5.7 C -0.9,-7.6 1.2,-8.2 2.8,-7.9
+               C 2.1,-6.3 0,-5.4 -2.1,-5.7 Z" fill="#f6b94a"/>
+      <path d="M -1.9,-5.9 C -0.7,-6.55 0.9,-7.25 2.5,-7.75" fill="none" stroke-width="0.34"/>
+      <path d="M -1.4,-4.2 C -1.7,-5 -1.9,-5.6 -2.3,-6.2" fill="none" stroke-width="0.5"/>
+      <path d="M -1.3,-4.2 C 1,-4.8 3.3,-3.2 3.6,-1
+               C 4,1.4 2.7,3.8 0.7,4.4
+               C 0.2,4.6 -0.3,4.4 -0.7,4
+               C -2.6,2.7 -3.5,0.6 -3.4,-1.3
+               C -3.3,-2.8 -2.6,-3.9 -1.3,-4.2 Z" fill="#e08712"/>
+    </g>
+
+    <!-- DRIED RED CHILLI — down the left, one long tapering curve. -->
+    <g transform="translate(14.8,25.2) rotate(26)">
+      <path d="M 0,-4.6 C -0.15,-5.5 -0.5,-6.2 -1.2,-6.7" fill="none" stroke-width="0.5"/>
+      <path d="M -1.15,-4.4 C -1.95,-1.7 -1.5,1.6 0.85,4.6
+               C 1.15,4.95 1.5,4.8 1.42,4.35
+               C 1.65,1.3 1.45,-2.1 1.15,-4.4
+               C 0.5,-4.9 -0.5,-4.9 -1.15,-4.4 Z" fill="#b8341d"/>
+    </g>
+
+    <!-- FENUGREEK — the right. Three leaflets on one stalk, as methi grows. -->
+    <g transform="translate(27,24.8) rotate(22)">
+      <path d="M 0,0 C 0.15,1 0.4,1.9 0.9,2.7" fill="none" stroke-width="0.5"/>
+      <path d="M 0,0 C -1.15,-1 -1.3,-2.9 0,-3.7 C 1.3,-2.9 1.15,-1 0,0 Z"
+            fill="#f6b94a" transform="rotate(-52)"/>
+      <path d="M 0,0 C -1.15,-1 -1.3,-2.9 0,-3.7 C 1.3,-2.9 1.15,-1 0,0 Z"
+            fill="#f6b94a" transform="rotate(52)"/>
+      <path d="M 0,0 C -1.25,-1.1 -1.4,-3.1 0,-4 C 1.4,-3.1 1.25,-1.1 0,0 Z"
+            fill="#f6b94a"/>
+    </g>
+
+    <!-- MUSTARD SEED — strewn across the foot, one stray to the left. -->
+    <g fill="#e08712" stroke-width="0.36">
+      <circle cx="17"   cy="28.9" r="0.7"/>
+      <circle cx="18.9" cy="29.9" r="0.82"/>
+      <circle cx="20.8" cy="30.3" r="0.9"/>
+      <circle cx="22.7" cy="29.7" r="0.78"/>
+      <circle cx="24.3" cy="28.6" r="0.66"/>
+      <circle cx="21.6" cy="28.1" r="0.62"/>
+      <circle cx="13.6" cy="22.6" r="0.68"/>
+    </g>
+
+  </g>
+</g>
+  <g transform="translate(54 56)">
+  <title id="barniTitle">Mother's Gold Spice — barni sticker (42 mm circle)</title>
+  <desc id="barniDesc">A traditional Indian ceramic pickling jar with a cloth tied over its mouth, standing in front of the sun. The words "set in the sun" curve along the bottom of the circle.</desc>
+
+  <!-- ============================================================
+       42 x 42 mm. All coordinates below are millimetres.
+       Die-cut circle: cx 21, cy 21, r 21. The sheet cuts it; this
+       file must not draw that outline.
+       Safe area: everything stays within r 18 of (21, 21).
+       Furthest mark from centre is the sun's crown at r 16.4.
+       ============================================================ -->
+
+  <defs>
+    <!-- the jar silhouette, reused to clip the glaze bands so they
+         stop exactly on the pot's edge rather than near it -->
+    <clipPath id="barni-body">
+      <path d="M 16.6 14.6
+               L 25.4 14.6
+               L 25.4 15.4
+               C 25.4 15.9, 24.6 15.75, 24.6 16.3
+               L 24.6 18.4
+               C 26.7 19.4, 28.7 21.1, 29.4 23.8
+               C 29.5 26.3, 28.1 28.6, 26.2 29.9
+               L 15.8 29.9
+               C 13.9 28.6, 12.5 26.3, 12.6 23.8
+               C 13.3 21.1, 15.3 19.4, 17.4 18.4
+               L 17.4 16.3
+               C 17.4 15.75, 16.6 15.9, 16.6 15.4
+               Z"/>
+    </clipPath>
+
+    <!-- baseline for the curved line of type: the lower 120 degrees of
+         a circle of radius 16.4, running left to right through the
+         bottom so the letters sit upright -->
+    <path id="barni-arc" fill="none"
+          d="M 6.798 29.2 A 16.4 16.4 0 0 0 35.202 29.2"/>
+  </defs>
+
+  <!-- ============================================================
+       BODY — fills the whole die-cut circle.
+       ============================================================ -->
+  <circle cx="21" cy="21" r="21" fill="#fbf6ec"/>
+
+  <!-- ============================================================
+       THE SUN — one flat disc, sat high so a band of cream is left
+       at the bottom for the type. The jar's base finishes just
+       inside its lower edge, so the pot reads as standing on it.
+       ============================================================ -->
+  <circle cx="21" cy="18.3" r="13.7" fill="#f6b94a"/>
+
+  <!-- ============================================================
+       THE BARNI — belly 16.8 mm across, short neck, flared lip.
+       The lip and neck sit under the cloth and are drawn anyway, so
+       the shape beneath the cloth is a real pot.
+       ============================================================ -->
+  <path d="M 16.6 14.6
+           L 25.4 14.6
+           L 25.4 15.4
+           C 25.4 15.9, 24.6 15.75, 24.6 16.3
+           L 24.6 18.4
+           C 26.7 19.4, 28.7 21.1, 29.4 23.8
+           C 29.5 26.3, 28.1 28.6, 26.2 29.9
+           L 15.8 29.9
+           C 13.9 28.6, 12.5 26.3, 12.6 23.8
+           C 13.3 21.1, 15.3 19.4, 17.4 18.4
+           L 17.4 16.3
+           C 17.4 15.75, 16.6 15.9, 16.6 15.4
+           Z"
+        fill="#e08712" stroke="#7a1f10" stroke-width="0.5" stroke-linejoin="round"/>
+
+  <!-- glaze banding: one hairline on the shoulder, one broad band on
+       the belly. Both sag in the middle so the pot reads as round.
+       Clipped to the body, so they end on the outline. -->
+  <g clip-path="url(#barni-body)">
+    <path d="M 11.0 21.4 C 15.0 22.2, 27.0 22.2, 31.0 21.4"
+          fill="none" stroke="#b8341d" stroke-width="0.55"/>
+    <path d="M 11.0 23.4 C 15.0 24.2, 27.0 24.2, 31.0 23.4
+             L 31.0 25.6 C 27.0 26.4, 15.0 26.4, 11.0 25.6 Z"
+          fill="#b8341d"/>
+  </g>
+
+  <!-- ============================================================
+       THE CLOTH — a square of muslin dropped over the mouth and
+       pulled in at the neck. Three corners hang below the swags:
+       left at x 14.6, front at x 21, right at x 27.4. The outer two
+       hang clear of the pot, which is what says "cloth" at 42 mm.
+       ============================================================ -->
+  <path d="M 14.6 19.9
+           C 15.1 18.5, 16.3 17.3, 17.0 16.3
+           C 16.2 15.4, 15.5 14.8, 15.5 13.6
+           C 15.5 11.9, 17.9 10.8, 21.0 10.8
+           C 24.1 10.8, 26.5 11.9, 26.5 13.6
+           C 26.5 14.8, 25.8 15.4, 25.0 16.3
+           C 25.7 17.3, 26.9 18.5, 27.4 19.9
+           C 26.3 19.0, 25.2 18.6, 24.2 18.6
+           C 23.2 18.6, 22.0 19.2, 21.0 19.9
+           C 20.0 19.2, 18.8 18.6, 17.8 18.6
+           C 16.8 18.6, 15.7 19.0, 14.6 19.9
+           Z"
+        fill="#fbf6ec" stroke="#7a1f10" stroke-width="0.45" stroke-linejoin="round"/>
+
+  <!-- two gathers running up out of the tie -->
+  <g fill="none" stroke="#7a1f10" stroke-width="0.38" stroke-linecap="round">
+    <path d="M 19.2 15.6 C 18.9 14.3, 19.1 12.9, 19.9 11.8"/>
+    <path d="M 22.9 15.7 C 23.2 14.5, 23.0 13.3, 22.4 12.4"/>
+  </g>
+
+  <!-- ============================================================
+       THE STRING — one turn round the neck, a knot on the right and
+       two short ends left hanging.
+       ============================================================ -->
+  <g stroke="#b8341d" fill="none" stroke-linecap="round">
+    <path d="M 17.0 16.05 C 18.7 16.9, 23.3 16.9, 25.0 16.05" stroke-width="0.85"/>
+    <path d="M 25.1 16.6 C 25.9 17.3, 26.2 18.0, 26.0 18.8" stroke-width="0.6"/>
+    <path d="M 25.0 16.6 C 25.5 17.3, 25.4 17.9, 24.95 18.35" stroke-width="0.6"/>
+  </g>
+  <circle cx="25.0" cy="16.35" r="0.62" fill="#b8341d"/>
+
+  <!-- ============================================================
+       TYPE — 3.5 mm, letterspaced, on the bottom arc. It names what
+       the picture is doing and nothing else.
+       ============================================================ -->
+  <text font-family="'Inter', sans-serif" font-size="3.5" font-weight="500"
+        letter-spacing="0.24" fill="#7a1f10">
+    <textPath href="#barni-arc" startOffset="50%" text-anchor="middle">SET IN THE SUN</textPath>
+  </text>
+</g>
+  <g transform="translate(8.5 102)">
+  <title id="badgesTitle">Mother's Gold Spice — two badge stickers</title>
+  <desc id="badgesDesc">Two 42 by 26 mm die-cut badges side by side. Left: a rubber-stamp frame reading SMALL BATCH with the brand name beneath. Right: ONE OF THE FIRST HUNDRED JARS above a cream plaque marked No. with a ruled blank for a hand-written number.</desc>
+
+  <!-- ================================================================
+       Artboard 88 x 26 mm. All coordinates are millimetres.
+       Badge one  : x  0 .. 42   safe area x  3 .. 39, y 3 .. 23
+       Gutter     : x 42 .. 46   left empty, the sheet cuts here
+       Badge two  : x 46 .. 88   safe area x 49 .. 85, y 3 .. 23
+       Die-cut outline is added by the sheet, not drawn here.
+       Palette: cream #fbf6ec, ink #2a1a10, spice-700 #7a1f10,
+                spice-500 #b8341d, mango-300 #f6b94a, mango-500 #e08712
+       ================================================================ -->
+
+  <!-- ================================================================
+       BADGE ONE — SMALL BATCH, set as a hand stamp on cream.
+       ================================================================ -->
+  <rect x="0" y="0" width="42" height="26" rx="4" fill="#fbf6ec"/>
+
+  <!-- stamp frame: heavy outer rule with a hairline inside it -->
+  <rect x="5.5" y="3.6" width="31" height="14.4" rx="2.2"
+        fill="none" stroke="#7a1f10" stroke-width="0.6"/>
+  <rect x="6.6" y="4.7" width="28.8" height="12.2" rx="1.4"
+        fill="none" stroke="#7a1f10" stroke-width="0.32"/>
+
+  <!-- the two words, stacked and letterspaced like inked type.
+       x is nudged +0.18 to offset the trailing letter-space that
+       centred text carries. -->
+  <g font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="5.2"
+     letter-spacing="0.35" fill="#7a1f10" text-anchor="middle">
+    <text x="21.18" y="9.5">SMALL</text>
+    <text x="21.18" y="15.75">BATCH</text>
+  </g>
+
+  <!-- divider: a broken rule with a mango lozenge at its centre -->
+  <g stroke="#b8341d" stroke-width="0.35" stroke-linecap="round">
+    <line x1="9.8" y1="10.8" x2="18.6" y2="10.8"/>
+    <line x1="23.4" y1="10.8" x2="32.2" y2="10.8"/>
+  </g>
+  <path d="M 21 9.95 L 21.85 10.8 L 21 11.65 L 20.15 10.8 Z" fill="#e08712"/>
+
+  <!-- brand name, small, beneath the stamp -->
+  <text x="21" y="21.5" text-anchor="middle"
+        font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600"
+        font-size="3.15" fill="#2a1a10">Mother's Gold Spice</text>
+
+  <!-- ================================================================
+       BADGE TWO — the numbered jar. The cream plaque is the point:
+       a number goes in it by hand, in ink, one jar at a time.
+       ================================================================ -->
+  <rect x="46" y="0" width="42" height="26" rx="4" fill="#7a1f10"/>
+
+  <!-- the sentence runs top to bottom and finishes inside the plaque:
+       one of the first hundred — jar no. ___ -->
+  <text x="67.15" y="7" text-anchor="middle"
+        font-family="'Inter', sans-serif" font-weight="600" font-size="3"
+        letter-spacing="0.3" fill="#f6b94a">ONE OF THE FIRST</text>
+
+  <text x="67" y="13.6" text-anchor="middle"
+        font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="5.6"
+        fill="#fbf6ec">HUNDRED</text>
+
+  <!-- write-in plaque: 32 x 6.4 mm of clear cream, ruled for the digits -->
+  <rect x="51" y="16" width="32" height="6.4" rx="1.6" fill="#fbf6ec"/>
+  <text x="53.4" y="20.4"
+        font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600"
+        font-size="3.4" fill="#7a1f10">Jar No.</text>
+  <line x1="67.6" y1="20.7" x2="80.4" y2="20.7"
+        stroke="#e08712" stroke-width="0.35" stroke-linecap="round"/>
+</g>
+  <!-- Cut path. A plotter needs this isolated as a CutContour spot colour;
+       printed as-is it is a guide for scissors. -->
+  <g id="cutcontour" fill="none" stroke="#2a1a10" stroke-opacity="0.35" stroke-width="0.25" stroke-dasharray="1.6 1.4">
+    <circle cx="30" cy="31" r="21" />
+    <circle cx="75" cy="31" r="21" />
+    <circle cx="30" cy="77" r="21" />
+    <circle cx="75" cy="77" r="21" />
+    <rect x="8.5" y="102" width="42" height="26" rx="4" /><rect x="54.5" y="102" width="42" height="26" rx="4" />
+  </g>
+  <text x="52.5" y="143" text-anchor="middle" font-family="'Inter', sans-serif"
+        font-size="2.6" fill="#2a1a10" fill-opacity="0.45">Mother's Gold Spice · cut along the dashed lines</text>
+</svg>

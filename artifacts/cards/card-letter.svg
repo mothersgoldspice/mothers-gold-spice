@@ -24,17 +24,29 @@
   </g>
 
   <!-- ============================================================
-       BODY COPY — Inter, 3.3mm, 5.2mm leading, ragged right.
+       BODY COPY — Inter, 3.3mm, 5.0mm leading, ragged right.
+
+       Leading tightened from 5.2 to make room for the sticker line
+       without touching the QR or the signing area, both of which are
+       fixed. Line breaks are unchanged from the version that was
+       proof-printed, so no line can overrun the 8mm safe margin.
+
+       The sticker sits BEFORE the review ask on purpose. A gift named
+       in the same breath as a request for a review reads as a trade,
+       which is against Amazon's policy and, more to the point, makes
+       the review worthless. Separated, it is just a gift.
        ============================================================ -->
   <g font-family="'Inter', sans-serif" font-size="3.3" fill="#2a1a10">
-    <text x="14" y="61.5">My mother cooked this in our kitchen in</text>
-    <text x="14" y="66.7">Bangalore, a few kilos at a time &#8212; cut,</text>
-    <text x="14" y="71.9">salted and packed by hand, the way she</text>
-    <text x="14" y="77.1">has always done it. There is no factory.</text>
+    <text x="14" y="57.5">My mother cooked this in our kitchen in</text>
+    <text x="14" y="62.5">Bangalore, a few kilos at a time &#8212; cut,</text>
+    <text x="14" y="67.5">salted and packed by hand, the way she</text>
+    <text x="14" y="72.5">has always done it. There is no factory.</text>
 
-    <text x="14" y="86.1">If it tastes the way it should, please</text>
-    <text x="14" y="91.3">say so at <tspan fill="#b8341d" font-weight="600">mothersgoldspice.com</tspan>. If it</text>
-    <text x="14" y="96.5">doesn&#8217;t, say that too. We read all of it.</text>
+    <text x="14" y="80">The stickers are yours to keep.</text>
+
+    <text x="14" y="87.5">If it tastes the way it should, please</text>
+    <text x="14" y="92.5">say so at <tspan fill="#b8341d" font-weight="600">mothersgoldspice.com</tspan>. If it</text>
+    <text x="14" y="97.5">doesn&#8217;t, say that too. We read all of it.</text>
   </g>
 
   <!-- ============================================================
