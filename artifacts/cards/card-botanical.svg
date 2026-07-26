@@ -11,46 +11,49 @@
 
   <!-- ============================================================
        HERO — mango branch: stem, two lanceolate leaves, one fruit.
-       Occupies y 10.8 to 36.3, x 38.5 to 67.0.
+       Occupies y 10.6 to 38.7, x 37.0 to 68.2.
        ============================================================ -->
   <g fill="none" stroke="#7a1f10" stroke-linecap="round" stroke-linejoin="round">
 
-    <!-- stem -->
-    <path d="M 52.6 10.8 C 52.35 14.0 53.15 16.8 53.05 20.6" stroke-width="0.45"/>
+    <!-- stem and stalk: one continuous line. Both leaves attach to points
+         that lie on it, and its lower end runs 1.5 mm inside the fruit,
+         where the fruit's fill covers it. -->
+    <path d="M 52.6 10.8 C 52.3 14.2 53.3 17.5 52.9 20.4
+             C 52.6 22.2 52.0 23.4 51.7 25.2" stroke-width="0.42"/>
 
     <!-- upper-left leaf: blade outline (upper edge, then lower edge reversed) -->
-    <path d="M 52.71 15.0 C 47.6 11.8 42.5 11.0 38.5 10.9
-             C 43.3 14.9 48.3 16.1 52.71 15.0 Z" stroke-width="0.42"/>
+    <path d="M 52.71 15.0 C 47.2 11.6 41.5 10.7 37.0 10.6
+             C 42.0 14.9 47.8 16.2 52.71 15.0 Z" stroke-width="0.42"/>
     <!-- upper-left leaf: midrib, stopping just short of the tip -->
-    <path d="M 52.71 15.0 C 48.2 13.9 42.9 12.2 39.4 11.2" stroke-width="0.3"/>
+    <path d="M 52.71 15.0 C 47.8 14.1 42.2 12.2 37.9 10.9" stroke-width="0.3"/>
 
     <!-- lower-right leaf: blade outline -->
-    <path d="M 53.02 18.4 C 57.9 16.5 63.0 15.6 67.0 15.8
-             C 62.6 19.6 57.6 20.4 53.02 18.4 Z" stroke-width="0.42"/>
+    <path d="M 53.0 18.4 C 58.4 16.3 64.0 15.2 68.2 15.4
+             C 63.4 19.8 58.0 20.6 53.0 18.4 Z" stroke-width="0.42"/>
     <!-- lower-right leaf: midrib -->
-    <path d="M 53.02 18.4 C 57.8 18.5 62.9 17.4 66.0 16.2" stroke-width="0.3"/>
+    <path d="M 53.0 18.4 C 58.2 18.5 63.4 17.5 66.4 16.3" stroke-width="0.3"/>
 
-    <!-- pedicel: stem tip down to the fruit shoulder -->
-    <path d="M 53.05 20.6 C 52.9 21.8 52.5 22.3 52.1 23.2" stroke-width="0.34"/>
-
-    <!-- the mango: broad shoulder at the stalk, full belly on the left,
-         tapering to a soft beak at lower right -->
-    <path d="M 52.1 23.2
-             C 48.9 23.6 47.4 26.3 47.5 29.8
-             C 47.6 33.5 51.6 37.0 54.6 36.2
-             C 57.2 34.5 58.1 31.2 57.5 28.2
-             C 56.9 25.3 54.8 23.5 52.1 23.2 Z"
+    <!-- the mango, 11 x 15.4 mm: a broad shoulder at the stalk, a straighter
+         dorsal edge down the right, a much fuller belly down the left, and
+         the whole fruit leaning right onto a rounded apex. -->
+    <path d="M 51.5 23.5
+             C 54.3 23.3 56.9 24.6 57.7 27.1
+             C 58.3 29.1 58.3 31.6 57.5 33.9
+             C 56.8 36.0 55.9 37.7 54.7 38.4
+             C 52.9 39.4 50.2 37.9 48.6 35.2
+             C 47.2 32.6 46.6 29.4 47.7 26.7
+             C 48.4 24.9 49.7 23.7 51.5 23.5 Z"
           fill="#f6b94a" stroke-width="0.42"/>
   </g>
 
   <!-- ============================================================
        HEADING
        ============================================================ -->
-  <text x="52.5" y="46.5" text-anchor="middle"
-        font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="8.5"
+  <text x="52.5" y="48.4" text-anchor="middle"
+        font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="7.4"
         fill="#7a1f10">Thank you</text>
 
-  <line x1="46.5" y1="51" x2="58.5" y2="51" stroke="#e08712" stroke-width="0.45" stroke-linecap="round"/>
+  <line x1="46.5" y1="52.4" x2="58.5" y2="52.4" stroke="#e08712" stroke-width="0.45" stroke-linecap="round"/>
 
   <!-- ============================================================
        BODY COPY
@@ -83,21 +86,21 @@
   <!-- ============================================================
        FOOTER
        ============================================================ -->
-  <text x="8" y="122"
+  <text x="9" y="122"
         font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600"
-        font-size="5.4" fill="#2a1a10">Mother's Gold Spice</text>
+        font-size="4.8" fill="#2a1a10">Mother's Gold Spice</text>
 
-  <text x="8" y="127"
+  <text x="9" y="127"
         font-family="'Inter', sans-serif" font-size="2.7"
         fill="#2a1a10" fill-opacity="0.6">Scan to leave your review</text>
 
-  <line x1="8" y1="130.8" x2="68" y2="130.8" stroke="#2a1a10" stroke-opacity="0.18" stroke-width="0.3"/>
+  <line x1="9" y1="130.8" x2="68" y2="130.8" stroke="#2a1a10" stroke-opacity="0.18" stroke-width="0.3"/>
 
   <!-- batch number: label plus a blank rule to write on -->
-  <text x="8" y="136.3"
+  <text x="9" y="136.3"
         font-family="'Inter', sans-serif" font-size="2.9" font-weight="600"
         fill="#7a1f10">Batch No.</text>
-  <line x1="25" y1="136.9" x2="58" y2="136.9" stroke="#2a1a10" stroke-opacity="0.4" stroke-width="0.3"/>
+  <line x1="26" y1="136.9" x2="68" y2="136.9" stroke="#2a1a10" stroke-opacity="0.4" stroke-width="0.3"/>
 
   <!-- QR placeholder — exactly 22 x 22 mm, replaced downstream -->
   <rect id="qr-slot" x="74" y="116" width="22" height="22"
