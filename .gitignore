@@ -29,3 +29,6 @@ chat-with-gemini
 
 # Generated print artefacts — rebuild with scripts/make-label-sheet.mjs
 artifacts/*.html
+
+# Card design sources are tracked; generated sheets are not
+artifacts/*.pdf

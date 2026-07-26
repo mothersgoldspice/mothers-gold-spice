@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 105 148" width="105mm" height="148mm">
+  <title>Mother's Gold Spice — thank-you card (A6)</title>
+  <desc>A6 insert card. Top: photograph slot. Bottom: note, hand-signature space, batch number, QR slot.</desc>
+
+  <!-- Card stock -->
+  <rect x="0" y="0" width="105" height="148" fill="#fbf6ec"/>
+
+  <!-- ============ TOP: PHOTOGRAPH ============ -->
+  <rect id="photo-slot" x="8" y="8" width="89" height="54" fill="#f6b94a" fill-opacity="0.13"/>
+  <rect x="8" y="8" width="89" height="54" fill="none" stroke="#2a1a10" stroke-opacity="0.2" stroke-width="0.3"/>
+
+  <!-- Frame corners: reads as a deliberate mat, not an unfinished box -->
+  <g fill="none" stroke="#7a1f10" stroke-opacity="0.4" stroke-width="0.4" stroke-linecap="square">
+    <path d="M 10.5 15.5 L 10.5 10.5 L 15.5 10.5"/>
+    <path d="M 89.5 10.5 L 94.5 10.5 L 94.5 15.5"/>
+    <path d="M 10.5 54.5 L 10.5 59.5 L 15.5 59.5"/>
+    <path d="M 89.5 59.5 L 94.5 59.5 L 94.5 54.5"/>
+  </g>
+
+  <text x="52.5" y="33.6" text-anchor="middle" font-family="'Inter', sans-serif" font-size="2.6" font-weight="600" letter-spacing="0.5" fill="#7a1f10" fill-opacity="0.5">PHOTO SLOT</text>
+  <text x="52.5" y="38.4" text-anchor="middle" font-family="'Inter', sans-serif" font-size="2.2" fill="#2a1a10" fill-opacity="0.35">kitchen or ingredient image, 89 × 54 mm</text>
+
+  <!-- ============ THE SEAM ============ -->
+  <g stroke="#2a1a10" stroke-opacity="0.18" stroke-width="0.3">
+    <line x1="8" y1="67" x2="46.5" y2="67"/>
+    <line x1="58.5" y1="67" x2="97" y2="67"/>
+  </g>
+  <path d="M 52.5 65 C 53.5 65.9 53.5 68.1 52.5 69 C 51.5 68.1 51.5 65.9 52.5 65 Z" fill="#e08712"/>
+
+  <!-- ============ BOTTOM: THE NOTE ============ -->
+  <text x="8" y="72.8" font-family="'Inter', sans-serif" font-size="2.5" font-weight="600" letter-spacing="0.34" fill="#b8341d">MOTHER’S GOLD SPICE · BANGALORE</text>
+
+  <text x="8" y="82.4" font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600" font-size="8.4" fill="#7a1f10">Thank you.</text>
+
+  <g font-family="'Inter', sans-serif" font-size="2.9" fill="#2a1a10">
+    <text x="8" y="88.6">Yours is one of the first jars to leave our kitchen.</text>
+    <text x="8" y="92.8">My mother cooks this pickle herself, in small batches —</text>
+    <text x="8" y="97">mangoes cut in the morning, oil and spice by evening.</text>
+    <text x="8" y="101.2">No factory, and nothing added to make it keep longer.</text>
+    <text x="8" y="106">If it earns a place at your table, please say so at</text>
+  </g>
+  <text x="8" y="110.8" font-family="'Inter', sans-serif" font-size="3.4" font-weight="600" letter-spacing="0.05" fill="#b8341d">mothersgoldspice.com</text>
+
+  <!-- Signing area: 58 × 16 mm of deliberate emptiness, x 8–66, y 113–129 -->
+  <line x1="8" y1="129" x2="66" y2="129" stroke="#2a1a10" stroke-opacity="0.4" stroke-width="0.35"/>
+  <text x="8" y="132.6" font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="2.6" fill="#2a1a10" fill-opacity="0.6">Signed above by hand, in ink — never printed.</text>
+
+  <!-- Batch number: written in on the day of packing -->
+  <text x="8" y="138.8" font-family="'Inter', sans-serif" font-size="2.7" fill="#2a1a10" fill-opacity="0.8">Batch No.</text>
+  <line x1="21.5" y1="139.4" x2="56" y2="139.4" stroke="#2a1a10" stroke-opacity="0.35" stroke-width="0.3"/>
+
+  <!-- QR placeholder — replaced downstream -->
+  <rect id="qr-slot" x="75" y="113" width="22" height="22" fill="#f6b94a" fill-opacity="0.12" stroke="#2a1a10" stroke-opacity="0.25" stroke-width="0.3"/>
+  <text x="86" y="138.8" text-anchor="middle" font-family="'Fraunces', Georgia, serif" font-style="italic" font-size="2.6" fill="#2a1a10" fill-opacity="0.6">Scan to review</text>
+</svg>

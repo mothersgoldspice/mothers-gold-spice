@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="105mm" height="148mm" viewBox="0 0 105 148" role="img" aria-labelledby="cardTitle cardDesc">
+  <title id="cardTitle">Mother's Gold Spice — thank-you card (A6)</title>
+  <desc id="cardDesc">A6 letterpress-style thank-you note. All units are millimetres. Content sits inside an 8mm safe margin.</desc>
+
+  <!-- Card stock -->
+  <rect x="0" y="0" width="105" height="148" fill="#fbf6ec"/>
+
+  <!-- ============================================================
+       BRAND MARK — top left. Wordmark, hairline rule, leaf terminal.
+       ============================================================ -->
+  <text x="14" y="21" font-family="'Fraunces', Georgia, serif" font-style="italic" font-weight="600" font-size="7" fill="#2a1a10">Mother&#8217;s Gold Spice</text>
+
+  <g transform="translate(14, 25.8)">
+    <line x1="0" y1="0" x2="13.5" y2="0" stroke="#e08712" stroke-width="0.35" stroke-linecap="round"/>
+    <path d="M 16.2 -1.5 C 17.27 -0.64 17.27 0.86 16.2 1.5 C 15.13 0.86 15.13 -0.64 16.2 -1.5 Z" fill="#e08712"/>
+  </g>
+
+  <!-- ============================================================
+       DISPLAY LINE — the single focal point.
+       ============================================================ -->
+  <g font-family="'Fraunces', Georgia, serif" font-weight="600" font-size="6.2" fill="#7a1f10">
+    <text x="14" y="42">Yours is one of</text>
+    <text x="14" y="49.4">the first jars.</text>
+  </g>
+
+  <!-- ============================================================
+       BODY COPY — Inter, 3.3mm, 5.2mm leading, ragged right.
+       ============================================================ -->
+  <g font-family="'Inter', sans-serif" font-size="3.3" fill="#2a1a10">
+    <text x="14" y="61.5">My mother cooked this in our kitchen in</text>
+    <text x="14" y="66.7">Bangalore, a few kilos at a time &#8212; cut,</text>
+    <text x="14" y="71.9">salted and packed by hand, the way she</text>
+    <text x="14" y="77.1">has always done it. There is no factory.</text>
+
+    <text x="14" y="86.1">If it tastes the way it should, please</text>
+    <text x="14" y="91.3">say so at <tspan fill="#b8341d" font-weight="600">mothersgoldspice.com</tspan>. If it</text>
+    <text x="14" y="96.5">doesn&#8217;t, say that too. We read all of it.</text>
+  </g>
+
+  <!-- ============================================================
+       QR SLOT — exactly 22 x 22 mm. Replaced by a script.
+       ============================================================ -->
+  <rect id="qr-slot" x="69" y="102" width="22" height="22"
+        fill="#2a1a10" fill-opacity="0.05"
+        stroke="#2a1a10" stroke-opacity="0.2" stroke-width="0.25"/>
+
+  <!-- ============================================================
+       SIGNING AREA — 47mm wide x 20mm tall of deliberate blank
+       (x 14 to 61, y 104 to 124). A real pen goes here.
+       ============================================================ -->
+  <line x1="14" y1="124" x2="61" y2="124" stroke="#2a1a10" stroke-opacity="0.35" stroke-width="0.3"/>
+
+  <g font-family="'Inter', sans-serif" font-size="2.5" fill="#2a1a10" fill-opacity="0.6">
+    <text x="14" y="127.8">Signed by hand, by the cook.</text>
+    <text x="91" y="127.8" text-anchor="end">Scan to leave a review</text>
+  </g>
+
+  <!-- ============================================================
+       BATCH SLOT — handwritten per batch.
+       ============================================================ -->
+  <text x="14" y="137" font-family="'Inter', sans-serif" font-size="2.6" fill="#2a1a10" fill-opacity="0.55">Batch No.</text>
+  <line x1="28" y1="137.6" x2="52" y2="137.6" stroke="#2a1a10" stroke-opacity="0.3" stroke-width="0.25"/>
+</svg>
