@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Suppliers — Bangalore packaging procurement for MGS" description="Research-backed supplier shortlist for glass jars, caps, induction foil, EPE liners, labels, and tamper bands — Bangalore-first, India-wide fallbacks. The honest map of who does what.">
+<Layout title="Suppliers — Bangalore packaging procurement for MGS" description="Research-backed supplier shortlist for glass jars, caps, induction foil, EPE liners, labels, and tamper strips — Bangalore-first, India-wide fallbacks. The honest map of who does what.">
   <main class="bg-cream min-h-screen">
     <!-- HERO -->
     <header class="border-b border-ink/10">
@@ -46,7 +46,7 @@ import Layout from "../layouts/Layout.astro";
         <ol class="sup-step-list" style="margin-top: 10px;">
           <li><strong>Supplier A — Jar + Cap + Foil seal kit</strong> — a Bangalore trader/distributor (e.g., Amigo Sampoorna) OR a national glass house (e.g., Ajanta Bottle) who supplies jar + matching cap + induction foil from inventory</li>
           <li><strong>Supplier B — Labels</strong> — a local Bangalore print shop (e.g., Kraftix Digital, Sahara Labels) for the wraparound label, low MOQ, fast turnaround</li>
-          <li><strong>Supplier C — Tamper bands + cap print</strong> — a closure specialist (e.g., Metal Closures Pvt Ltd Bangalore) when you scale to State License + retail</li>
+          <li><strong>Supplier C — Tamper strips + cap print</strong> — a label printer for the strip, or a closure specialist (e.g., Metal Closures Pvt Ltd Bangalore) for printed caps when you scale to State License + retail</li>
         </ol>
       </div>
     </section>
@@ -257,15 +257,15 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </section>
 
-    <!-- TAMPER BAND -->
+    <!-- TAMPER STRIP -->
     <section class="max-w-5xl mx-auto px-6 py-12 border-b border-ink/10">
-      <h2 class="font-serif text-3xl text-ink mb-2">6. Tamper bands (Layer 3 — joint-only band)</h2>
-      <p class="text-sm text-ink/60 mb-6">Per PACKAGING.md §9, we're using a 6mm joint band (not a full shrink sleeve). Most label printers can handle the PET shrink film print.</p>
+      <h2 class="font-serif text-3xl text-ink mb-2">6. Tamper strips (Layer 3 — vertical cap-to-glass seal)</h2>
+      <p class="text-sm text-ink/60 mb-6">Per PACKAGING.md §9, we're using a 13 × 48 mm vertical strip across the cap-to-glass joint — a printed sticker, not shrink film. That makes it an ordinary label job, and it needs no heat gun.</p>
 
       <ul class="sup-bullets">
-        <li>The label printers in Section 5 above (especially <strong>Kraftix</strong>, <strong>Shivambika</strong>, <strong>Myperfectpack</strong>) typically also print PET shrink film for tamper bands. Ask them.</li>
+        <li>The label printers in Section 5 above (especially <strong>Kraftix</strong>, <strong>Shivambika</strong>, <strong>Myperfectpack</strong>) can print this on destructible or perforated PET label stock — ask for "tamper evident label roll". It is the same press that runs the body label.</li>
         <li>IndiaMART search term: <em>"PET tamper evident neck band 63mm food grade"</em></li>
-        <li>For specialty pre-cut tamper bands: <strong>Multipack Labels (Gujarat)</strong> also stocks tamper bands.</li>
+        <li>For off-the-shelf rolls: <strong>Multipack Labels (Gujarat)</strong> stocks generic tamper-evident seals if you want to start unbranded.</li>
         <li>Cost target: ₹0.50–0.80 per band at 500-jar volume.</li>
       </ul>
     </section>
@@ -350,7 +350,7 @@ import Layout from "../layouts/Layout.astro";
             <tr><td><strong>Aluminium foil seal disc</strong> (Layer 2)</td><td>✗ Almost always separate</td><td>Dolphin Labels, Sri Balaji Chemicals, Security Seal (Bangalore) — ₹1.5–2/disc</td></tr>
             <tr><td><strong>Labels</strong></td><td>✗ Always separate</td><td>Kraftix Digital (MOQ 25), Shivambika, Myperfectpack — ₹2–8/label</td></tr>
             <tr><td><strong>Induction sealer machine</strong></td><td>✗ One-time equipment purchase</td><td>IndiaMART "manual induction sealer 63mm" — ₹15–25k</td></tr>
-            <tr><td><strong>Tamper band</strong> (Layer 3, optional at launch)</td><td>✗ Separate</td><td>Same label printers — ₹0.50–0.80/band</td></tr>
+            <tr><td><strong>Tamper strip</strong> (Layer 3, optional at launch)</td><td>✗ Separate</td><td>Same label printers — ₹0.40–0.70/strip</td></tr>
           </tbody>
         </table>
       </div>
@@ -364,7 +364,7 @@ import Layout from "../layouts/Layout.astro";
             <tr><td>Shipping to Bangalore (palletised)</td><td>₹3,000–5,000</td></tr>
             <tr><td>500 × 63mm aluminium foil seal discs</td><td>₹1,000</td></tr>
             <tr><td>500 printed labels (Kraftix Digital)</td><td>₹2,000–4,000</td></tr>
-            <tr><td>500 PET tamper bands (optional)</td><td>₹400</td></tr>
+            <tr><td>500 PET tamper strips (optional)</td><td>₹350</td></tr>
             <tr><td>Induction sealer machine (one-time)</td><td>₹18,000–22,000</td></tr>
             <tr class="sup-table-total"><td><strong>Total for first 500-jar pilot</strong></td><td><strong>~₹40,000–52,000</strong></td></tr>
           </tbody>
@@ -505,7 +505,7 @@ import Layout from "../layouts/Layout.astro";
         No magic Bangalore vendor does it all.<br/>
         Two emails this week, samples in two weeks, pilot PO in four.
       </p>
-      <p class="text-sm text-ink/60 mb-8">Amigo Sampoorna for jar+cap, Kraftix for labels — that's 80% of the procurement done. The other 20% (cap printing, tamper bands) can wait for v2.</p>
+      <p class="text-sm text-ink/60 mb-8">Amigo Sampoorna for jar+cap, Kraftix for labels — that's 80% of the procurement done. The other 20% (cap printing, tamper strips) can wait for v2.</p>
       <div class="flex flex-wrap justify-center gap-3">
         <a href="/plan" class="px-5 py-2.5 bg-spice text-white text-sm rounded-full hover:bg-spice-700 transition">← Back to the plan</a>
         <a href="/setup" class="px-5 py-2.5 bg-white border border-ink/15 text-ink text-sm rounded-full hover:bg-mango-50 transition">Setup checklist</a>

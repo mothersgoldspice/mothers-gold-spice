@@ -276,18 +276,41 @@ import Layout from "../layouts/Layout.astro";
     <text x="256" y="420" text-anchor="middle" font-family="'Inter', sans-serif" font-size="14" font-weight="600" letter-spacing="3" fill="#7a1f10" opacity="0.7">↑ PEEL HERE ↑</text>
   </svg>`;
 
-  const tamperBandSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 96" width="2048" height="96">
-    <rect x="0" y="0" width="2048" height="96" fill="#7a1f10"/>
-    <g font-family="'Inter', sans-serif" font-size="34" font-weight="600" fill="#fbf6ec" text-anchor="middle" dominant-baseline="middle" letter-spacing="3">
-      <text x="170"  y="50">SEALED</text>
-      <text x="510"  y="50">· MOTHER'S GOLD SPICE ·</text>
-      <text x="1024" y="50">SMALL BATCH</text>
-      <text x="1538" y="50">· MOTHER'S GOLD SPICE ·</text>
-      <text x="1878" y="50">SEALED</text>
-    </g>
-    <g stroke="#fbf6ec" stroke-opacity="0.35" stroke-width="1">
-      <line x1="0" y1="14" x2="2048" y2="14"/>
-      <line x1="0" y1="82" x2="2048" y2="82"/>
+  // The tamper strip artwork, identical to /label-preview — one seal, printed
+  // once. If these two drift apart the assembly animation ends up demonstrating
+  // a part the spec page does not describe.
+  const tamperBandSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224 768" width="224" height="768">
+    <rect x="0" y="0" width="224" height="768" fill="#7a1f10"/>
+    <g transform="translate(224 0) rotate(90)">
+      <!-- Perforation at 36% down, which is where the strip crosses the cap-to-glass
+           joint on the jar. Tearing anywhere else would not prove anything. -->
+      <g stroke="#fbf6ec" stroke-opacity="0.6" stroke-width="3" stroke-dasharray="10 12">
+        <line x1="276" y1="12" x2="276" y2="212"/>
+      </g>
+      <!-- Inset edge rules so the print reads as deliberate rather than bled. -->
+      <g stroke="#fbf6ec" stroke-opacity="0.28" stroke-width="2">
+        <line x1="16" y1="16" x2="752" y2="16"/>
+        <line x1="16" y1="208" x2="752" y2="208"/>
+      </g>
+      <!--
+        Two runs only, one either side of the tear. A third ("SMALL BATCH") was
+        here and had to go: at 13 mm wide the strip has ~250 px of usable length
+        above the perforation and ~490 below, and three runs collided into each
+        other. Set sizes so each run's measured width stays inside its half —
+        overlapping type on a seal reads as a printing fault, not a brand.
+      -->
+      <g font-family="'Inter', sans-serif" fill="#fbf6ec" text-anchor="middle" dominant-baseline="middle">
+        <!-- Above the tear: the half bonded to the cap. ~196 px wide. -->
+        <text x="138" y="112" font-size="42" font-weight="700" letter-spacing="9">SEALED</text>
+        <!-- Below it: the half bonded to the glass. ~394 px wide, centred at 500. -->
+        <text x="500" y="112" font-size="28" font-weight="600" letter-spacing="5">MOTHER'S GOLD SPICE</text>
+      </g>
+      <!-- Marks either side of the tear line, so a broken strip is obvious on a
+           shelf even when the two halves are still roughly aligned. -->
+      <g fill="#fbf6ec" fill-opacity="0.55">
+        <circle cx="258" cy="112" r="6"/>
+        <circle cx="294" cy="112" r="6"/>
+      </g>
     </g>
   </svg>`;
 
@@ -534,13 +557,33 @@ import Layout from "../layouts/Layout.astro";
     );
     scene.add(liner);
 
-    // ---- TAMPER BAND --------------------------------------------------------
+    // ---- TAMPER STRIP -------------------------------------------------------
+    // Runs DOWN the jar rather than around it: top half bonded to the gold cap,
+    // bottom half to the glass, nothing but the strip holding the two together.
+    // Twisting the cap shears it along the printed perforation.
+    //
+    // Fitted to the geometry above: the cap skirt is r=0.96 up to y=1.67, and the
+    // glass body sits at r≈1.00 below the shoulder, so r=1.005 rides on both and
+    // spans the overhang between them.
+    const STRIP_R = 1.005;
+    const STRIP_TOP = 1.68;
+    const STRIP_BOTTOM = 0.44;
+    const STRIP_ARC = 0.36;   // ≈13 mm of arc at this scale
+    const STRIP_LEN = STRIP_TOP - STRIP_BOTTOM;
+    const STRIP_MID = (STRIP_TOP + STRIP_BOTTOM) / 2;
+
     const tamperMat = new THREE.MeshStandardMaterial({
       map: tamperTex, roughness: 0.45, metalness: 0.0, side: THREE.DoubleSide,
     });
-    tamperTex.wrapS = THREE.RepeatWrapping;
+    // Clamped, not repeated: the artwork is the whole strip, exactly once.
+    tamperTex.wrapS = THREE.ClampToEdgeWrapping;
+    tamperTex.wrapT = THREE.ClampToEdgeWrapping;
     const tamperBand = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.98, 0.98, 0.19, 96, 1, true),
+      // θ=0 is +Z in three.js (x = r·sinθ, z = r·cosθ), so centring the arc on
+      // zero aims the printed face at the camera instead of edge-on.
+      new THREE.CylinderGeometry(
+        STRIP_R, STRIP_R, STRIP_LEN, 24, 1, true, -STRIP_ARC / 2, STRIP_ARC,
+      ),
       tamperMat
     );
     scene.add(tamperBand);
@@ -601,9 +644,10 @@ import Layout from "../layouts/Layout.astro";
       },
       {
         id: "band", step: 5, obj: tamperBand,
-        restPos: new THREE.Vector3(0, -2.0, 1.5),
+        // Hovers out front, face-on, so it reads as a strip before it is applied.
+        restPos: new THREE.Vector3(0, -1.5, 2.0),
         restScale: 0.55,
-        finalPos: new THREE.Vector3(0, 1.35, 0),
+        finalPos: new THREE.Vector3(0, STRIP_MID, 0),
         finalScale: 1.0,
         bobPhase: 0, placed: false,
         pickMeshes: [tamperBand],
@@ -855,39 +899,40 @@ import Layout from "../layouts/Layout.astro";
       ]);
       jarGroup.attach(capGroup);  // travels with the jar from now on
       setStepState(4, "done");
-      setStatus("Cap torqued. Airtight seal. One step left — the tamper band.");
+      setStatus("Cap torqued. Airtight seal. One step left — the tamper strip.");
     }
 
     async function step5_applyBand() {
-      setStatus("Tamper band sliding over the cap-neck joint…");
+      setStatus("Tamper strip pressed across the cap and the glass…");
       setStepState(5, "active");
       const p = parts.find((x) => x.id === "band")!;
       p.placed = true;
       const fromX = tamperBand.position.x, fromY = tamperBand.position.y, fromZ = tamperBand.position.z;
       const fromScale = tamperBand.scale.x;
       tamperBand.rotation.y = 0;
-      // Phase A: glide directly above the joint at a slightly larger pre-shrink scale
+
+      // Phase A: rise to the joint, still held off the glass, at full size. The
+      // old band grew and shrank because it was heat-shrink film; a self-adhesive
+      // strip does neither, so the motion is a straight approach instead.
       await Promise.all([
         tween(tamperBand.position, [
           { path: ["x"], from: fromX, to: 0 },
-          { path: ["y"], from: fromY, to: 3.0 },
-          { path: ["z"], from: fromZ, to: 0 },
-        ], 600, easeInOutCubic),
+          { path: ["y"], from: fromY, to: STRIP_MID },
+          { path: ["z"], from: fromZ, to: 1.5 },
+        ], 700, easeInOutCubic),
         tween(tamperBand.scale, [
-          { path: ["x"], from: fromScale, to: 1.18 },
+          { path: ["x"], from: fromScale, to: 1.0 },
           { path: ["y"], from: fromScale, to: 1.0 },
-          { path: ["z"], from: fromScale, to: 1.18 },
-        ], 600, easeInOutCubic),
+          { path: ["z"], from: fromScale, to: 1.0 },
+        ], 700, easeInOutCubic),
       ]);
-      // Phase B: descend onto the joint
+
+      // Phase B: press straight onto the jar — the moment it bonds to both the
+      // cap and the glass, which is the only thing that makes it tamper-evident.
       await tween(tamperBand.position, [
-        { path: ["y"], to: 1.35 },
-      ], 800, easeOutCubic);
-      // Phase C: shrink to fit (heat shrink)
-      await tween(tamperBand.scale, [
-        { path: ["x"], to: 1.0 },
-        { path: ["z"], to: 1.0 },
-      ], 600, easeInOutCubic);
+        { path: ["z"], to: 0 },
+      ], 550, easeOutCubic);
+
       jarGroup.attach(tamperBand);  // last part rotates with the jar too
       setStepState(5, "done");
       setStatus("Assembly complete. Airtight, leak-proof, tamper-evident, retail-ready.");

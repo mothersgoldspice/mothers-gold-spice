@@ -768,11 +768,11 @@ const nutrition = [
           <div class="p-5 bg-white rounded-2xl border border-ink/5 shadow-sm">
             <div class="flex items-center gap-2 mb-1">
               <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold" style="background: #c9a96e; color: #2a1a10;">3</span>
-              <p class="text-xs uppercase tracking-widest text-spice-500 font-medium">Tamper band (joint only)</p>
+              <p class="text-xs uppercase tracking-widest text-spice-500 font-medium">Tamper strip (cap to glass)</p>
             </div>
             <h3 class="font-serif text-lg text-ink mb-1">Retail tamper signal</h3>
-            <p class="text-sm text-ink/70">A thin <span class="font-semibold">~6 mm PET band</span> printed with "SEALED · Mother's Gold Spice", wrapping <em>only</em> the cap-to-neck seam — gold cap surface stays fully visible. Tears the moment the cap is twisted. Loud tamper evidence for quick-commerce + modern-trade shelves.</p>
-            <p class="text-xs text-ink/50 mt-2">~₹0.50–0.80 per jar · recyclable PET · <em>not</em> a full sleeve</p>
+            <p class="text-sm text-ink/70">A <span class="font-semibold">~13 × 48 mm printed strip</span> running <em>down</em> the jar, not around it: the top half bonds to the gold cap, the bottom half to the glass, and nothing but the strip holds the two together. Twisting the cap shears it along a printed perforation. Read head-on from a shelf — a band around the neck only shows in profile — and it leaves the cap face fully visible.</p>
+            <p class="text-xs text-ink/50 mt-2">~₹0.40–0.70 per jar · self-adhesive PET · applied by hand, no heat gun</p>
           </div>
 
           <div class="p-5 bg-white rounded-2xl border border-ink/5 shadow-sm">
@@ -1614,20 +1614,54 @@ const nutrition = [
     <circle cx="420" cy="250" r="1.8" fill="#7a1f10"/>
   </svg>`;
 
-  // SVG for the tamper band — a thin 6mm-tall joint band (NOT a full shrink sleeve).
-  // Sits over the cap-to-neck seam only; cap sides stay visible. Tears on first twist.
-  const shrinkSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 96" width="2048" height="96">
-    <rect x="0" y="0" width="2048" height="96" fill="#7a1f10"/>
-    <g font-family="'Inter', sans-serif" font-size="34" font-weight="600" fill="#fbf6ec" text-anchor="middle" dominant-baseline="middle" letter-spacing="3">
-      <text x="170"  y="50">SEALED</text>
-      <text x="510"  y="50">· MOTHER'S GOLD SPICE ·</text>
-      <text x="1024" y="50">SMALL BATCH</text>
-      <text x="1538" y="50">· MOTHER'S GOLD SPICE ·</text>
-      <text x="1878" y="50">SEALED</text>
-    </g>
-    <g stroke="#fbf6ec" stroke-opacity="0.35" stroke-width="1">
-      <line x1="0" y1="14" x2="2048" y2="14"/>
-      <line x1="0" y1="82" x2="2048" y2="82"/>
+  // SVG for the tamper strip — a VERTICAL seal bridging the cap and the glass.
+  //
+  // Not a band around the neck. This one runs straight down: its top half is stuck
+  // to the gold cap, its bottom half to the glass shoulder, and the two are only
+  // held together by the strip. Twisting the cap shears it — which is the whole
+  // point, and it is visible from straight on rather than only in profile.
+  //
+  // The texture is portrait because it maps onto a tall, narrow curved face: u
+  // runs across the ~20 mm width, v down the length. Text is rotated to read up
+  // the strip, the way it is printed on the roll.
+  // Drawn in LANDSCAPE and rotated into place. Setting type along a portrait
+  // canvas means fighting per-glyph rotation; laying it out 768×224 the normal way
+  // and turning the whole group 90° gives ordinary horizontal text that ends up
+  // reading down the strip, which is how it comes off the printing roll anyway.
+  //   translate(224 0) rotate(90): landscape (a, b) → (224 − b, a)
+  //   so `a` runs DOWN the strip and `b` runs ACROSS its width.
+  const shrinkSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224 768" width="224" height="768">
+    <rect x="0" y="0" width="224" height="768" fill="#7a1f10"/>
+    <g transform="translate(224 0) rotate(90)">
+      <!-- Perforation at 36% down, which is where the strip crosses the cap-to-glass
+           joint on the jar. Tearing anywhere else would not prove anything. -->
+      <g stroke="#fbf6ec" stroke-opacity="0.6" stroke-width="3" stroke-dasharray="10 12">
+        <line x1="276" y1="12" x2="276" y2="212"/>
+      </g>
+      <!-- Inset edge rules so the print reads as deliberate rather than bled. -->
+      <g stroke="#fbf6ec" stroke-opacity="0.28" stroke-width="2">
+        <line x1="16" y1="16" x2="752" y2="16"/>
+        <line x1="16" y1="208" x2="752" y2="208"/>
+      </g>
+      <!--
+        Two runs only, one either side of the tear. A third ("SMALL BATCH") was
+        here and had to go: at 13 mm wide the strip has ~250 px of usable length
+        above the perforation and ~490 below, and three runs collided into each
+        other. Set sizes so each run's measured width stays inside its half —
+        overlapping type on a seal reads as a printing fault, not a brand.
+      -->
+      <g font-family="'Inter', sans-serif" fill="#fbf6ec" text-anchor="middle" dominant-baseline="middle">
+        <!-- Above the tear: the half bonded to the cap. ~196 px wide. -->
+        <text x="138" y="112" font-size="42" font-weight="700" letter-spacing="9">SEALED</text>
+        <!-- Below it: the half bonded to the glass. ~394 px wide, centred at 500. -->
+        <text x="500" y="112" font-size="28" font-weight="600" letter-spacing="5">MOTHER'S GOLD SPICE</text>
+      </g>
+      <!-- Marks either side of the tear line, so a broken strip is obvious on a
+           shelf even when the two halves are still roughly aligned. -->
+      <g fill="#fbf6ec" fill-opacity="0.55">
+        <circle cx="258" cy="112" r="6"/>
+        <circle cx="294" cy="112" r="6"/>
+      </g>
     </g>
   </svg>`;
 
@@ -1889,26 +1923,54 @@ const nutrition = [
     liner.position.y = 3.05; // floating between foil (y=2.30) and cap bottom (y=3.85)
     assembly.add(liner);
 
-    // ---- LAYER 3: tamper band (joint only, not a full sleeve) ----------------
-    // A thin ~6mm-tall printed PET band that wraps the cap-to-neck seam ONLY,
-    // leaving the gold cap surface fully visible. Tears the moment the cap is twisted —
-    // tamper evidence for retail/quick-commerce shelves (Blinkit, modern trade).
-    // In real life it sits at y=1.27 (just below cap bottom) to y=1.46 (overlapping
-    // the top of the neck). For the exploded view, float it off to the side.
-    const shrinkTex = await svgToTexture(shrinkSvg, 2048, 96);
+    // ---- LAYER 3: tamper strip (vertical, bridging cap and glass) ------------
+    // A printed strip that runs DOWN the jar rather than around it: the top half
+    // is bonded to the gold cap skirt, the bottom half to the glass shoulder, and
+    // nothing but the strip holds the two together. Twisting the cap shears it
+    // along the perforation — tamper evidence that is visible head-on from a
+    // shelf, where a band around the neck reads as a shadow.
+    //
+    // Fitted rather than floated: the cap skirt sits at r=0.96 between y=1.36 and
+    // y=1.67, and the glass shoulder swells back out to r≈0.98 by y≈1.16. A strip
+    // at r=1.005 therefore touches BOTH and spans the overhang between them, which
+    // is exactly the gap a real tamper strip has to bridge.
+    // Proportions are the whole character of this part: a tamper strip is a long
+    // thin ribbon, and anything close to square reads as a sticker or a patch.
+    // At this jar's scale 1.0 unit ≈ 36 mm, so ~13 mm wide by ~48 mm long — a
+    // ratio near 1:3.7, which is what makes it legible as a strip at a glance.
+    const STRIP_R = 1.005;
+    const STRIP_TOP = 1.78;      // high on the cap, near its top edge
+    const STRIP_BOTTOM = 0.44;   // well down the glass body, past the shoulder
+    const STRIP_ARC = 0.36;      // ≈13 mm of arc
+
+    const shrinkTex = await svgToTexture(shrinkSvg, 224, 768);
     shrinkTex.colorSpace = THREE.SRGBColorSpace;
-    shrinkTex.wrapS = THREE.RepeatWrapping;
-    shrinkTex.repeat.x = 1;
+    // No repeat: the artwork is the whole strip, once.
+    shrinkTex.wrapS = THREE.ClampToEdgeWrapping;
+    shrinkTex.wrapT = THREE.ClampToEdgeWrapping;
     const shrinkMat = new THREE.MeshStandardMaterial({
       map: shrinkTex,
       roughness: 0.45,
       metalness: 0.0,
       side: THREE.DoubleSide,
     });
-    const shrinkGeo = new THREE.CylinderGeometry(0.98, 0.98, 0.19, 96, 1, true);
+    const shrinkGeo = new THREE.CylinderGeometry(
+      STRIP_R, STRIP_R, STRIP_TOP - STRIP_BOTTOM, 24, 1, true,
+      // Centred on +Z. three.js builds cylinder vertices as x = r·sin(θ),
+      // z = r·cos(θ), so θ=0 is +Z — offsetting by π/2 aims the face along +X
+      // instead, which leaves the strip edge-on to the camera and effectively
+      // invisible. Worth stating, because the mistake looks like a missing mesh.
+      -STRIP_ARC / 2, STRIP_ARC,
+    );
     const shrink = new THREE.Mesh(shrinkGeo, shrinkMat);
-    shrink.position.set(2.3, 1.6, 0); // off to the side, near the joint level
-    shrink.rotation.y = -0.35;
+    // Exploded out to the RIGHT and forward, into empty space — at z alone it sat
+    // against the glass and read as part of the jar rather than a separate layer.
+    // Every other part in this diagram is pulled clear of the silhouette; this one
+    // has to be too, or the exploded view stops explaining anything.
+    shrink.position.set(1.95, (STRIP_TOP + STRIP_BOTTOM) / 2, 1.05);
+    // Yawed back toward the camera. Sitting out at +X, a face that stays parallel
+    // to the Z plane is seen at a glancing angle; this squares it up to the eye.
+    shrink.rotation.y = -0.34;
     assembly.add(shrink);
 
     // Center the whole assembly vertically so the orbit feels balanced
@@ -1974,7 +2036,7 @@ const nutrition = [
       { text: "Induction foil",      sub: "Layer 2 · airtight seal",     target: new THREE.Vector3(0.5, 2.30 - 1.0, 0),           side: "left",  topPct: 38 },
       { text: "GPI 63/2030 neck",    sub: "thread + sealing rim",        target: new THREE.Vector3(0.86, 1.45 - 1.0, 0),          side: "right", topPct: 54 },
       { text: "Glass body + label",  sub: "flint glass, hand-filled",    target: new THREE.Vector3(1.0, -0.4 - 1.0, 0),           side: "left",  topPct: 72 },
-      { text: "Tamper band",         sub: "Layer 3 · 6mm joint seal",    target: new THREE.Vector3(2.3, 1.6 - 1.0, 0.4),          side: "right", topPct: 88 },
+      { text: "Tamper strip",        sub: "Layer 3 · cap-to-glass seal", target: new THREE.Vector3(1.95, 1.11 - 1.0, 1.05),       side: "right", topPct: 88 },
     ];
 
     const labelLayer = document.createElement("div");

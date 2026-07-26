@@ -94,7 +94,7 @@ The cap manufacturer must produce internal threads that mate with GPI 63/2030:
 | **Inner coating** | **Food-grade lacquer rated for ACIDIC + OILY contents** (critical — uncoated metal will corrode and contaminate pickle) |
 | **Closure type** | Twist-on (continuous thread) preferred over press-on lug cap |
 | **Liner / gasket** | PVC-free, food-grade liner that holds an airtight seal |
-| **Tamper evidence** | Either built-in tamper band on cap, OR confirm we'll add a separate PVC/PET shrink seal over the cap (we'll buy these separately if not part of cap) |
+| **Tamper evidence** | We apply our own vertical tamper strip across the cap-to-glass joint (a printed sticker, sourced separately from the cap) |
 | **Diameter** | Matches 63mm jar mouth — confirm thread spec (likely 63/2030 or 63/400) |
 | **Edge profile** | **Soft rounded top edge** (no sharp 90° corners) |
 
@@ -231,7 +231,7 @@ A pickle jar with mustard oil has to survive (a) air courier transit with shock 
 |---|-------|--------------|---------------------------|
 | 1 | **Cap liner / gasket** (inside the cap) | Compressible food-grade foam pressed between the cap threads and the glass rim when torqued | Primary mechanical seal — without this, even a "tight" cap leaks oil at the threads |
 | 2 | **Induction foil seal** (heat-bonded to the glass rim under the cap) | A thin foil disc with heat-activated adhesive; bonded to the rim by induction heat after capping | Air-tight integrity, 12-month shelf life, tamper evidence (foil tears on first open) |
-| 3 | **Tamper band** (joint-only PET ring, ~6 mm tall) | Thin printed band over the cap-to-neck seam only — *not* a full sleeve; cap surface stays visible | Visible tamper evidence for retail / quick-commerce shelves; preserves the premium gold-cap aesthetic |
+| 3 | **Tamper strip** (vertical PET sticker, ~13 × 48 mm) | Printed strip running down the jar, bonded to both the cap and the glass, perforated at the joint | Tamper evidence readable head-on from a shelf; preserves the premium gold-cap aesthetic |
 
 ### Layer-by-layer specifications
 
@@ -252,21 +252,21 @@ A pickle jar with mustard oil has to survive (a) air courier transit with shock 
 - Cost: ₹1–2 per jar (foil rolls — order from any induction-seal vendor on IndiaMART)
 - Stock options: plain silver, plain gold, or **printed with brand mark / "SEALED FOR FRESHNESS"** (printed adds ~₹0.50)
 
-**Layer 3 — Tamper band (joint-only, ~6 mm tall)**
-- Material: **PET shrink film** (recyclable, food-safe)
-- Height: **6 mm** — covers ONLY the cap-to-neck seam (NOT a full sleeve)
-- Why thin: the gold cap finish + foil-stamped brand mark on the cap top are our premium signals — a full sleeve would hide them. A 6 mm band sits at the seam, gives tamper evidence, leaves the cap aesthetic intact.
-- Position when applied: ~3 mm overlapping the bottom edge of the cap, ~3 mm down onto the neck (so the band spans the joint)
-- Print: small repeating **"SEALED · Mother's Gold Spice · SMALL BATCH"** in cream on spice-red, or plain spice-red with a single perforation line
-- Tear behaviour: a vertical perforation in the band tears the moment the cap is twisted — single-use, can't be re-applied
-- Applied as a small loose tube over the capped jar, then shrunk with heat gun
-- **Cost: ₹0.50–0.80 per jar** (≈ half the cost of a full sleeve thanks to less material + smaller print run)
+**Layer 3 — Tamper strip (vertical, cap to glass)**
+- Material: **self-adhesive PET label stock** (recyclable, food-safe), destructible or perforated face
+- Size: **~13 mm wide × ~48 mm long**, running DOWN the jar rather than around it
+- Position when applied: upper ~18 mm bonded to the gold cap skirt, lower ~30 mm bonded to the glass below the shoulder, spanning the overhang between them
+- Print: **"SEALED"** above the perforation, **"Mother's Gold Spice"** below, cream on spice-red
+- Tear behaviour: a printed perforation sits exactly on the cap-to-glass joint. Twisting the cap shears the strip in two — single-use, and the two halves stay stuck to the parts they were on, so the break is obvious rather than deniable
+- Applied by hand with a squeegee. **No heat gun**, which is the practical difference from a shrink band at pilot scale
+- **Cost: ₹0.40–0.70 per jar**
 
-**Why we chose joint-only over full sleeve:**
-- Premium D2C positioning — gold cap + foil-stamped brand mark stay visible
-- Cheaper per unit
+**Why a vertical strip rather than a band around the neck:**
+- **Visible head-on.** A 6 mm band at the seam is a dark line seen edge-on from a shelf; on a Blinkit or Zepto listing photograph it disappears entirely. A vertical strip reads as a seal from the front, which is the only angle a customer ever sees.
+- **Unambiguous when broken.** A sheared strip leaves two halves that no longer line up. A torn band can slip down the neck and still look like a band.
+- Gold cap finish and the foil-stamped brand mark stay fully visible either way — the strip is 13 mm across one face, not a sleeve.
+- No heat gun, no shrink tunnel, no tube to slide over a filled jar: one sticker, applied by the same hand that capped it.
 - Still satisfies retail / quick-commerce shelf tamper-evidence requirements (Blinkit, Zepto, Big Basket, modern trade)
-- Aligns with how premium European jam/pickle/honey brands handle tamper (small foil collar at neck, not full PVC sleeve)
 
 **Total seal cost per jar: ₹2.50–4** on top of jar + cap + label.
 
@@ -279,7 +279,7 @@ A pickle jar with mustard oil has to survive (a) air courier transit with shock 
 | 3 | **Wipe rim absolutely clean** — critical, any oil residue here ruins the induction seal | Lint-free cloth + iso-alcohol wipe | ₹0 |
 | 4 | Place foil disc on rim, place cap with liner on top, torque to spec | Hand-torque sealer (or hand for pilot, marked for consistency) | ₹2–5k |
 | 5 | Run jar through induction sealer (1–3 seconds) — foil bonds to glass | **Handheld induction sealer** (300–500 jars/hr) | ₹15–25k |
-| 6 | Slide tamper band over the cap-neck joint, apply heat to shrink | Heat gun (manual — pilot scale) or small shrink tunnel later | ₹2–3k (gun) |
+| 6 | Press the tamper strip down over the cap-to-glass joint | Hand + squeegee — no heat needed | ₹0 |
 | 7 | QC: visual inspection + invert 24h at 40 °C | Tray + warm room | ₹0 |
 
 **Total pilot kit: ~₹20–35k one-time** for full in-house control.
@@ -290,14 +290,14 @@ A pickle jar with mustard oil has to survive (a) air courier transit with shock 
 
 - *"Manual induction sealer 63mm"* — for the inductor (look for 50-100W handheld units around ₹15-25k)
 - *"Aluminium foil induction seal liner 63mm pickle"* — for the foil discs
-- *"PET tamper evident neck band 63mm food grade"* — for the joint band (specify height: 6 mm; some vendors will also handle the print)
+- *"tamper evident label roll destructible PET"* or *"security seal sticker perforated"* — for the strip (specify 13 × 48 mm, printed one colour; most label printers quote this as a plain sticker job)
 - *"Hand cap torque sealer 63mm"* — for the cap torquing tool
 
 ### Quality checks per batch (mandatory)
 
 Before any batch ships, pull **5 random jars** from the batch and run:
 
-1. **Visual inspection** — foil seal intact, no air gaps; tamper band intact (no pre-tears) and centred on the cap-neck joint; cap torqued evenly
+1. **Visual inspection** — foil seal intact, no air gaps; tamper strip intact (no pre-tears), straight, and with its perforation sitting on the cap-to-glass joint; cap torqued evenly
 2. **Invert test** — invert each jar onto a clean paper towel for 24h at 40 °C (room temperature in Bangalore summer). *Zero oil staining = pass.* Any seepage = batch held back; root-cause the seal.
 3. **Vacuum / pop test** — press the centre of the foil seal through the cap (where possible to feel through plastic caps; with tinplate, do this after opening the sample). Should feel firm, not click in.
 4. **Destruct sample** — open 1 of the 5, smell the oil. Should smell of fresh mustard oil, no rancid notes. Taste-test the pickle. Document any off-notes.
@@ -324,7 +324,7 @@ Keep a one-page log per batch (Date, Batch No., Jars filled, Jars passed QC, Jar
    - Jar survives a 1-meter drop test onto wood (acceptable: cap dents, body unbroken)
    - Label adheres cleanly to the body panel
 3. Use the sample to **shoot real product photos** for the website and Amazon listing.
-4. Get bulk **label printing quote** (separate vendor — local Bangalore print shop). Spec the label panel dimensions from §3. Also get a quote on the **6 mm PET tamper band** (§9, Layer 3) — same vendor if they print on shrink film.
+4. Get bulk **label printing quote** (separate vendor — local Bangalore print shop). Spec the label panel dimensions from §3. Also get a quote on the **13 × 48 mm tamper strip** (§9, Layer 3) — the same label printer can run it, since it is a sticker rather than shrink film.
 5. Place pilot order (Tier A — 500 jars) once samples pass.
 
 Update §1's `__FILL__` cells in [PRICING.md](./PRICING.md) using the actual per-jar cost from the factory quote, then re-run the viability check.
