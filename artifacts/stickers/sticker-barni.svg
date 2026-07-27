@@ -4,34 +4,38 @@
 
   <!-- ============================================================
        42 x 42 mm. All coordinates below are millimetres.
-       Die-cut circle: cx 21, cy 21, r 21. The sheet cuts it; this
-       file must not draw that outline.
-       Safe area: everything stays within r 18 of (21, 21).
-       Furthest mark from centre is the sun's crown at r 16.4.
+       Die-cut circle: cx 21, cy 21, r 21 — the sheet cuts it, so it
+       is deliberately not drawn here.
+       Safe area: every mark stays within r 18 of (21, 21). The
+       furthest out is the baseline of the type, at r 16.4; then the
+       sun's crown, at r 15.2. The glaze bands are drawn out to
+       x 11 and x 31 on purpose — they are clipped to the pot.
        ============================================================ -->
 
   <defs>
-    <!-- the jar silhouette, reused to clip the glaze bands so they
-         stop exactly on the pot's edge rather than near it -->
+    <!-- the pot's silhouette, reused to clip the glaze bands so they
+         stop exactly on its edge rather than near it -->
     <clipPath id="barni-body">
-      <path d="M 16.6 14.6
-               L 25.4 14.6
-               L 25.4 15.4
-               C 25.4 15.9, 24.6 15.75, 24.6 16.3
-               L 24.6 18.4
-               C 26.7 19.4, 28.7 21.1, 29.4 23.8
-               C 29.5 26.3, 28.1 28.6, 26.2 29.9
-               L 15.8 29.9
-               C 13.9 28.6, 12.5 26.3, 12.6 23.8
-               C 13.3 21.1, 15.3 19.4, 17.4 18.4
-               L 17.4 16.3
-               C 17.4 15.75, 16.6 15.9, 16.6 15.4
+      <path d="M 17.0 14.4
+               L 25.0 14.4
+               L 25.0 15.2
+               C 25.0 15.6, 24.3 15.5, 24.3 15.9
+               L 24.3 19.4
+               C 24.3 20.0, 25.4 20.0, 26.5 20.4
+               C 28.2 21.1, 29.3 22.5, 29.3 24.4
+               C 29.3 26.9, 28.4 29.1, 26.4 30.0
+               L 15.6 30.0
+               C 13.6 29.1, 12.7 26.9, 12.7 24.4
+               C 12.7 22.5, 13.8 21.1, 15.5 20.4
+               C 16.6 20.0, 17.7 20.0, 17.7 19.4
+               L 17.7 15.9
+               C 17.7 15.5, 17.0 15.6, 17.0 15.2
                Z"/>
     </clipPath>
 
-    <!-- baseline for the curved line of type: the lower 120 degrees of
-         a circle of radius 16.4, running left to right through the
-         bottom so the letters sit upright -->
+    <!-- baseline for the curved line of type: the lower 120 degrees
+         of a circle of radius 16.4, running left to right through the
+         bottom so the letters stand upright -->
     <path id="barni-arc" fill="none"
           d="M 6.798 29.2 A 16.4 16.4 0 0 0 35.202 29.2"/>
   </defs>
@@ -42,83 +46,95 @@
   <circle cx="21" cy="21" r="21" fill="#fbf6ec"/>
 
   <!-- ============================================================
-       THE SUN — one flat disc, sat high so a band of cream is left
-       at the bottom for the type. The jar's base finishes just
-       inside its lower edge, so the pot reads as standing on it.
+       THE SUN — one flat disc, set 1.8 mm above centre so a band of
+       cream is left at the bottom for the type. The pot's base
+       finishes 2.5 mm inside its lower edge, so the pot stands on
+       it rather than floating.
        ============================================================ -->
-  <circle cx="21" cy="18.3" r="13.7" fill="#f6b94a"/>
+  <circle cx="21" cy="19.2" r="13.4" fill="#f6b94a"/>
 
   <!-- ============================================================
-       THE BARNI — belly 16.8 mm across, short neck, flared lip.
-       The lip and neck sit under the cloth and are drawn anyway, so
-       the shape beneath the cloth is a real pot.
+       THE BARNI — 16.6 mm across the belly. Wide mouth, rolled lip,
+       short neck, shoulder rolling straight out of it. Drawn whole:
+       the neck it is tied at stays visible under the cloth, which is
+       what stops the cloth reading as a lid.
        ============================================================ -->
-  <path d="M 16.6 14.6
-           L 25.4 14.6
-           L 25.4 15.4
-           C 25.4 15.9, 24.6 15.75, 24.6 16.3
-           L 24.6 18.4
-           C 26.7 19.4, 28.7 21.1, 29.4 23.8
-           C 29.5 26.3, 28.1 28.6, 26.2 29.9
-           L 15.8 29.9
-           C 13.9 28.6, 12.5 26.3, 12.6 23.8
-           C 13.3 21.1, 15.3 19.4, 17.4 18.4
-           L 17.4 16.3
-           C 17.4 15.75, 16.6 15.9, 16.6 15.4
+  <path d="M 17.0 14.4
+           L 25.0 14.4
+           L 25.0 15.2
+           C 25.0 15.6, 24.3 15.5, 24.3 15.9
+           L 24.3 19.4
+           C 24.3 20.0, 25.4 20.0, 26.5 20.4
+           C 28.2 21.1, 29.3 22.5, 29.3 24.4
+           C 29.3 26.9, 28.4 29.1, 26.4 30.0
+           L 15.6 30.0
+           C 13.6 29.1, 12.7 26.9, 12.7 24.4
+           C 12.7 22.5, 13.8 21.1, 15.5 20.4
+           C 16.6 20.0, 17.7 20.0, 17.7 19.4
+           L 17.7 15.9
+           C 17.7 15.5, 17.0 15.6, 17.0 15.2
            Z"
         fill="#e08712" stroke="#7a1f10" stroke-width="0.5" stroke-linejoin="round"/>
 
-  <!-- glaze banding: one hairline on the shoulder, one broad band on
-       the belly. Both sag in the middle so the pot reads as round.
-       Clipped to the body, so they end on the outline. -->
+  <!-- glaze banding — one broad band across the widest part of the
+       belly with a single hairline under it, the way a potter bands
+       a pot. Kept close together so they read as one mark rather
+       than as stripes. Both sag in the middle so the pot reads as
+       round; clipped to the body so they finish on the outline. -->
   <g clip-path="url(#barni-body)">
-    <path d="M 11.0 21.4 C 15.0 22.2, 27.0 22.2, 31.0 21.4"
-          fill="none" stroke="#b8341d" stroke-width="0.55"/>
-    <path d="M 11.0 23.4 C 15.0 24.2, 27.0 24.2, 31.0 23.4
-             L 31.0 25.6 C 27.0 26.4, 15.0 26.4, 11.0 25.6 Z"
+    <path d="M 11.0 23.5 C 15.0 24.3, 27.0 24.3, 31.0 23.5
+             L 31.0 25.4 C 27.0 26.2, 15.0 26.2, 11.0 25.4 Z"
           fill="#b8341d"/>
+    <path d="M 11.0 26.9 C 15.0 27.7, 27.0 27.7, 31.0 26.9"
+          fill="none" stroke="#b8341d" stroke-width="0.5"/>
   </g>
 
   <!-- ============================================================
        THE CLOTH — a square of muslin dropped over the mouth and
-       pulled in at the neck. Three corners hang below the swags:
-       left at x 14.6, front at x 21, right at x 27.4. The outer two
-       hang clear of the pot, which is what says "cloth" at 42 mm.
+       pulled in hard at the neck. The crown is deliberately uneven,
+       higher on the left: symmetry here would read as a lid. Its two
+       side corners hang about 2 mm clear of the neck against the
+       sun, and at 42 mm that overhang is the whole reason the thing
+       reads as cloth.
        ============================================================ -->
-  <path d="M 14.6 19.9
-           C 15.1 18.5, 16.3 17.3, 17.0 16.3
-           C 16.2 15.4, 15.5 14.8, 15.5 13.6
-           C 15.5 11.9, 17.9 10.8, 21.0 10.8
-           C 24.1 10.8, 26.5 11.9, 26.5 13.6
-           C 26.5 14.8, 25.8 15.4, 25.0 16.3
-           C 25.7 17.3, 26.9 18.5, 27.4 19.9
-           C 26.3 19.0, 25.2 18.6, 24.2 18.6
-           C 23.2 18.6, 22.0 19.2, 21.0 19.9
-           C 20.0 19.2, 18.8 18.6, 17.8 18.6
-           C 16.8 18.6, 15.7 19.0, 14.6 19.9
+  <path d="M 15.5 18.8
+           C 15.9 18.0, 16.8 17.4, 17.5 16.6
+           C 16.9 15.6, 16.5 14.4, 16.7 13.2
+           C 17.7 13.0, 19.2 14.0, 21.0 14.1
+           C 22.7 14.2, 24.4 13.1, 25.3 13.35
+           C 25.5 14.4, 25.1 15.6, 24.5 16.6
+           C 25.2 17.4, 26.1 18.0, 26.5 18.8
+           C 25.6 18.3, 24.5 18.2, 23.4 18.5
+           C 22.5 18.75, 21.8 19.1, 21.0 19.15
+           C 20.2 19.1, 19.5 18.75, 18.6 18.5
+           C 17.5 18.2, 16.4 18.3, 15.5 18.8
            Z"
         fill="#fbf6ec" stroke="#7a1f10" stroke-width="0.45" stroke-linejoin="round"/>
 
-  <!-- two gathers running up out of the tie -->
+  <!-- three gathers pulled up out of the tie: three of unequal
+       length, never two of a size, or they pair up and read as a
+       face on a jar that must not have one -->
   <g fill="none" stroke="#7a1f10" stroke-width="0.38" stroke-linecap="round">
-    <path d="M 19.2 15.6 C 18.9 14.3, 19.1 12.9, 19.9 11.8"/>
-    <path d="M 22.9 15.7 C 23.2 14.5, 23.0 13.3, 22.4 12.4"/>
+    <path d="M 18.7 15.85 C 18.4 15.0, 18.5 14.4, 18.9 13.95"/>
+    <path d="M 20.9 15.9 C 20.8 15.4, 20.8 15.1, 20.9 14.6"/>
+    <path d="M 22.8 15.9 C 23.1 15.35, 23.2 14.9, 23.1 14.4"/>
   </g>
 
   <!-- ============================================================
-       THE STRING — one turn round the neck, a knot on the right and
-       two short ends left hanging.
+       THE STRING — one turn round the neck, knotted on the right,
+       two ends left hanging down the skirt. They leave the knot at
+       clearly different angles: side by side they silt up into one
+       red blob at this size.
        ============================================================ -->
   <g stroke="#b8341d" fill="none" stroke-linecap="round">
-    <path d="M 17.0 16.05 C 18.7 16.9, 23.3 16.9, 25.0 16.05" stroke-width="0.85"/>
-    <path d="M 25.1 16.6 C 25.9 17.3, 26.2 18.0, 26.0 18.8" stroke-width="0.6"/>
-    <path d="M 25.0 16.6 C 25.5 17.3, 25.4 17.9, 24.95 18.35" stroke-width="0.6"/>
+    <path d="M 17.95 16.3 C 19.4 17.05, 22.9 17.05, 24.35 16.35" stroke-width="0.9"/>
+    <path d="M 24.6 16.8 C 25.3 17.3, 25.7 17.85, 25.6 18.4" stroke-width="0.55"/>
+    <path d="M 24.3 16.9 C 24.35 17.35, 24.2 17.7, 23.85 18.0" stroke-width="0.5"/>
   </g>
-  <circle cx="25.0" cy="16.35" r="0.62" fill="#b8341d"/>
 
   <!-- ============================================================
-       TYPE — 3.5 mm, letterspaced, on the bottom arc. It names what
-       the picture is doing and nothing else.
+       TYPE — 3.5 mm, letterspaced, on the bottom arc. It says what
+       the picture is doing, and nothing else.
        ============================================================ -->
   <text font-family="'Inter', sans-serif" font-size="3.5" font-weight="500"
         letter-spacing="0.24" fill="#7a1f10">
